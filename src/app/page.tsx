@@ -34,7 +34,6 @@ export default function JournalApp() {
   });
   
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const dateRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const entryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   // Generate dates for the sidebar (last 30 days + next 7 days)
@@ -167,7 +166,6 @@ export default function JournalApp() {
       if (entryElement && sidebar) {
         // Calculate the position to center the new entry in the trigger zone
         const sidebarRect = sidebar.getBoundingClientRect();
-        const entryRect = entryElement.getBoundingClientRect();
         const triggerPoint = sidebarRect.height / 3;
         
         // Scroll to position the entry at the trigger point
@@ -198,7 +196,7 @@ export default function JournalApp() {
         }, 50);
       }
     }
-  }, [selectedEntryId]);
+  }, [selectedEntryId, getAllEntriesChronological]);
 
   // Scroll-hijacking: Auto-select entry based on scroll position in sidebar
   useEffect(() => {
@@ -247,97 +245,108 @@ export default function JournalApp() {
       
       return () => sidebar.removeEventListener('scroll', handleScroll);
     }
-  }, [selectedEntryId]);
+  }, [selectedEntryId, getAllEntriesChronological]);
 
   const currentEntry = getCurrentEntry();
-  const allEntries = getAllEntriesChronological();
 
   return (
     <div className="flex h-screen bg-neutral-50 font-[family-name:var(--font-geist-sans)]">
-      {/* Left Sidebar - Entry navigation with dynamic scrollable area */}
-      <div 
-        ref={sidebarRef}
-        className="w-64 bg-neutral-50 flex flex-col overflow-y-auto"
-        style={{ scrollBehavior: 'smooth' }}
-      >
-        <div className="relative">
-          {/* Dynamic top spacer */}
-          <div style={{ height: 'calc(100vh - 200px)' }}></div>
-          
-          <div className="px-6 space-y-4">
-            {dates.map((date) => {
-              const dateKey = formatDate(date);
-              const dayEntries = entries[dateKey] || [];
-              const sortedDayEntries = [...dayEntries].sort((a, b) => 
-                b.timestamp.getTime() - a.timestamp.getTime()
-              );
-              
-              const today = new Date();
-              today.setFullYear(2023, 9, 4); // Use the same base date for consistency
-              
-              if (dayEntries.length === 0 && dateKey !== formatDate(today)) {
-                return null; // Don't show empty days except today
-              }
-              
-              return (
-                <div key={dateKey} className="space-y-2">
-                  {/* Date header with entry count indicators */}
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-normal text-neutral-600">
-                      {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+      {/* Left Sidebar - Entry navigation with fixed indicator */}
+      <div className="w-64 bg-neutral-50 flex flex-col relative">
+        {/* Fixed selection indicator - truly fixed, won't scroll */}
+        <div 
+          className="absolute right-0 pointer-events-none z-10"
+          style={{ top: 'calc(33.333% - 4px)' }}
+        >
+          <div className="w-1 h-8 bg-gradient-to-b from-transparent via-orange-400 to-transparent opacity-60"></div>
+        </div>
+        
+        {/* Scrollable content area */}
+        <div 
+          ref={sidebarRef}
+          className="flex-1 overflow-y-auto scrollbar-hide"
+          style={{ 
+            scrollBehavior: 'smooth',
+            scrollbarWidth: 'none', /* Firefox */
+            msOverflowStyle: 'none', /* Internet Explorer 10+ */
+          }}
+        >
+          <div className="relative">
+            {/* Dynamic top spacer */}
+            <div style={{ height: 'calc(100vh - 200px)' }}></div>
+            
+            <div className="px-6 space-y-6">
+              {dates.map((date) => {
+                const dateKey = formatDate(date);
+                const dayEntries = entries[dateKey] || [];
+                const sortedDayEntries = [...dayEntries].sort((a, b) => 
+                  b.timestamp.getTime() - a.timestamp.getTime()
+                );
+                
+                const today = new Date();
+                today.setFullYear(2023, 9, 4); // Use the same base date for consistency
+                
+                if (dayEntries.length === 0 && dateKey !== formatDate(today)) {
+                  return null; // Don't show empty days except today
+                }
+                
+                return (
+                  <div key={dateKey} className="space-y-3">
+                    {/* Date header with entry count indicators */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="text-sm font-medium text-neutral-700">
+                        {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                      </div>
+                      {/* Visual indicators - small vertical lines */}
+                      <div className="flex gap-1">
+                        {Array.from({ length: Math.min(dayEntries.length, 5) }).map((_, i) => (
+                          <div key={i} className="w-[2px] h-3 bg-neutral-400"></div>
+                        ))}
+                        {dayEntries.length > 5 && (
+                          <div className="text-xs text-neutral-400 ml-1">+{dayEntries.length - 5}</div>
+                        )}
+                      </div>
                     </div>
-                    {/* Visual indicators - small vertical lines */}
-                    <div className="flex gap-1">
-                      {Array.from({ length: Math.min(dayEntries.length, 5) }).map((_, i) => (
-                        <div key={i} className="w-[2px] h-3 bg-neutral-400"></div>
-                      ))}
-                      {dayEntries.length > 5 && (
-                        <div className="text-xs text-neutral-400 ml-1">+{dayEntries.length - 5}</div>
+                    
+                    {/* Entries for this day */}
+                    <div className="ml-3 space-y-2">
+                      {sortedDayEntries.map((entry) => {
+                        const isSelected = selectedEntryId === entry.id;
+                        return (
+                          <div
+                            key={entry.id}
+                            ref={(el) => {
+                              entryRefs.current[entry.id] = el;
+                            }}
+                            onClick={() => setSelectedEntryId(entry.id)}
+                            className={`cursor-pointer py-2 px-3 rounded transition-colors duration-200 ${
+                              isSelected 
+                                ? 'text-black' 
+                                : 'text-neutral-400 hover:text-neutral-600'
+                            }`}
+                          >
+                            <div className="text-sm leading-relaxed line-clamp-1">
+                              {entry.content || 'Empty entry'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Show "No entries" for today if empty */}
+                      {dayEntries.length === 0 && dateKey === formatDate(today) && (
+                        <div className="text-xs text-neutral-400 ml-3 py-2">
+                          No entries yet
+                        </div>
                       )}
                     </div>
                   </div>
-                  
-                  {/* Entries for this day */}
-                  <div className="ml-2 space-y-1">
-                    {sortedDayEntries.map((entry) => {
-                      const isSelected = selectedEntryId === entry.id;
-                      return (
-                        <div
-                          key={entry.id}
-                          ref={(el) => {
-                            entryRefs.current[entry.id] = el;
-                          }}
-                          onClick={() => setSelectedEntryId(entry.id)}
-                          className={`cursor-pointer py-1 px-2 rounded transition-colors duration-200 ${
-                            isSelected 
-                              ? 'text-black bg-neutral-100' 
-                              : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50'
-                          }`}
-                        >
-                          <div className="text-xs text-neutral-500 mb-1">
-                            {formatTime(entry.timestamp)}
-                          </div>
-                          <div className="text-sm truncate">
-                            {entry.content || 'Empty entry'}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Show "No entries" for today if empty */}
-                    {dayEntries.length === 0 && dateKey === formatDate(today) && (
-                      <div className="text-xs text-neutral-400 ml-2 py-1">
-                        No entries yet
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            
+            {/* Dynamic bottom spacer */}
+            <div style={{ height: 'calc(100vh - 200px)' }}></div>
           </div>
-          
-          {/* Dynamic bottom spacer */}
-          <div style={{ height: 'calc(100vh - 200px)' }}></div>
         </div>
       </div>
 
