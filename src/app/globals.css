@@ -40,3 +40,88 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* TipTap Editor Styling - Keep it minimal */
+.ProseMirror {
+  outline: none;
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  color: #000;
+  height: 100%;
+  padding: 0;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #a1a1aa;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Minimal markdown styling */
+.ProseMirror h1 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin: 1em 0 0.5em 0;
+}
+
+.ProseMirror h2 {
+  font-size: 1.3em;
+  font-weight: 600;
+  margin: 1em 0 0.5em 0;
+}
+
+.ProseMirror h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 1em 0 0.5em 0;
+}
+
+.ProseMirror strong {
+  font-weight: 600;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror code {
+  background: #f5f5f5;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #e5e5e5;
+  padding-left: 1em;
+  margin: 1em 0;
+  color: #666;
+}
+
+.ProseMirror ul, .ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.ProseMirror li {
+  margin: 0.25em 0;
+}
+
+/* Tag highlighting for [word]: format - using regex-like CSS targeting */
+.ProseMirror p:has-text('['), 
+.ProseMirror {
+  /* This approach won't work with pure CSS, need JS solution */
+}
+
+/* Alternative: Style any text that matches the pattern */
+.tag-highlight {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-weight: 500;
+  font-size: 0.9em;
+}
