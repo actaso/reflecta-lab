@@ -99,6 +99,19 @@ export default function JournalApp() {
     return div.textContent || div.innerText || '';
   };
 
+  // Count words in entry content
+  const countWords = (content: string) => {
+    const text = stripHtml(content).trim();
+    if (!text) return 0;
+    return text.split(/\s+/).length;
+  };
+
+  // Calculate line width based on word count (max 20px at 200+ words, min 10px)
+  const calculateLineWidth = (wordCount: number) => {
+    if (wordCount === 0) return 10;
+    return Math.max(Math.min((wordCount / 200) * 20, 20), 10);
+  };
+
   // Get all entries sorted by date and time (newest first)
   const getAllEntriesChronological = useCallback(() => {
     const allEntries: Array<{ entry: JournalEntry; dateKey: string }> = [];
@@ -394,26 +407,27 @@ export default function JournalApp() {
                 
                 return (
                   <div key={dateKey} className="space-y-2">
-                    {/* Date header with entry count indicators */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="text-sm font-medium text-neutral-700">
-                        {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                      </div>
-                      {/* Visual indicators - small vertical lines */}
-                      <div className="flex gap-1">
-                        {Array.from({ length: Math.min(dayEntries.length, 5) }).map((_, i) => (
-                          <div key={i} className="w-[2px] h-3 bg-neutral-400"></div>
-                        ))}
-                        {dayEntries.length > 5 && (
-                          <div className="text-xs text-neutral-400 ml-1">+{dayEntries.length - 5}</div>
-                        )}
+                    {/* Day separator - red line with date for every day */}
+                    <div className="ml-3 mb-2 mt-6">
+                      <div className="px-3 py-1.5">
+                        <div className="flex items-center justify-between gap-2 min-h-[20px]">
+                          <div className="text-xs text-neutral-500">
+                            {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </div>
+                          <div className="flex-1 flex justify-end">
+                            <div className="w-5 h-[3px] bg-red-500 rounded-sm"></div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     
                     {/* Entries for this day */}
-                    <div className="ml-3 space-y-1">
+                    <div className="ml-3 space-y-px">
                       {sortedDayEntries.map((entry) => {
                         const isSelected = selectedEntryId === entry.id;
+                        const wordCount = countWords(entry.content);
+                        const lineWidth = calculateLineWidth(wordCount);
+                        
                         return (
                           <div
                             key={entry.id}
@@ -427,11 +441,18 @@ export default function JournalApp() {
                             }`}
                             onClick={() => setSelectedEntryId(entry.id)}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="text-sm leading-relaxed line-clamp-1 flex-1">
-                                {stripHtml(entry.content) || 'Empty entry'}
+                            <div className="flex items-center justify-between gap-2 min-h-[20px]">
+                              {/* Always show only line indicator, right-aligned */}
+                              <div className="flex-1 flex justify-end">
+                                <div 
+                                  className={`h-[2px] transition-all duration-200 ${
+                                    isSelected ? 'bg-neutral-600' : 'bg-neutral-300'
+                                  }`}
+                                  style={{ width: `${lineWidth}px` }}
+                                ></div>
                               </div>
-                              {/* Delete button - subtle gray, appears on hover */}
+                              
+                              {/* Delete button - appears on hover */}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
