@@ -513,14 +513,16 @@ export default function JournalApp() {
         </div>
         
         {/* Writing area */}
-        <div className="flex-1 px-8 pb-8 relative">
+        <div className="flex-1 px-8 pb-8 relative overflow-auto">
           {currentEntry ? (
-            <Editor
-              content={currentEntry.entry.content}
-              onChange={handleEntryChange}
-              placeholder="Start writing, press ? for help..."
-              autoFocus={true}
-            />
+            <div className="min-h-full">
+              <Editor
+                content={currentEntry.entry.content}
+                onChange={handleEntryChange}
+                placeholder="Start writing, press ? for help..."
+                autoFocus={true}
+              />
+            </div>
           ) : (
             <div className="flex items-center justify-center h-full text-neutral-400">
               <div className="text-center">
