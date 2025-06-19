@@ -366,181 +366,177 @@ export default function JournalApp() {
   const currentEntry = getCurrentEntry();
 
   return (
-    <div className="flex h-screen bg-neutral-50 font-[family-name:var(--font-geist-sans)]">
-      {/* Left Sidebar - Entry navigation with fixed indicator */}
-      <div className="w-64 bg-neutral-50 flex flex-col relative">
-        {/* Fixed selection indicator - truly fixed, won't scroll */}
-        <div 
-          className="absolute right-0 pointer-events-none z-10"
-          style={{ top: 'calc(33.333% - 4px)' }}
-        >
-          <div className="w-1 h-8 bg-gradient-to-b from-transparent via-orange-400 to-transparent opacity-60"></div>
-        </div>
-        
-        {/* Scrollable content area */}
-        <div 
-          ref={sidebarRef}
-          className="flex-1 overflow-y-auto scrollbar-hide"
-          style={{ 
-            scrollBehavior: 'smooth',
-            scrollbarWidth: 'none', /* Firefox */
-            msOverflowStyle: 'none', /* Internet Explorer 10+ */
-          }}
-        >
-          <div className="relative">
-            {/* Dynamic top spacer */}
-            <div style={{ height: 'calc(100vh - 200px)' }}></div>
-            
-            <div className="px-6 space-y-4">
-              {dates.map((date) => {
-                const dateKey = formatDate(date);
-                const dayEntries = entries[dateKey] || [];
-                const sortedDayEntries = [...dayEntries].sort((a, b) => 
-                  b.timestamp.getTime() - a.timestamp.getTime()
-                );
+    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
+      {/* Container to center sidebar and content */}
+      <div className="flex-1 flex justify-center">
+        <div className="flex max-w-7xl w-full">
+          {/* Left Sidebar - Entry navigation */}
+          <div className="w-64 bg-neutral-50 dark:bg-neutral-900 flex flex-col relative">
+            {/* Scrollable content area */}
+            <div 
+              ref={sidebarRef}
+              className="flex-1 overflow-y-auto scrollbar-hide"
+              style={{ 
+                scrollBehavior: 'smooth',
+                scrollbarWidth: 'none', /* Firefox */
+                msOverflowStyle: 'none', /* Internet Explorer 10+ */
+              }}
+            >
+              <div className="relative">
+                {/* Dynamic top spacer */}
+                <div style={{ height: 'calc(100vh - 200px)' }}></div>
                 
-                const today = new Date();
-                
-                if (dayEntries.length === 0 && dateKey !== formatDate(today)) {
-                  return null; // Don't show empty days except today
-                }
-                
-                return (
-                  <div key={dateKey} className="space-y-2">
-                    {/* Day separator - red line with date for every day */}
-                    <div className="ml-3 mb-2 mt-6">
-                      <div className="px-3 py-1.5">
-                        <div className="flex items-center justify-between gap-2 min-h-[20px]">
-                          <div className="text-xs text-neutral-500">
-                            {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                          </div>
-                          <div className="flex-1 flex justify-end">
-                            <div className="w-5 h-[3px] bg-red-500 rounded-sm"></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                <div className="px-6 space-y-4">
+                  {dates.map((date) => {
+                    const dateKey = formatDate(date);
+                    const dayEntries = entries[dateKey] || [];
+                    const sortedDayEntries = [...dayEntries].sort((a, b) => 
+                      b.timestamp.getTime() - a.timestamp.getTime()
+                    );
                     
-                    {/* Entries for this day */}
-                    <div className="ml-3 space-y-px">
-                      {sortedDayEntries.map((entry) => {
-                        const isSelected = selectedEntryId === entry.id;
-                        const wordCount = countWords(entry.content);
-                        const lineWidth = calculateLineWidth(wordCount);
-                        
-                        return (
-                          <div
-                            key={entry.id}
-                            ref={(el) => {
-                              entryRefs.current[entry.id] = el;
-                            }}
-                            className={`group relative cursor-pointer py-1.5 px-3 rounded transition-colors duration-200 ${
-                              isSelected 
-                                ? 'text-black' 
-                                : 'text-neutral-400 hover:text-neutral-600'
-                            }`}
-                            onClick={() => setSelectedEntryId(entry.id)}
-                          >
+                    const today = new Date();
+                    
+                    if (dayEntries.length === 0 && dateKey !== formatDate(today)) {
+                      return null; // Don't show empty days except today
+                    }
+                    
+                    return (
+                      <div key={dateKey} className="space-y-2">
+                        {/* Day separator - red line with date for every day */}
+                        <div className="ml-3 mb-2 mt-6">
+                          <div className="px-3 py-1.5">
                             <div className="flex items-center justify-between gap-2 min-h-[20px]">
-                              {/* Always show only line indicator, right-aligned */}
-                              <div className="flex-1 flex justify-end">
-                                <div 
-                                  className={`h-[2px] transition-all duration-200 ${
-                                    isSelected ? 'bg-neutral-600' : 'bg-neutral-300'
-                                  }`}
-                                  style={{ width: `${lineWidth}px` }}
-                                ></div>
+                              <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                                {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                               </div>
-                              
-                              {/* Delete button - appears on hover */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteEntry(entry.id);
-                                }}
-                                className="flex-shrink-0 w-4 h-4 text-neutral-300 hover:text-neutral-500 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-all duration-200"
-                                title="Delete entry"
-                              >
-                                ×
-                              </button>
+                              <div className="flex-1 flex justify-end">
+                                <div className="w-5 h-[3px] bg-red-500 rounded-sm"></div>
+                              </div>
                             </div>
                           </div>
-                        );
-                      })}
-                      
-                      {/* Show "No entries" for today if empty */}
-                      {dayEntries.length === 0 && dateKey === formatDate(today) && (
-                        <div className="text-xs text-neutral-400 ml-3 py-1">
-                          No entries yet
                         </div>
-                      )}
+                        
+                        {/* Entries for this day */}
+                        <div className="ml-3 space-y-px">
+                          {sortedDayEntries.map((entry) => {
+                            const isSelected = selectedEntryId === entry.id;
+                            const wordCount = countWords(entry.content);
+                            const lineWidth = calculateLineWidth(wordCount);
+                            
+                            return (
+                              <div
+                                key={entry.id}
+                                ref={(el) => {
+                                  entryRefs.current[entry.id] = el;
+                                }}
+                                className={`group relative cursor-pointer py-1.5 px-3 rounded transition-colors duration-200 ${
+                                  isSelected 
+                                    ? 'text-black dark:text-white' 
+                                    : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300'
+                                }`}
+                                onClick={() => setSelectedEntryId(entry.id)}
+                              >
+                                <div className="flex items-center justify-between gap-2 min-h-[20px]">
+                                  {/* Always show only line indicator, right-aligned */}
+                                  <div className="flex-1 flex justify-end">
+                                    <div 
+                                      className={`h-[2px] transition-all duration-200 ${
+                                        isSelected ? 'bg-neutral-600 dark:bg-neutral-300' : 'bg-neutral-300 dark:bg-neutral-600'
+                                      }`}
+                                      style={{ width: `${lineWidth}px` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Show "No entries" for today if empty */}
+                          {dayEntries.length === 0 && dateKey === formatDate(today) && (
+                            <div className="text-xs text-neutral-400 ml-3 py-1">
+                              No entries yet
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Dynamic bottom spacer */}
+                <div style={{ height: 'calc(100vh - 200px)' }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden">
+            {/* Content Container with max width */}
+            <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full overflow-hidden">
+              {/* Header with entry info and buttons */}
+              <div className="pt-8 px-8 pb-4 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center">
+                  <h1 className="text-base text-black dark:text-white font-normal">
+                    {currentEntry ? formatDisplayDate(new Date(currentEntry.dateKey)) : 'Select an entry'}
+                  </h1>
+                  <div className="ml-3 w-6 h-[2px] bg-orange-500"></div>
+                  {currentEntry && (
+                    <div className="ml-4 text-sm text-neutral-500 dark:text-neutral-400">
+                      {formatTime(currentEntry.entry.timestamp)}
+                    </div>
+                  )}
+                  {/* Delete button next to title */}
+                  {currentEntry && (
+                    <button
+                      onClick={() => deleteEntry(currentEntry.entry.id)}
+                      className="ml-4 w-6 h-6 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 flex items-center justify-center text-sm transition-colors"
+                      title="Delete entry"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                
+                {/* ? Button for help */}
+                <button
+                  onClick={() => setShowHelp(!showHelp)}
+                  className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
+                  title="Show shortcuts"
+                >
+                  <span className="text-lg leading-none">?</span>
+                </button>
+              </div>
+              
+              {/* Writing area */}
+              <div className="flex-1 px-8 pb-8 overflow-auto min-h-0 scrollbar-hide">
+                {currentEntry ? (
+                  <Editor
+                    content={currentEntry.entry.content}
+                    onChange={handleEntryChange}
+                    placeholder="Start writing, press ? for help..."
+                    autoFocus={true}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-neutral-400 dark:text-neutral-500">
+                    <div className="text-center">
+                      <div className="text-lg mb-2">Welcome to your journal</div>
+                      <div className="text-sm">Press Cmd+Enter to create your first entry</div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            
-            {/* Dynamic bottom spacer */}
-            <div style={{ height: 'calc(100vh - 200px)' }}></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 bg-neutral-50 flex flex-col">
-        {/* Header with entry info and + button */}
-        <div className="pt-8 px-8 pb-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <h1 className="text-base text-black font-normal">
-              {currentEntry ? formatDisplayDate(new Date(currentEntry.dateKey)) : 'Select an entry'}
-            </h1>
-            <div className="ml-3 w-6 h-[2px] bg-orange-500"></div>
-            {currentEntry && (
-              <div className="ml-4 text-sm text-neutral-500">
-                {formatTime(currentEntry.entry.timestamp)}
-              </div>
-            )}
-          </div>
-          
-          {/* ? Button for help */}
-          <button
-            onClick={() => setShowHelp(!showHelp)}
-            className="w-8 h-8 rounded-full bg-neutral-200 text-neutral-600 flex items-center justify-center hover:bg-neutral-300 transition-colors"
-            title="Show shortcuts"
-          >
-            <span className="text-lg leading-none">?</span>
-          </button>
-        </div>
-        
-        {/* Writing area */}
-        <div className="flex-1 px-8 pb-8 relative overflow-auto">
-          {currentEntry ? (
-            <div className="min-h-full">
-              <Editor
-                content={currentEntry.entry.content}
-                onChange={handleEntryChange}
-                placeholder="Start writing, press ? for help..."
-                autoFocus={true}
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full text-neutral-400">
-              <div className="text-center">
-                <div className="text-lg mb-2">Welcome to your journal</div>
-                <div className="text-sm">Press Cmd+Enter to create your first entry</div>
+                )}
               </div>
             </div>
-          )}
+          </div>
           
           {/* Help Modal */}
           {showHelp && (
-            <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-lg border border-neutral-200 p-6 max-w-md w-full mx-4">
+            <div className="absolute inset-0 bg-white/95 dark:bg-black/95 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700 p-6 max-w-md w-full mx-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-black">Keyboard Shortcuts</h3>
+                  <h3 className="text-lg font-medium text-black dark:text-white">Keyboard Shortcuts</h3>
                   <button
                     onClick={() => setShowHelp(false)}
-                    className="text-neutral-400 hover:text-neutral-600 text-xl"
+                    className="text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 text-xl"
                   >
                     ×
                   </button>
@@ -548,23 +544,23 @@ export default function JournalApp() {
                 
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between items-center">
-                    <span className="text-neutral-600">Create new entry</span>
-                    <kbd className="px-2 py-1 bg-neutral-100 rounded text-xs font-mono">Cmd+Enter</kbd>
+                    <span className="text-neutral-600 dark:text-neutral-300">Create new entry</span>
+                    <kbd className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-300 rounded text-xs font-mono">Cmd+Enter</kbd>
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-neutral-600">Navigate to newer entry</span>
-                    <kbd className="px-2 py-1 bg-neutral-100 rounded text-xs font-mono">Cmd+↑</kbd>
+                    <span className="text-neutral-600 dark:text-neutral-300">Navigate to newer entry</span>
+                    <kbd className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-300 rounded text-xs font-mono">Cmd+↑</kbd>
                   </div>
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-neutral-600">Navigate to older entry</span>
-                    <kbd className="px-2 py-1 bg-neutral-100 rounded text-xs font-mono">Cmd+↓</kbd>
+                    <span className="text-neutral-600 dark:text-neutral-300">Navigate to older entry</span>
+                    <kbd className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-300 rounded text-xs font-mono">Cmd+↓</kbd>
                   </div>
                   
-                  <div className="border-t border-neutral-200 pt-3 mt-4">
-                    <div className="text-neutral-600 mb-2">Markdown Support:</div>
-                    <div className="space-y-1 text-xs text-neutral-500">
+                  <div className="border-t border-neutral-200 dark:border-neutral-600 pt-3 mt-4">
+                    <div className="text-neutral-600 dark:text-neutral-300 mb-2">Markdown Support:</div>
+                    <div className="space-y-1 text-xs text-neutral-500 dark:text-neutral-400">
                       <div><code># Heading</code> for headers</div>
                       <div><code>**bold**</code> and <code>*italic*</code></div>
                       <div><code>- list item</code> for bullet lists</div>
@@ -573,16 +569,16 @@ export default function JournalApp() {
                     </div>
                   </div>
                   
-                  <div className="border-t border-neutral-200 pt-3 mt-4">
-                    <div className="text-neutral-600 mb-2">Tags:</div>
-                    <div className="space-y-1 text-xs text-neutral-500">
+                  <div className="border-t border-neutral-200 dark:border-neutral-600 pt-3 mt-4">
+                    <div className="text-neutral-600 dark:text-neutral-300 mb-2">Tags:</div>
+                    <div className="space-y-1 text-xs text-neutral-500 dark:text-neutral-400">
                       <div><code>tag:</code> for highlighted tags at line start</div>
-                      <div className="text-neutral-400">Example: work: Meeting notes</div>
+                      <div className="text-neutral-400 dark:text-neutral-500">Example: work: Meeting notes</div>
                     </div>
                   </div>
                   
-                  <div className="border-t border-neutral-200 pt-3 mt-4">
-                    <div className="text-xs text-neutral-500">
+                  <div className="border-t border-neutral-200 dark:border-neutral-600 pt-3 mt-4">
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
                       Hover over entries in the sidebar to delete them.
                     </div>
                   </div>

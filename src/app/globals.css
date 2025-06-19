@@ -14,8 +14,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #f9fafb;
-    --foreground: #171717;
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
 }
 
@@ -57,8 +57,13 @@ html {
   font-size: 16px;
   line-height: 1.6;
   color: #000;
-  height: 100%;
-  padding: 0;
+  padding: 0 0 50vh 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ProseMirror {
+    color: #ededed;
+  }
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
@@ -67,6 +72,12 @@ html {
   color: #a1a1aa;
   pointer-events: none;
   height: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ProseMirror p.is-editor-empty:first-child::before {
+    color: #52525b;
+  }
 }
 
 /* Minimal markdown styling */
@@ -103,6 +114,13 @@ html {
   font-size: 0.9em;
 }
 
+@media (prefers-color-scheme: dark) {
+  .ProseMirror code {
+    background: #374151;
+    color: #d1d5db;
+  }
+}
+
 .ProseMirror blockquote {
   border-left: 3px solid #e5e5e5;
   padding-left: 1em;
@@ -110,13 +128,28 @@ html {
   color: #666;
 }
 
-.ProseMirror ul, .ProseMirror ol {
+@media (prefers-color-scheme: dark) {
+  .ProseMirror blockquote {
+    border-left-color: #4b5563;
+    color: #9ca3af;
+  }
+}
+
+.ProseMirror ul {
   padding-left: 1.5em;
   margin: 0.5em 0;
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+  list-style-type: decimal;
 }
 
 .ProseMirror li {
   margin: 0.25em 0;
+  display: list-item;
 }
 
 /* Tag highlighting for [word]: format - using regex-like CSS targeting */

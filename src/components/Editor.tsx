@@ -34,8 +34,7 @@ export default function Editor({ content, onChange, placeholder = "Start writing
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-neutral max-w-none focus:outline-none min-h-full',
-        style: 'min-height: 100%; padding-bottom: 50vh;',
+        class: 'max-w-none focus:outline-none',
       },
     },
   });
@@ -57,10 +56,10 @@ export default function Editor({ content, onChange, placeholder = "Start writing
   }, [editor, autoFocus]);
 
   return (
-    <div className="w-full min-h-full">
+    <div className="w-full">
       <EditorContent 
         editor={editor} 
-        className="w-full min-h-full"
+        className="w-full"
       />
     </div>
   );
