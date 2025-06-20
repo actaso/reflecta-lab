@@ -103,9 +103,79 @@ entries: Record<string, JournalEntry[]>
 - **react**: UI library
 - **tailwindcss**: Utility-first CSS framework
 
+## Testing
+
+### Test Framework
+- **Jest**: Test runner with React Testing Library for component testing
+- **Coverage requirement**: Maintain 80% code coverage minimum
+- **Test structure**: Organized in `__tests__` directories and `.test.ts/.tsx` files
+
+### Test Commands
+```bash
+npm test          # Run all tests
+npm run test:watch # Run tests in watch mode
+npm run test:coverage # Run tests with coverage report
+npm run test:ci   # Run tests for CI (no watch, with coverage)
+```
+
+### Testing Guidelines
+
+#### **CRITICAL: Always Test Before Pushing**
+1. **Run tests before every push**: `npm run test:ci`
+2. **Tests must pass**: Never push with failing tests
+3. **Maintain coverage**: Keep above 80% code coverage
+
+#### **Test-Driven Development**
+1. **Write tests first** for complex features
+2. **Add tests for new features** - Every new feature needs corresponding tests
+3. **Update existing tests** when modifying functionality
+4. **Test edge cases** and error conditions
+
+#### **Test Categories**
+1. **Unit Tests**: Utility functions (`src/utils/__tests__/`)
+2. **Component Tests**: Individual components (`src/components/__tests__/`)
+3. **Integration Tests**: User workflows (`src/__tests__/`)
+4. **Critical Functionality**: Entry creation, navigation, persistence
+
+#### **Core Test Coverage**
+- ✅ **Entry Creation** (Cmd+Enter) - Must never break
+- ✅ **Entry Navigation** (Cmd+Up/Down) - Must work without flashing
+- ✅ **Data Persistence** - localStorage save/load
+- ✅ **Content Editing** - Real-time saving
+- ✅ **Scroll Hijacking** - Auto-selection while scrolling
+- ✅ **Tag Highlighting** - Markdown-style `tag:` patterns
+- ✅ **Utility Functions** - Date formatting, word counting, HTML stripping
+
+#### **Test Patterns**
+```typescript
+// Unit test example
+describe('formatDate', () => {
+  it('should format date as YYYY-MM-DD', () => {
+    const date = new Date('2024-03-15T10:30:00Z');
+    expect(formatDate(date)).toBe('2024-03-15');
+  });
+});
+
+// Component test example
+describe('Editor', () => {
+  it('should call onChange when content updates', () => {
+    const mockOnChange = jest.fn();
+    render(<Editor content="test" onChange={mockOnChange} />);
+    // Test implementation
+  });
+});
+```
+
+#### **Memory: Testing Workflow**
+When making ANY changes to the codebase:
+1. **Before coding**: Consider what tests need to be added/updated
+2. **During coding**: Write tests alongside implementation
+3. **Before committing**: Run `npm run test:ci` to ensure all tests pass
+4. **Before pushing**: Double-check tests are passing and coverage is maintained
+
 ## Development Notes
 
-- **Build process**: Always run `npm run lint` before building
+- **Build process**: Always run `npm run lint` and `npm run test:ci` before building/pushing
 - **TypeScript**: Strict mode enabled, avoid `any` types
 - **Performance**: Functions like `getAllEntriesChronological` are memoized with `useCallback`
 - **Browser compatibility**: Uses modern features, scrollbar hiding works cross-browser

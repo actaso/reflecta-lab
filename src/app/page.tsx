@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Editor from '../components/Editor';
+import { formatDate, formatDisplayDate, formatTime, stripHtml, countWords, calculateLineWidth } from '../utils/formatters';
 
 type JournalEntry = {
   id: string;
@@ -48,9 +49,6 @@ export default function JournalApp() {
     }
   }, [entries, isLoaded]);
 
-  const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
 
   // Generate dates for the sidebar - show dates that have entries plus today (descending order)
   const generateDates = () => {
@@ -76,42 +74,6 @@ export default function JournalApp() {
 
   const dates = generateDates();
 
-  const formatDisplayDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'long', 
-      month: 'long', 
-      day: 'numeric' 
-    };
-    return date.toLocaleDateString('en-US', options);
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  };
-
-  // Strip HTML tags and return clean text for preview
-  const stripHtml = (html: string) => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    return div.textContent || div.innerText || '';
-  };
-
-  // Count words in entry content
-  const countWords = (content: string) => {
-    const text = stripHtml(content).trim();
-    if (!text) return 0;
-    return text.split(/\s+/).length;
-  };
-
-  // Calculate line width based on word count (max 20px at 200+ words, min 10px)
-  const calculateLineWidth = (wordCount: number) => {
-    if (wordCount === 0) return 10;
-    return Math.max(Math.min((wordCount / 200) * 20, 20), 10);
-  };
 
   // Get all entries sorted by date and time (newest first)
   const getAllEntriesChronological = useCallback(() => {
