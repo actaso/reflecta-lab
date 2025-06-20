@@ -5,6 +5,8 @@ import Editor from '../components/Editor';
 import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
+import AIChatSidebar from '../components/AIChatSidebar';
+import { AIMode } from '../components/AIDropdown';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 
 type JournalEntry = {
@@ -18,6 +20,8 @@ export default function JournalApp() {
   const [entries, setEntries] = useState<Record<string, JournalEntry[]>>({});
   const [isLoaded, setIsLoaded] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
+  const [chatMode, setChatMode] = useState<AIMode | null>(null);
   
   const sidebarRef = useRef<HTMLDivElement>(null);
   const entryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -291,11 +295,39 @@ export default function JournalApp() {
 
   const currentEntry = getCurrentEntry();
 
+  // Handle AI mode selection from dropdown
+  const handleAIModeSelect = (mode: AIMode) => {
+    setChatMode(mode);
+    setChatSidebarOpen(true);
+  };
+
+  // Get context for AI chat (current entry content + some additional context)
+  const getChatContext = () => {
+    if (!currentEntry) return '';
+    
+    // Extract plain text from HTML content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = currentEntry.entry.content;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // Format with timestamp for better context
+    const timestamp = currentEntry.entry.timestamp.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    return `Journal Entry from ${timestamp}:\n\n${textContent}`;
+  };
+
   return (
     <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
       {/* Container to center sidebar and content */}
       <div className="flex-1 flex justify-center">
-        <div className="flex max-w-7xl w-full">
+        <div className={`flex max-w-7xl w-full ${chatSidebarOpen ? 'pr-0' : ''}`}>
           {/* Left Sidebar - Entry navigation */}
           <Sidebar
             entries={entries}
@@ -324,6 +356,7 @@ export default function JournalApp() {
                     onChange={handleEntryChange}
                     placeholder="Start writing, press ? for help..."
                     autoFocus={true}
+                    onAIModeSelect={handleAIModeSelect}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-neutral-400 dark:text-neutral-500">
@@ -339,6 +372,17 @@ export default function JournalApp() {
           
           {/* Help Modal */}
           <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+          
+          {/* AI Chat Sidebar */}
+          <AIChatSidebar
+            isOpen={chatSidebarOpen}
+            mode={chatMode}
+            context={getChatContext()}
+            onClose={() => {
+              setChatSidebarOpen(false);
+              setChatMode(null);
+            }}
+          />
         </div>
       </div>
     </div>

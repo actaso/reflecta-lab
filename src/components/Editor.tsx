@@ -3,18 +3,19 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { AutoTagExtension } from './AutoTagExtension';
-import AIDropdown from './AIDropdown';
+import AIDropdown, { AIMode } from './AIDropdown';
 
 interface EditorProps {
   content: string;
   onChange: (content: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  onAIModeSelect?: (mode: AIMode) => void;
 }
 
-export default function Editor({ content, onChange, placeholder = "Start writing...", autoFocus = false }: EditorProps) {
+export default function Editor({ content, onChange, placeholder = "Start writing...", autoFocus = false, onAIModeSelect }: EditorProps) {
   const [showAIDropdown, setShowAIDropdown] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ x: 0, y: 0 });
   const editorRef = useRef<HTMLDivElement>(null);
@@ -60,7 +61,7 @@ export default function Editor({ content, onChange, placeholder = "Start writing
   }, [editor, autoFocus]);
 
   // Get cursor position for dropdown placement
-  const getCursorPosition = () => {
+  const getCursorPosition = useCallback(() => {
     if (!editor || !editorRef.current) return { x: 0, y: 0 };
 
     const { view } = editor;
@@ -70,20 +71,20 @@ export default function Editor({ content, onChange, placeholder = "Start writing
 
     // Get coordinates of cursor position
     const coords = view.coordsAtPos(from);
-    const editorRect = editorRef.current.getBoundingClientRect();
 
     return {
       x: coords.left,
       y: coords.bottom + 8, // Add some spacing below cursor
     };
-  };
+  }, [editor]);
 
   // Handle Shift key for AI dropdown
   useEffect(() => {
     if (!editor) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift' && !e.repeat) {
+    const handleKeyDown = (e: Event) => {
+      const keyboardEvent = e as KeyboardEvent;
+      if (keyboardEvent.key === 'Shift' && !keyboardEvent.repeat) {
         if (showAIDropdown) {
           setShowAIDropdown(false);
         } else {
@@ -103,19 +104,14 @@ export default function Editor({ content, onChange, placeholder = "Start writing
         editorElement.removeEventListener('keydown', handleKeyDown);
       };
     }
-  }, [editor, showAIDropdown]);
+  }, [editor, showAIDropdown, getCursorPosition]);
 
-  // Handle AI suggestion selection
-  const handleAISuggestionSelect = (suggestion: string) => {
-    if (!editor) return;
-    
-    // For now, just insert the suggestion as text
-    // In the future, this could trigger actual AI processing
-    const currentContent = editor.getText();
-    const newContent = currentContent + (currentContent ? '\n\n' : '') + `💡 ${suggestion}`;
-    
-    editor.commands.setContent(newContent);
-    editor.commands.focus('end');
+  // Handle AI mode selection
+  const handleAIModeSelect = (mode: AIMode) => {
+    if (onAIModeSelect) {
+      onAIModeSelect(mode);
+    }
+    setShowAIDropdown(false);
   };
 
   return (
@@ -128,7 +124,7 @@ export default function Editor({ content, onChange, placeholder = "Start writing
         isVisible={showAIDropdown}
         position={dropdownPosition}
         onClose={() => setShowAIDropdown(false)}
-        onSelect={handleAISuggestionSelect}
+        onSelect={handleAIModeSelect}
       />
     </div>
   );

@@ -2,22 +2,31 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+export type AIMode = 'dive-deeper' | 'reflect-back' | 'scrutinize-thinking';
+
 interface AIDropdownProps {
   isVisible: boolean;
   position: { x: number; y: number };
   onClose: () => void;
-  onSelect: (suggestion: string) => void;
+  onSelect: (mode: AIMode) => void;
 }
 
-const mockSuggestions = [
-  "Expand on this idea",
-  "Ask a follow-up question", 
-  "Summarize key points",
-  "Add supporting details",
-  "Consider alternative perspectives",
-  "Connect to personal experience",
-  "Explore implications",
-  "Break down into steps"
+const aiModes: { id: AIMode; label: string; description: string }[] = [
+  {
+    id: 'dive-deeper',
+    label: 'Dive Deeper',
+    description: 'Explore and expand your ideas'
+  },
+  {
+    id: 'reflect-back',
+    label: 'Reflect Back',
+    description: 'Get thoughtful insights and reflections'
+  },
+  {
+    id: 'scrutinize-thinking',
+    label: 'Scrutinize Thinking',
+    description: 'Challenge and strengthen your reasoning'
+  }
 ];
 
 export default function AIDropdown({ isVisible, position, onClose, onSelect }: AIDropdownProps) {
@@ -39,15 +48,15 @@ export default function AIDropdown({ isVisible, position, onClose, onSelect }: A
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setSelectedIndex(prev => (prev + 1) % mockSuggestions.length);
+          setSelectedIndex(prev => (prev + 1) % aiModes.length);
           break;
         case 'ArrowUp':
           e.preventDefault();
-          setSelectedIndex(prev => prev === 0 ? mockSuggestions.length - 1 : prev - 1);
+          setSelectedIndex(prev => prev === 0 ? aiModes.length - 1 : prev - 1);
           break;
         case 'Enter':
           e.preventDefault();
-          onSelect(mockSuggestions[selectedIndex]);
+          onSelect(aiModes[selectedIndex].id);
           onClose();
           break;
         case 'Escape':
@@ -86,21 +95,24 @@ export default function AIDropdown({ isVisible, position, onClose, onSelect }: A
         top: position.y,
       }}
     >
-      {mockSuggestions.map((suggestion, index) => (
+      {aiModes.map((mode, index) => (
         <div
-          key={index}
-          className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+          key={mode.id}
+          className={`px-4 py-3 cursor-pointer transition-colors ${
             index === selectedIndex
               ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100'
               : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-750'
           }`}
           onClick={() => {
-            onSelect(suggestion);
+            onSelect(mode.id);
             onClose();
           }}
           onMouseEnter={() => setSelectedIndex(index)}
         >
-          {suggestion}
+          <div className="font-medium text-sm">{mode.label}</div>
+          <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+            {mode.description}
+          </div>
         </div>
       ))}
     </div>
