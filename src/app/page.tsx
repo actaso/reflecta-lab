@@ -17,6 +17,7 @@ export default function JournalApp() {
   
   const sidebarRef = useRef<HTMLDivElement>(null);
   const entryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const isKeyboardNavigatingRef = useRef(false);
 
   // Load entries from localStorage on mount
   useEffect(() => {
@@ -264,7 +265,8 @@ export default function JournalApp() {
   // Scroll-hijacking: Auto-select entry based on scroll position in sidebar
   useEffect(() => {
     const handleScroll = () => {
-      if (!sidebarRef.current) return;
+      // Skip scroll-hijacking during keyboard navigation
+      if (!sidebarRef.current || isKeyboardNavigatingRef.current) return;
 
       const sidebar = sidebarRef.current;
       const sidebarRect = sidebar.getBoundingClientRect();
@@ -341,6 +343,8 @@ export default function JournalApp() {
 
         const newSelectedEntry = allEntries[currentIndex];
         if (newSelectedEntry) {
+          // Set flag to disable scroll-hijacking during navigation (immediate, synchronous)
+          isKeyboardNavigatingRef.current = true;
           setSelectedEntryId(newSelectedEntry.entry.id);
           
           // Scroll to the selected entry
@@ -353,6 +357,11 @@ export default function JournalApp() {
               const triggerPoint = sidebarRect.height / 3;
               const targetScrollTop = entryElement.offsetTop - triggerPoint;
               sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+              
+              // Re-enable scroll-hijacking after scroll animation completes
+              setTimeout(() => {
+                isKeyboardNavigatingRef.current = false;
+              }, 500); // Allow time for smooth scroll to complete
             }
           }, 50);
         }
