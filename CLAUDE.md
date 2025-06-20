@@ -23,6 +23,7 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Framework**: Next.js 15 with App Router architecture
 - **Styling**: TailwindCSS v4 with PostCSS
 - **Rich Text**: TipTap editor with markdown support and custom extensions
+- **AI Integration**: Vercel AI SDK with OpenAI GPT-4o-mini for founder-focused assistance
 - **Data Storage**: localStorage for client-side persistence
 - **Fonts**: Geist Sans and Geist Mono from next/font/google
 - **TypeScript**: Strict mode enabled with path aliases (`@/*` → `./src/*`)
@@ -41,11 +42,26 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Tag highlighting**: Automatic highlighting of `word:` patterns at line start
 - **Auto-focus**: Seamless entry creation with immediate cursor focus
 - **Minimal design**: Clean interface without visual clutter
+- **AI integration**: Shift key triggers AI mode selector for contextual assistance
+
+### AI Chat Sidebar
+- **Three thinking modes** designed specifically for founders:
+  - **Dive Deeper**: Strategic exploration and opportunity identification
+  - **Reflect Back**: Entrepreneurial journey insights and pattern recognition
+  - **Scrutinize Thinking**: Business strategy validation and risk assessment
+- **Context-aware responses**: Automatically injects journal entry content as context
+- **Streaming chat**: Real-time responses using OpenAI GPT-4o-mini via Vercel AI SDK
+- **VS Code-style interface**: Resizable sidebar (300-600px) with professional design
+- **Auto-focus input**: Cursor automatically goes to chat input when sidebar opens
 
 ### User Interactions
 - **Keyboard shortcuts**:
   - `Cmd+Enter`: Create new entry
   - `Cmd+Up/Down`: Navigate between entries
+  - `Shift`: Open AI mode selector (while in editor)
+  - `ESC`: Close AI sidebar
+  - `Enter`: Send chat message / Select dropdown option
+  - `Shift+Enter`: New line in chat input
 - **Mouse interactions**: Click entries to select, hover to show delete buttons
 - **Help system**: `?` button with comprehensive usage documentation
 
@@ -59,13 +75,23 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 ```
 src/
 ├── app/
+│   ├── api/chat/
+│   │   └── route.ts        # OpenAI API endpoint for streaming AI responses
 │   ├── layout.tsx          # Root layout with fonts and metadata
 │   ├── page.tsx            # Main journal application component
 │   └── globals.css         # Global styles and TipTap customizations
-└── components/
-    ├── Editor.tsx          # TipTap editor wrapper component
-    ├── AutoTagExtension.ts # Custom TipTap extension for tag highlighting
-    └── TagExtension.ts     # TipTap mark extension (utility)
+├── components/
+│   ├── Editor.tsx          # TipTap editor wrapper with AI integration
+│   ├── AIChatSidebar.tsx   # Resizable VS Code-style AI chat sidebar
+│   ├── ChatInterface.tsx   # Chat message management and state
+│   ├── ChatMessage.tsx     # Individual message bubble component
+│   ├── ChatInput.tsx       # Auto-resizing input with keyboard shortcuts
+│   ├── AIDropdown.tsx      # Three-mode AI selector dropdown
+│   ├── AutoTagExtension.ts # Custom TipTap extension for tag highlighting
+│   └── TagExtension.ts     # TipTap mark extension (utility)
+└── docs/
+    ├── AI_CHAT_SIDEBAR.md     # Comprehensive AI feature documentation
+    └── DEVELOPER_ONBOARDING.md # Developer setup and patterns guide
 ```
 
 ## Key Implementation Details
@@ -82,6 +108,18 @@ The sidebar implements scroll-hijacking by:
 - **Implementation**: Custom TipTap extension using ProseMirror decorations
 - **Styling**: Yellow background (`#fef3c7`) with brown text (`#92400e`)
 
+### AI Chat System
+The AI chat provides founder-focused assistance through:
+1. **Context Extraction**: Automatically extracts plain text from current journal entry with timestamp
+2. **Mode-Specific Prompts**: Three specialized system prompts tailored for founder needs
+3. **Streaming Responses**: Real-time AI responses using Vercel AI SDK and OpenAI GPT-4o-mini
+4. **VS Code-Style UI**: Resizable sidebar with professional chat interface
+
+**AI Thinking Modes**:
+- **Dive Deeper**: Strategic advisor helping explore opportunities and frameworks
+- **Reflect Back**: Seasoned mentor providing entrepreneurial journey insights
+- **Scrutinize Thinking**: Business strategist challenging assumptions and identifying risks
+
 ### Data Structure
 ```typescript
 type JournalEntry = {
@@ -96,12 +134,20 @@ entries: Record<string, JournalEntry[]>
 
 ## Dependencies
 
-- **@tiptap/react**: Rich text editor framework
-- **@tiptap/starter-kit**: Basic TipTap extensions
-- **@tiptap/extension-placeholder**: Placeholder text support
+### Core Framework
 - **next**: React framework
 - **react**: UI library
 - **tailwindcss**: Utility-first CSS framework
+
+### Rich Text Editor
+- **@tiptap/react**: Rich text editor framework
+- **@tiptap/starter-kit**: Basic TipTap extensions
+- **@tiptap/extension-placeholder**: Placeholder text support
+
+### AI Integration
+- **ai**: Vercel AI SDK for streaming responses and chat hooks
+- **@ai-sdk/openai**: OpenAI provider for Vercel AI SDK
+- **openai**: OpenAI API client library
 
 ## Testing
 
