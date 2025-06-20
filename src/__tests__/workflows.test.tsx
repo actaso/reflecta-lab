@@ -12,7 +12,7 @@ jest.mock('@tiptap/react', () => ({
       focus: jest.fn(),
     },
   })),
-  EditorContent: ({ editor }: any) => (
+  EditorContent: () => (
     <div data-testid="editor-content">
       <textarea 
         data-testid="mock-editor-input"

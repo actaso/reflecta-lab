@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Editor from '../components/Editor';
-import { formatDate, formatDisplayDate, formatTime, stripHtml, countWords, calculateLineWidth } from '../utils/formatters';
+import Sidebar from '../components/Sidebar';
+import HelpModal from '../components/HelpModal';
+import EntryHeader from '../components/EntryHeader';
+import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 
 type JournalEntry = {
   id: string;
@@ -50,54 +53,9 @@ export default function JournalApp() {
   }, [entries, isLoaded]);
 
 
-  // Generate dates for the sidebar - show dates that have entries plus today (descending order)
-  const generateDates = () => {
-    const dates = new Set<string>();
-    const today = new Date();
-    const todayKey = formatDate(today);
-    
-    // Add today
-    dates.add(todayKey);
-    
-    // Add all dates that have entries
-    Object.keys(entries).forEach(dateKey => {
-      if (entries[dateKey].length > 0) {
-        dates.add(dateKey);
-      }
-    });
-    
-    // Convert to Date objects and sort descending (newest first)
-    return Array.from(dates)
-      .map(dateKey => new Date(dateKey))
-      .sort((a, b) => b.getTime() - a.getTime());
-  };
-
-  const dates = generateDates();
 
 
-  // Get all entries sorted by date and time (newest first)
-  const getAllEntriesChronological = useCallback(() => {
-    const allEntries: Array<{ entry: JournalEntry; dateKey: string }> = [];
-    
-    Object.keys(entries).forEach(dateKey => {
-      const dayEntries = entries[dateKey] || [];
-      // Sort entries for this day by timestamp (newest first)
-      const sortedDayEntries = [...dayEntries].sort((a, b) => 
-        b.timestamp.getTime() - a.timestamp.getTime()
-      );
-      
-      sortedDayEntries.forEach(entry => {
-        allEntries.push({ entry, dateKey });
-      });
-    });
-    
-    // Sort all entries by date and time (newest first)
-    return allEntries.sort((a, b) => {
-      const dateA = new Date(a.dateKey + 'T' + a.entry.timestamp.toTimeString());
-      const dateB = new Date(b.dateKey + 'T' + b.entry.timestamp.toTimeString());
-      return dateB.getTime() - dateA.getTime();
-    });
-  }, [entries]);
+  const allEntriesChronological = getAllEntriesChronological(entries);
 
   // Get the current selected entry
   const getCurrentEntry = () => {
@@ -181,7 +139,7 @@ export default function JournalApp() {
           
           // If this was the selected entry, select another one
           if (selectedEntryId === entryId) {
-            const allEntries = getAllEntriesChronological();
+            const allEntries = getAllEntriesChronological(newEntries);
             const remainingEntries = allEntries.filter(({ entry }) => entry.id !== entryId);
             setSelectedEntryId(remainingEntries.length > 0 ? remainingEntries[0].entry.id : null);
           }
@@ -196,9 +154,8 @@ export default function JournalApp() {
   // Initialize with the first entry and set initial scroll position
   useEffect(() => {
     if (isLoaded && !selectedEntryId) {
-      const allEntries = getAllEntriesChronological();
-      if (allEntries.length > 0) {
-        setSelectedEntryId(allEntries[0].entry.id);
+      if (allEntriesChronological.length > 0) {
+        setSelectedEntryId(allEntriesChronological[0].entry.id);
         
         // Set initial scroll position to show the first entry in the trigger zone
         // Use multiple animation frames to ensure everything is fully rendered
@@ -206,7 +163,7 @@ export default function JournalApp() {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               const sidebar = sidebarRef.current;
-              const firstEntryElement = entryRefs.current[allEntries[0].entry.id];
+              const firstEntryElement = entryRefs.current[allEntriesChronological[0].entry.id];
               
               if (sidebar && firstEntryElement) {
                 // Double-check that the element has been rendered
@@ -222,7 +179,7 @@ export default function JournalApp() {
         }, 150);
       }
     }
-  }, [selectedEntryId, getAllEntriesChronological, isLoaded]);
+  }, [selectedEntryId, allEntriesChronological, isLoaded]);
 
   // Scroll-hijacking: Auto-select entry based on scroll position in sidebar
   useEffect(() => {
@@ -237,11 +194,10 @@ export default function JournalApp() {
       let closestEntryId = null;
       let closestDistance = Infinity;
       
-      const allEntries = getAllEntriesChronological();
-      if (allEntries.length === 0) return;
+      if (allEntriesChronological.length === 0) return;
 
       // Simple approach: find the entry closest to the trigger point
-      for (const { entry } of allEntries) {
+      for (const { entry } of allEntriesChronological) {
         const element = entryRefs.current[entry.id];
         
         if (element) {
@@ -272,7 +228,7 @@ export default function JournalApp() {
       
       return () => sidebar.removeEventListener('scroll', handleScroll);
     }
-  }, [selectedEntryId, getAllEntriesChronological]);
+  }, [selectedEntryId, allEntriesChronological]);
 
   // Add keyboard shortcuts
   useEffect(() => {
@@ -288,22 +244,21 @@ export default function JournalApp() {
       if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
         event.preventDefault();
         
-        const allEntries = getAllEntriesChronological();
-        if (allEntries.length === 0) return;
+        if (allEntriesChronological.length === 0) return;
 
         let currentIndex = selectedEntryId 
-          ? allEntries.findIndex(({ entry }) => entry.id === selectedEntryId)
+          ? allEntriesChronological.findIndex(({ entry }) => entry.id === selectedEntryId)
           : -1;
 
         if (event.key === 'ArrowUp') {
           // Move to previous entry (newer)
-          currentIndex = currentIndex <= 0 ? allEntries.length - 1 : currentIndex - 1;
+          currentIndex = currentIndex <= 0 ? allEntriesChronological.length - 1 : currentIndex - 1;
         } else {
           // Move to next entry (older)
-          currentIndex = currentIndex >= allEntries.length - 1 ? 0 : currentIndex + 1;
+          currentIndex = currentIndex >= allEntriesChronological.length - 1 ? 0 : currentIndex + 1;
         }
 
-        const newSelectedEntry = allEntries[currentIndex];
+        const newSelectedEntry = allEntriesChronological[currentIndex];
         if (newSelectedEntry) {
           // Set flag to disable scroll-hijacking during navigation (immediate, synchronous)
           isKeyboardNavigatingRef.current = true;
@@ -332,7 +287,7 @@ export default function JournalApp() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEntryId, createNewEntry, getAllEntriesChronological]);
+  }, [selectedEntryId, createNewEntry, allEntriesChronological]);
 
   const currentEntry = getCurrentEntry();
 
@@ -342,141 +297,24 @@ export default function JournalApp() {
       <div className="flex-1 flex justify-center">
         <div className="flex max-w-7xl w-full">
           {/* Left Sidebar - Entry navigation */}
-          <div className="w-64 bg-neutral-50 dark:bg-neutral-900 flex flex-col relative">
-            {/* Scrollable content area */}
-            <div 
-              ref={sidebarRef}
-              className="flex-1 overflow-y-auto scrollbar-hide"
-              style={{ 
-                scrollBehavior: 'smooth',
-                scrollbarWidth: 'none', /* Firefox */
-                msOverflowStyle: 'none', /* Internet Explorer 10+ */
-              }}
-            >
-              <div className="relative">
-                {/* Dynamic top spacer */}
-                <div style={{ height: 'calc(100vh - 200px)' }}></div>
-                
-                <div className="px-6 space-y-4">
-                  {dates.map((date) => {
-                    const dateKey = formatDate(date);
-                    const dayEntries = entries[dateKey] || [];
-                    const sortedDayEntries = [...dayEntries].sort((a, b) => 
-                      b.timestamp.getTime() - a.timestamp.getTime()
-                    );
-                    
-                    const today = new Date();
-                    
-                    if (dayEntries.length === 0 && dateKey !== formatDate(today)) {
-                      return null; // Don't show empty days except today
-                    }
-                    
-                    return (
-                      <div key={dateKey} className="space-y-2">
-                        {/* Day separator - red line with date for every day */}
-                        <div className="ml-3 mb-2 mt-6">
-                          <div className="px-3 py-1.5">
-                            <div className="flex items-center justify-between gap-2 min-h-[20px]">
-                              <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                                {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                              </div>
-                              <div className="flex-1 flex justify-end">
-                                <div className="w-5 h-[3px] bg-red-500 rounded-sm"></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Entries for this day */}
-                        <div className="ml-3 space-y-px">
-                          {sortedDayEntries.map((entry) => {
-                            const isSelected = selectedEntryId === entry.id;
-                            const wordCount = countWords(entry.content);
-                            const lineWidth = calculateLineWidth(wordCount);
-                            
-                            return (
-                              <div
-                                key={entry.id}
-                                ref={(el) => {
-                                  entryRefs.current[entry.id] = el;
-                                }}
-                                className={`group relative cursor-pointer py-1.5 px-3 rounded transition-colors duration-200 ${
-                                  isSelected 
-                                    ? 'text-black dark:text-white' 
-                                    : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300'
-                                }`}
-                                onClick={() => setSelectedEntryId(entry.id)}
-                              >
-                                <div className="flex items-center justify-between gap-2 min-h-[20px]">
-                                  {/* Always show only line indicator, right-aligned */}
-                                  <div className="flex-1 flex justify-end">
-                                    <div 
-                                      className={`h-[2px] transition-all duration-200 ${
-                                        isSelected ? 'bg-neutral-600 dark:bg-neutral-300' : 'bg-neutral-300 dark:bg-neutral-600'
-                                      }`}
-                                      style={{ width: `${lineWidth}px` }}
-                                    ></div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                          
-                          {/* Show "No entries" for today if empty */}
-                          {dayEntries.length === 0 && dateKey === formatDate(today) && (
-                            <div className="text-xs text-neutral-400 ml-3 py-1">
-                              No entries yet
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {/* Dynamic bottom spacer */}
-                <div style={{ height: 'calc(100vh - 200px)' }}></div>
-              </div>
-            </div>
-          </div>
+          <Sidebar
+            entries={entries}
+            selectedEntryId={selectedEntryId}
+            sidebarRef={sidebarRef}
+            entryRefs={entryRefs}
+            onSelectEntry={setSelectedEntryId}
+          />
 
           {/* Main Content Area */}
           <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden">
             {/* Content Container with max width */}
             <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full overflow-hidden">
               {/* Header with entry info and buttons */}
-              <div className="pt-8 px-8 pb-4 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center">
-                  <h1 className="text-base text-black dark:text-white font-normal">
-                    {currentEntry ? formatDisplayDate(new Date(currentEntry.dateKey)) : 'Select an entry'}
-                  </h1>
-                  <div className="ml-3 w-6 h-[2px] bg-orange-500"></div>
-                  {currentEntry && (
-                    <div className="ml-4 text-sm text-neutral-500 dark:text-neutral-400">
-                      {formatTime(currentEntry.entry.timestamp)}
-                    </div>
-                  )}
-                  {/* Delete button next to title */}
-                  {currentEntry && (
-                    <button
-                      onClick={() => deleteEntry(currentEntry.entry.id)}
-                      className="ml-4 w-6 h-6 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400 flex items-center justify-center text-sm transition-colors"
-                      title="Delete entry"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-                
-                {/* ? Button for help */}
-                <button
-                  onClick={() => setShowHelp(!showHelp)}
-                  className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
-                  title="Show shortcuts"
-                >
-                  <span className="text-lg leading-none">?</span>
-                </button>
-              </div>
+              <EntryHeader
+                currentEntry={currentEntry}
+                onDeleteEntry={deleteEntry}
+                onShowHelp={() => setShowHelp(!showHelp)}
+              />
               
               {/* Writing area */}
               <div className="flex-1 px-8 pb-8 overflow-auto min-h-0 scrollbar-hide">
@@ -500,63 +338,7 @@ export default function JournalApp() {
           </div>
           
           {/* Help Modal */}
-          {showHelp && (
-            <div className="absolute inset-0 bg-white/95 dark:bg-black/95 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700 p-6 max-w-md w-full mx-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-black dark:text-white">Keyboard Shortcuts</h3>
-                  <button
-                    onClick={() => setShowHelp(false)}
-                    className="text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 text-xl"
-                  >
-                    ×
-                  </button>
-                </div>
-                
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-neutral-600 dark:text-neutral-300">Create new entry</span>
-                    <kbd className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-300 rounded text-xs font-mono">Cmd+Enter</kbd>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-neutral-600 dark:text-neutral-300">Navigate to newer entry</span>
-                    <kbd className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-300 rounded text-xs font-mono">Cmd+↑</kbd>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-neutral-600 dark:text-neutral-300">Navigate to older entry</span>
-                    <kbd className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-300 rounded text-xs font-mono">Cmd+↓</kbd>
-                  </div>
-                  
-                  <div className="border-t border-neutral-200 dark:border-neutral-600 pt-3 mt-4">
-                    <div className="text-neutral-600 dark:text-neutral-300 mb-2">Markdown Support:</div>
-                    <div className="space-y-1 text-xs text-neutral-500 dark:text-neutral-400">
-                      <div><code># Heading</code> for headers</div>
-                      <div><code>**bold**</code> and <code>*italic*</code></div>
-                      <div><code>- list item</code> for bullet lists</div>
-                      <div><code>`code`</code> for inline code</div>
-                      <div><code>&gt; quote</code> for blockquotes</div>
-                    </div>
-                  </div>
-                  
-                  <div className="border-t border-neutral-200 dark:border-neutral-600 pt-3 mt-4">
-                    <div className="text-neutral-600 dark:text-neutral-300 mb-2">Tags:</div>
-                    <div className="space-y-1 text-xs text-neutral-500 dark:text-neutral-400">
-                      <div><code>tag:</code> for highlighted tags at line start</div>
-                      <div className="text-neutral-400 dark:text-neutral-500">Example: work: Meeting notes</div>
-                    </div>
-                  </div>
-                  
-                  <div className="border-t border-neutral-200 dark:border-neutral-600 pt-3 mt-4">
-                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                      Hover over entries in the sidebar to delete them.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
         </div>
       </div>
     </div>

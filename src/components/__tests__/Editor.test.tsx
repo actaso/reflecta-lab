@@ -6,8 +6,8 @@ import Editor from '../Editor';
 // Mock TipTap
 jest.mock('@tiptap/react', () => ({
   useEditor: jest.fn(),
-  EditorContent: ({ editor }: any) => (
-    <div data-testid="editor-content" data-editor-id={editor?.id || 'mock-editor'} />
+  EditorContent: ({ editor }: { editor?: unknown }) => (
+    <div data-testid="editor-content" data-editor-id={(editor as { id?: string })?.id || 'mock-editor'} />
   ),
 }));
 
@@ -38,7 +38,7 @@ describe('Editor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseEditor.mockReturnValue(mockEditor as any);
+    mockUseEditor.mockReturnValue(mockEditor as unknown);
   });
 
   afterEach(() => {
