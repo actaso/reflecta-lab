@@ -41,6 +41,22 @@ export default function Editor({ content, onChange, placeholder = "Start writing
       attributes: {
         class: 'max-w-none focus:outline-none',
       },
+      handleKeyDown: (view, event) => {
+        // Handle Shift+Cmd for AI dropdown
+        if (event.shiftKey && event.metaKey && !event.repeat) {
+          event.preventDefault();
+          
+          if (showAIDropdown) {
+            setShowAIDropdown(false);
+          } else {
+            const position = getCursorPosition();
+            setDropdownPosition(position);
+            setShowAIDropdown(true);
+          }
+          return true;
+        }
+        return false;
+      },
     },
   });
 
@@ -78,33 +94,6 @@ export default function Editor({ content, onChange, placeholder = "Start writing
     };
   }, [editor]);
 
-  // Handle Shift key for AI dropdown
-  useEffect(() => {
-    if (!editor) return;
-
-    const handleKeyDown = (e: Event) => {
-      const keyboardEvent = e as KeyboardEvent;
-      if (keyboardEvent.key === 'Shift' && !keyboardEvent.repeat) {
-        if (showAIDropdown) {
-          setShowAIDropdown(false);
-        } else {
-          const position = getCursorPosition();
-          setDropdownPosition(position);
-          setShowAIDropdown(true);
-        }
-      }
-    };
-
-    // Add event listeners to the editor's DOM element
-    const editorElement = editorRef.current?.querySelector('.ProseMirror');
-    if (editorElement) {
-      editorElement.addEventListener('keydown', handleKeyDown);
-      
-      return () => {
-        editorElement.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [editor, showAIDropdown, getCursorPosition]);
 
   // Handle AI mode selection
   const handleAIModeSelect = (mode: AIMode) => {

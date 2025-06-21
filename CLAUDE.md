@@ -58,7 +58,7 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Keyboard shortcuts**:
   - `Cmd+Enter`: Create new entry
   - `Cmd+Up/Down`: Navigate between entries
-  - `Shift`: Open AI mode selector (while in editor)
+  - `Shift+Cmd`: Open AI mode selector (while in editor)
   - `ESC`: Close AI sidebar
   - `Enter`: Send chat message / Select dropdown option
   - `Shift+Enter`: New line in chat input
