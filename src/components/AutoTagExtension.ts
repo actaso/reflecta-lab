@@ -17,7 +17,8 @@ export const AutoTagExtension = Extension.create({
             const doc = state.doc;
             
             // Regex to match word: pattern at the beginning of a line (word followed by colon, no space)
-            const tagRegex = /^([a-zA-Z0-9_-]+):/gm;
+            // Exclude protocol patterns like "https:", "http:", "ftp:", etc.
+            const tagRegex = /^(?!(?:https?|ftp|mailto|file|tel):)([a-zA-Z0-9_-]+):/gm;
             
             doc.descendants((node, pos) => {
               if (node.isText && node.text) {

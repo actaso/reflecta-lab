@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import Link from '@tiptap/extension-link';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { AutoTagExtension } from './AutoTagExtension';
 import AIDropdown, { AIMode } from './AIDropdown';
@@ -29,6 +30,16 @@ export default function Editor({ content, onChange, placeholder = "Start writing
       }),
       Placeholder.configure({
         placeholder,
+      }),
+      Link.configure({
+        openOnClick: true,
+        autolink: true,
+        defaultProtocol: 'https',
+        HTMLAttributes: {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          class: 'text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors',
+        },
       }),
       AutoTagExtension,
     ],
