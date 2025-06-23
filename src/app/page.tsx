@@ -221,6 +221,22 @@ export default function JournalApp() {
       if (closestEntryId && selectedEntryId !== closestEntryId) {
         setSelectedEntryId(closestEntryId);
       }
+
+      if (allEntriesChronological.length > 0) {
+        const mostRecentEntryId = allEntriesChronological[0].entry.id;
+        if (selectedEntryId === mostRecentEntryId) {
+          const mostRecentElement = entryRefs.current[mostRecentEntryId];
+          if (mostRecentElement) {
+            const sidebarHeight = sidebar.clientHeight;
+            const triggerPoint = sidebarHeight / 3;
+            const maxScrollTop = Math.max(0, mostRecentElement.offsetTop - triggerPoint);
+            
+            if (sidebar.scrollTop > maxScrollTop) {
+              sidebar.scrollTo({ top: maxScrollTop, behavior: 'auto' });
+            }
+          }
+        }
+      }
     };
 
     const sidebar = sidebarRef.current;
