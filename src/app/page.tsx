@@ -174,7 +174,7 @@ export default function JournalApp() {
                 if (firstEntryElement.offsetHeight > 0) {
                   const sidebarHeight = sidebar.clientHeight;
                   const triggerPoint = sidebarHeight / 3;
-                  const targetScrollTop = firstEntryElement.offsetTop - triggerPoint;
+                  const targetScrollTop = Math.max(0, firstEntryElement.offsetTop - triggerPoint);
                   sidebar.scrollTo({ top: targetScrollTop, behavior: 'auto' });
                 }
               }
