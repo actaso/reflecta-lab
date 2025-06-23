@@ -19,6 +19,10 @@ jest.mock('@tiptap/extension-placeholder', () => ({
   configure: jest.fn(() => 'mock-placeholder'),
 }));
 
+jest.mock('@tiptap/extension-link', () => ({
+  configure: jest.fn(() => 'mock-link'),
+}));
+
 jest.mock('../AutoTagExtension', () => ({
   AutoTagExtension: 'mock-auto-tag-extension',
 }));
@@ -70,6 +74,7 @@ describe('Editor', () => {
       extensions: [
         'mock-starter-kit',
         'mock-placeholder',
+        'mock-link',
         'mock-auto-tag-extension',
       ],
       content,
@@ -79,6 +84,7 @@ describe('Editor', () => {
         attributes: {
           class: 'max-w-none focus:outline-none',
         },
+        handleKeyDown: expect.any(Function),
       },
     });
   });
