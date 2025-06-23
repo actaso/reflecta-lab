@@ -39,6 +39,13 @@ export const calculateLineWidth = (wordCount: number): number => {
   return Math.max(Math.min((wordCount / 200) * 20, 20), 10);
 };
 
+// Get preview text for tooltip (first 12 characters)
+export const getPreviewText = (content: string): string => {
+  const text = stripHtml(content).trim();
+  if (!text) return 'Empty';
+  return text.length > 12 ? text.substring(0, 12) + '...' : text;
+};
+
 type JournalEntry = {
   id: string;
   timestamp: Date;

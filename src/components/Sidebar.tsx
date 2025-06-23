@@ -1,7 +1,7 @@
 'use client';
 
-import { RefObject } from 'react';
-import { formatDate, countWords, calculateLineWidth } from '../utils/formatters';
+import { RefObject, useState } from 'react';
+import { formatDate, countWords, calculateLineWidth, getPreviewText } from '../utils/formatters';
 
 type JournalEntry = {
   id: string;
@@ -24,6 +24,7 @@ export default function Sidebar({
   entryRefs,
   onSelectEntry
 }: SidebarProps) {
+  const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
   // Generate dates for the sidebar - show dates that have entries plus today (descending order)
   const generateDates = () => {
     const dates = new Set<string>();
@@ -100,6 +101,8 @@ export default function Sidebar({
                       const isSelected = selectedEntryId === entry.id;
                       const wordCount = countWords(entry.content);
                       const lineWidth = calculateLineWidth(wordCount);
+                      const previewText = getPreviewText(entry.content);
+                      const isHovered = hoveredEntryId === entry.id;
                       
                       return (
                         <div
@@ -115,6 +118,8 @@ export default function Sidebar({
                               : 'text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300'
                           }`}
                           onClick={() => onSelectEntry(entry.id)}
+                          onMouseEnter={() => setHoveredEntryId(entry.id)}
+                          onMouseLeave={() => setHoveredEntryId(null)}
                         >
                           <div className="flex items-center justify-between gap-2 min-h-[20px]">
                             {/* Always show only line indicator, right-aligned */}
@@ -127,6 +132,16 @@ export default function Sidebar({
                               ></div>
                             </div>
                           </div>
+                          
+                          {/* Tooltip */}
+                          {isHovered && (
+                            <div 
+                              className="absolute top-1/2 -translate-y-1/2 z-50 px-2 py-1 bg-neutral-800 dark:bg-neutral-700 text-white text-xs rounded shadow-lg whitespace-nowrap max-w-sm"
+                              style={{ right: `calc(${lineWidth}px + 18px)` }}
+                            >
+                              {previewText}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
