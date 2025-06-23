@@ -227,9 +227,6 @@ export default function JournalApp() {
     if (sidebar) {
       sidebar.addEventListener('scroll', handleScroll, { passive: true });
       
-      // Initial call to set the first entry
-      setTimeout(() => handleScroll(), 100);
-      
       return () => sidebar.removeEventListener('scroll', handleScroll);
     }
   }, [selectedEntryId, allEntriesChronological]);
@@ -334,7 +331,29 @@ export default function JournalApp() {
             selectedEntryId={selectedEntryId}
             sidebarRef={sidebarRef}
             entryRefs={entryRefs}
-            onSelectEntry={setSelectedEntryId}
+            onSelectEntry={(entryId) => {
+              // Disable scroll-hijacking during manual selection
+              isKeyboardNavigatingRef.current = true;
+              setSelectedEntryId(entryId);
+              
+              // Scroll to the selected entry
+              setTimeout(() => {
+                const entryElement = entryRefs.current[entryId];
+                const sidebar = sidebarRef.current;
+                
+                if (entryElement && sidebar) {
+                  const sidebarRect = sidebar.getBoundingClientRect();
+                  const triggerPoint = sidebarRect.height / 3;
+                  const targetScrollTop = entryElement.offsetTop - triggerPoint;
+                  sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                  
+                  // Re-enable scroll-hijacking after scroll animation completes
+                  setTimeout(() => {
+                    isKeyboardNavigatingRef.current = false;
+                  }, 500);
+                }
+              }, 50);
+            }}
           />
 
           {/* Main Content Area */}
