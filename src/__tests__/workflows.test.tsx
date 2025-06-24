@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ClerkProvider } from '@clerk/nextjs';
 import JournalApp from '../app/page';
 
 // Mock TipTap
@@ -33,6 +34,14 @@ jest.mock('@tiptap/extension-placeholder', () => ({
 
 jest.mock('../components/AutoTagExtension', () => ({
   AutoTagExtension: 'mock-auto-tag-extension',
+}));
+
+jest.mock('@clerk/nextjs', () => ({
+  ...jest.requireActual('@clerk/nextjs'),
+  useUser: jest.fn(() => ({ isSignedIn: false })),
+  SignInButton: ({ children }: { children: React.ReactNode }) => <div data-testid="signin-button">{children}</div>,
+  UserButton: () => <div data-testid="user-button">User</div>,
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 // Mock scrollTo
@@ -68,14 +77,22 @@ describe('Journal App Workflows', () => {
 
   describe('Initial Application State', () => {
     it('should render welcome message when no entries exist', () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
       
       expect(screen.getByText('Welcome to your journal')).toBeInTheDocument();
       expect(screen.getByText('Press Cmd+Enter to create your first entry')).toBeInTheDocument();
     });
 
     it('should show help button', () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
       
       const helpButton = screen.getByRole('button', { name: /show shortcuts/i });
       expect(helpButton).toBeInTheDocument();
@@ -95,7 +112,11 @@ describe('Journal App Workflows', () => {
 
       (global.localStorage.getItem as jest.Mock).mockReturnValue(JSON.stringify(mockEntries));
 
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       expect(localStorage.getItem).toHaveBeenCalledWith('journal-entries');
     });
@@ -103,7 +124,11 @@ describe('Journal App Workflows', () => {
 
   describe('Help Modal', () => {
     it('should open help modal when ? button is clicked', async () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
       
       const helpButton = screen.getByRole('button', { name: /show shortcuts/i });
       await user.click(helpButton);
@@ -114,7 +139,11 @@ describe('Journal App Workflows', () => {
     });
 
     it('should close help modal when X button is clicked', async () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
       
       const helpButton = screen.getByRole('button', { name: /show shortcuts/i });
       await user.click(helpButton);
@@ -126,7 +155,11 @@ describe('Journal App Workflows', () => {
     });
 
     it('should display all keyboard shortcuts in help modal', async () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
       
       const helpButton = screen.getByRole('button', { name: /show shortcuts/i });
       await user.click(helpButton);
@@ -141,7 +174,11 @@ describe('Journal App Workflows', () => {
   describe('Entry Creation', () => {
     it('should create new entry with Cmd+Enter', async () => {
       jest.useFakeTimers();
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       // Simulate Cmd+Enter
       fireEvent.keyDown(document, {
@@ -158,7 +195,11 @@ describe('Journal App Workflows', () => {
 
     it('should create new entry with Ctrl+Enter on Windows', async () => {
       jest.useFakeTimers();
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       // Simulate Ctrl+Enter
       fireEvent.keyDown(document, {
@@ -175,7 +216,11 @@ describe('Journal App Workflows', () => {
 
     it('should focus on editor after creating new entry', async () => {
       jest.useFakeTimers();
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       fireEvent.keyDown(document, {
         key: 'Enter',
@@ -220,7 +265,11 @@ describe('Journal App Workflows', () => {
 
     it('should navigate to previous entry with Cmd+Up', async () => {
       jest.useFakeTimers();
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       // Wait for initial load
       jest.advanceTimersByTime(200);
@@ -237,7 +286,11 @@ describe('Journal App Workflows', () => {
 
     it('should navigate to next entry with Cmd+Down', async () => {
       jest.useFakeTimers();
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       // Wait for initial load
       jest.advanceTimersByTime(200);
@@ -254,7 +307,11 @@ describe('Journal App Workflows', () => {
 
     it('should wrap around from first to last entry', async () => {
       jest.useFakeTimers();
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       // Wait for initial load
       jest.advanceTimersByTime(200);
@@ -272,7 +329,11 @@ describe('Journal App Workflows', () => {
 
     it('should wrap around from last to first entry', async () => {
       jest.useFakeTimers();
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       // Wait for initial load
       jest.advanceTimersByTime(200);
@@ -305,7 +366,11 @@ describe('Journal App Workflows', () => {
     });
 
     it('should select entry when clicked in sidebar', async () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       await waitFor(() => {
         const entryElements = screen.getAllByRole('generic');
@@ -336,7 +401,11 @@ describe('Journal App Workflows', () => {
     });
 
     it('should display formatted date for selected entry', async () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       await waitFor(() => {
         // Should show formatted date
@@ -345,7 +414,11 @@ describe('Journal App Workflows', () => {
     });
 
     it('should display formatted time for selected entry', async () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       await waitFor(() => {
         // Should show formatted time (looking for AM/PM pattern)
@@ -357,7 +430,11 @@ describe('Journal App Workflows', () => {
 
   describe('Data Persistence', () => {
     it('should save entries to localStorage when content changes', async () => {
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       // Create a new entry
       fireEvent.keyDown(document, {
@@ -383,7 +460,11 @@ describe('Journal App Workflows', () => {
     it('should handle empty localStorage', () => {
       (global.localStorage.getItem as jest.Mock).mockReturnValue(null);
 
-      render(<JournalApp />);
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
 
       expect(screen.getByText('Welcome to your journal')).toBeInTheDocument();
     });

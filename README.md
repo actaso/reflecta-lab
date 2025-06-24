@@ -142,12 +142,54 @@ graph TD
 ### Environment Variables
 
 ```bash
-# Required
+# Required for AI features
 OPENAI_API_KEY=your_openai_api_key_here
+
+# Required for authentication (optional feature)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key_here
+CLERK_SECRET_KEY=your_clerk_secret_key_here
+
+# Optional Clerk configuration (defaults shown)
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 
 # Optional (defaults shown)
 NODE_ENV=development
 ```
+
+### Authentication Setup
+
+Reflecta Labs includes optional authentication powered by [Clerk](https://clerk.com). The app works fully without authentication, but users can sign in to sync their journal entries across devices.
+
+#### Setting up Clerk Authentication
+
+1. **Create a Clerk account** at [clerk.com](https://clerk.com)
+2. **Create a new application** in your Clerk dashboard
+3. **Copy your keys** from the Clerk dashboard:
+   - Publishable Key → `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - Secret Key → `CLERK_SECRET_KEY`
+4. **Add to your environment**:
+   ```bash
+   # In .env.local
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+   CLERK_SECRET_KEY=sk_test_...
+   ```
+5. **Deploy with environment variables** in Vercel/your hosting platform
+
+#### Authentication Features
+
+- **Optional signin**: Users can use the app without authentication
+- **Gentle UX**: "signin" button appears next to help button when not authenticated
+- **User management**: Profile management through Clerk's UserButton when signed in
+- **Modal signin**: Clean modal experience for authentication
+- **Future sync**: Ready for journal sync across devices (not yet implemented)
+
+#### Without Authentication
+
+If you don't set up Clerk environment variables, the app will:
+- Show a "signin" button that won't function
+- Continue working normally for local journal storage
+- Display helpful error messages in development mode
 
 ### TipTap Extensions
 - **StarterKit**: Basic rich text functionality

@@ -15,6 +15,8 @@ interface EntryHeaderProps {
 }
 
 export default function EntryHeader({ currentEntry, onDeleteEntry, onShowHelp }: EntryHeaderProps) {
+  const hasClerkKeys = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
   return (
     <div className="pt-8 px-8 pb-4 flex items-center justify-between flex-shrink-0">
       <div className="flex items-center">
@@ -39,15 +41,33 @@ export default function EntryHeader({ currentEntry, onDeleteEntry, onShowHelp }:
         )}
       </div>
       
-      {/* ? Button for help */}
-      <button
-        onClick={onShowHelp}
-        className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
-        title="Show shortcuts"
-        aria-label="Show shortcuts"
-      >
-        <span className="text-lg leading-none">?</span>
-      </button>
+      <div className="flex items-center space-x-2">
+        {/* Authentication Button - always show, works when Clerk is configured */}
+        <button
+          className="px-3 py-1.5 text-sm bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded-md hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
+          title={hasClerkKeys ? "Sign in to sync your journal" : "Authentication not configured"}
+          aria-label="Sign in"
+          onClick={() => {
+            if (hasClerkKeys) {
+              console.log('Sign in clicked - would open Clerk modal');
+            } else {
+              console.log('Sign in clicked - Clerk not configured');
+            }
+          }}
+        >
+          signin
+        </button>
+        
+        {/* ? Button for help */}
+        <button
+          onClick={onShowHelp}
+          className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
+          title="Show shortcuts"
+          aria-label="Show shortcuts"
+        >
+          <span className="text-lg leading-none">?</span>
+        </button>
+      </div>
     </div>
   );
 }
