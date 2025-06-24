@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AutoTagExtension } from './AutoTagExtension';
 import AIDropdown, { AIMode } from './AIDropdown';
 
@@ -52,18 +52,22 @@ export default function Editor({ content, onChange, placeholder = "Start writing
       attributes: {
         class: 'max-w-none focus:outline-none',
       },
+      handleTextInput: (view, from, to, text) => {
+        if (text === '/') {
+          const { selection } = view.state;
+          const coords = view.coordsAtPos(selection.from);
+          setDropdownPosition({
+            x: coords.left,
+            y: coords.bottom + 8,
+          });
+          setShowAIDropdown(true);
+          return true;
+        }
+        return false;
+      },
       handleKeyDown: (view, event) => {
-        // Handle Shift+Cmd for AI dropdown
-        if (event.shiftKey && event.metaKey && !event.repeat) {
-          event.preventDefault();
-          
-          if (showAIDropdown) {
-            setShowAIDropdown(false);
-          } else {
-            const position = getCursorPosition();
-            setDropdownPosition(position);
-            setShowAIDropdown(true);
-          }
+        if (event.key === 'Escape') {
+          setShowAIDropdown(false);
           return true;
         }
         return false;
@@ -87,23 +91,7 @@ export default function Editor({ content, onChange, placeholder = "Start writing
     }
   }, [editor, autoFocus]);
 
-  // Get cursor position for dropdown placement
-  const getCursorPosition = useCallback(() => {
-    if (!editor || !editorRef.current) return { x: 0, y: 0 };
 
-    const { view } = editor;
-    const { state } = view;
-    const { selection } = state;
-    const { from } = selection;
-
-    // Get coordinates of cursor position
-    const coords = view.coordsAtPos(from);
-
-    return {
-      x: coords.left,
-      y: coords.bottom + 8, // Add some spacing below cursor
-    };
-  }, [editor]);
 
 
   // Handle AI mode selection
