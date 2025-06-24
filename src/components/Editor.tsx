@@ -54,14 +54,16 @@ export default function Editor({ content, onChange, placeholder = "Start writing
       },
       handleTextInput: (view, from, to, text) => {
         if (text === '/') {
-          const { selection } = view.state;
-          const coords = view.coordsAtPos(selection.from);
-          setDropdownPosition({
-            x: coords.left,
-            y: coords.bottom + 8,
-          });
-          setShowAIDropdown(true);
-          return true;
+          setTimeout(() => {
+            const { selection } = view.state;
+            const coords = view.coordsAtPos(selection.from);
+            setDropdownPosition({
+              x: coords.left,
+              y: coords.bottom + 8,
+            });
+            setShowAIDropdown(true);
+          }, 0);
+          return false; // Allow "/" to be inserted
         }
         return false;
       },
@@ -96,6 +98,19 @@ export default function Editor({ content, onChange, placeholder = "Start writing
 
   // Handle AI mode selection
   const handleAIModeSelect = (mode: AIMode) => {
+    if (editor) {
+      const { selection } = editor.state;
+      const { from } = selection;
+      
+      const textBefore = editor.state.doc.textBetween(Math.max(0, from - 10), from);
+      const slashIndex = textBefore.lastIndexOf('/');
+      
+      if (slashIndex !== -1) {
+        const slashPos = from - (textBefore.length - slashIndex);
+        editor.commands.deleteRange({ from: slashPos, to: slashPos + 1 });
+      }
+    }
+    
     if (onAIModeSelect) {
       onAIModeSelect(mode);
     }
