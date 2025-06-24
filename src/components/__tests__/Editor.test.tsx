@@ -84,6 +84,7 @@ describe('Editor', () => {
         attributes: {
           class: 'max-w-none focus:outline-none',
         },
+        handleTextInput: expect.any(Function),
         handleKeyDown: expect.any(Function),
       },
     });
