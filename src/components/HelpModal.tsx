@@ -48,6 +48,8 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
               <div><code># Heading</code> for headers</div>
               <div><code>**bold**</code> and <code>*italic*</code></div>
               <div><code>- list item</code> for bullet lists</div>
+              <div><code>- [ ] task</code> for task lists</div>
+              <div><code>- [x] completed</code> for checked tasks</div>
               <div><code>`code`</code> for inline code</div>
               <div><code>&gt; quote</code> for blockquotes</div>
             </div>
