@@ -2,6 +2,8 @@
 
 A minimalist journal interface designed for rapid reflection and note-taking, featuring AI-powered insights specifically tailored for founders and entrepreneurs.
 
+Available on both **web** and **mobile** platforms with seamless journaling experiences optimized for each platform.
+
 ## Features
 
 ### 📝 Core Journal Interface
@@ -30,11 +32,13 @@ A minimalist journal interface designed for rapid reflection and note-taking, fe
 
 ## Quick Start
 
-### Prerequisites
+### Web Application
+
+#### Prerequisites
 - Node.js 18+ 
 - OpenAI API key
 
-### Installation
+#### Installation
 
 1. **Clone and install dependencies**:
    ```bash
@@ -58,6 +62,31 @@ A minimalist journal interface designed for rapid reflection and note-taking, fe
    ```
 
 4. **Open in browser**: [http://localhost:3000](http://localhost:3000)
+
+### Mobile Application
+
+#### Prerequisites
+- Node.js 18+
+- Expo CLI: `npm install -g @expo/cli`
+- iOS Simulator or physical iPhone
+
+#### Installation
+
+1. **Navigate to mobile directory**:
+   ```bash
+   cd mobile/reflecta-mobile
+   npm install
+   ```
+
+2. **Start development server**:
+   ```bash
+   npm start
+   ```
+
+3. **Run on iOS**:
+   ```bash
+   npm run ios
+   ```
 
 ## Development
 

@@ -4,6 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+### Web Application (Root Directory)
 Development:
 - `npm run dev` - Start development server with Turbopack
 - `npm run build` - Build for production
@@ -11,14 +12,26 @@ Development:
 - `npm run lint` - Run ESLint
 - `npm run pull-env` - Pull latest environment variables from Vercel (includes Clerk keys)
 
-The project uses npm as the package manager. All commands should be run from the `reflecta/` directory.
+### Mobile Application (mobile/reflecta-mobile/)
+Development:
+- `npm start` - Start Expo development server
+- `npm run ios` - Run on iOS simulator
+- `npm run android` - Run on Android simulator
+- `npm run web` - Run mobile app on web
+
+The project uses npm as the package manager. Web commands should be run from the `reflecta/` directory, mobile commands from `reflecta/mobile/reflecta-mobile/`.
 
 ## Project Overview
 
 **Reflecta Labs** is a minimalist journal interface designed for rapid reflection and note-taking. The application provides a seamless, Apple Notes-inspired experience with advanced features like scroll-hijacking navigation, tag highlighting, and markdown support.
 
+The project now includes both web and mobile implementations:
+- **Web App** (Next.js): Full-featured desktop journaling experience with AI chat sidebar
+- **Mobile App** (React Native/Expo): iOS-native journaling experience with timeline navigation overlay
+
 ## Architecture
 
+### Web Application (Next.js)
 This is a Next.js 15 application using the App Router with TypeScript and TailwindCSS v4. Key characteristics:
 
 - **Framework**: Next.js 15 with App Router architecture
@@ -28,6 +41,16 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Data Storage**: localStorage for client-side persistence
 - **Fonts**: Geist Sans and Geist Mono from next/font/google
 - **TypeScript**: Strict mode enabled with path aliases (`@/*` → `./src/*`)
+
+### Mobile Application (React Native/Expo)
+The mobile app provides a native iOS experience with the same data structure. Key characteristics:
+
+- **Framework**: Expo 53 with React Native 0.79 and TypeScript
+- **Navigation**: Touch-based entry selection with timeline overlay
+- **Text Editor**: Native TextInput with Apple Notes-style typography
+- **Data Storage**: AsyncStorage with same JSON structure as web
+- **UI Design**: Minimalist interface with gentle timeline indicators
+- **Responsive**: Full-screen writing canvas with floating action button
 
 ## Key Features
 
@@ -81,6 +104,7 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 
 ## File Structure
 
+### Web Application
 ```
 src/
 ├── app/
@@ -102,6 +126,23 @@ src/
     ├── AI_CHAT_SIDEBAR.md     # Comprehensive AI feature documentation
     ├── AUTHENTICATION.md      # Authentication system documentation and setup
     └── DEVELOPER_ONBOARDING.md # Developer setup and patterns guide
+```
+
+### Mobile Application
+```
+mobile/reflecta-mobile/
+├── App.tsx                 # Main application component with timeline overlay
+├── src/
+│   ├── components/
+│   │   ├── Editor.tsx      # Native TextInput editor component
+│   │   └── Timeline.tsx    # Entry timeline component (deprecated)
+│   ├── types/
+│   │   └── index.ts        # TypeScript interfaces (shared with web)
+│   └── utils/
+│       ├── storage.ts      # AsyncStorage utilities
+│       └── formatters.ts   # Text formatting helpers
+├── assets/                 # App icons and splash screens
+└── README.md              # Mobile-specific documentation
 ```
 
 ## Key Implementation Details
