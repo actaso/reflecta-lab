@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
 import AIChatSidebar from '../components/AIChatSidebar';
+import CommandPalette from '../components/CommandPalette';
 import { AIMode } from '../components/AIDropdown';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 
@@ -22,6 +23,7 @@ export default function JournalApp() {
   const [showHelp, setShowHelp] = useState(false);
   const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
   const [chatMode, setChatMode] = useState<AIMode | null>(null);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   
   const sidebarRef = useRef<HTMLDivElement>(null);
   const entryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -234,6 +236,12 @@ export default function JournalApp() {
   // Add keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault();
+        setShowCommandPalette(true);
+        return;
+      }
+
       // CMD+Enter to create new entry
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
         event.preventDefault();
@@ -391,6 +399,37 @@ export default function JournalApp() {
           
           {/* Help Modal */}
           <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+          
+          {/* Command Palette */}
+          <CommandPalette
+            isOpen={showCommandPalette}
+            onClose={() => setShowCommandPalette(false)}
+            entries={entries}
+            selectedEntryId={selectedEntryId}
+            onSelectEntry={(entryId) => {
+              // Disable scroll-hijacking during command palette selection
+              isKeyboardNavigatingRef.current = true;
+              setSelectedEntryId(entryId);
+              
+              // Scroll to the selected entry
+              setTimeout(() => {
+                const entryElement = entryRefs.current[entryId];
+                const sidebar = sidebarRef.current;
+                
+                if (entryElement && sidebar) {
+                  const sidebarRect = sidebar.getBoundingClientRect();
+                  const triggerPoint = sidebarRect.height / 3;
+                  const targetScrollTop = entryElement.offsetTop - triggerPoint;
+                  sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                  
+                  // Re-enable scroll-hijacking after scroll animation completes
+                  setTimeout(() => {
+                    isKeyboardNavigatingRef.current = false;
+                  }, 500);
+                }
+              }, 50);
+            }}
+          />
           
           {/* AI Chat Sidebar */}
           <AIChatSidebar
