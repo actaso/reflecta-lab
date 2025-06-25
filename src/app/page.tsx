@@ -238,6 +238,7 @@ export default function JournalApp() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
+        event.stopPropagation();
         setShowCommandPalette(true);
         return;
       }
@@ -245,6 +246,7 @@ export default function JournalApp() {
       // CMD+Enter to create new entry
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
         event.preventDefault();
+        event.stopPropagation();
         createNewEntry();
         return;
       }
@@ -252,6 +254,7 @@ export default function JournalApp() {
       // CMD+Up/Down to navigate through entries
       if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
         event.preventDefault();
+        event.stopPropagation();
         
         if (allEntriesChronological.length === 0) return;
 
