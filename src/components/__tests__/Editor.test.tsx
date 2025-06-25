@@ -105,6 +105,7 @@ describe('Editor', () => {
       ],
       content,
       autofocus: true,
+      immediatelyRender: false,
       onUpdate: expect.any(Function),
       editorProps: {
         attributes: {
