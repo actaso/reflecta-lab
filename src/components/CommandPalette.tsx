@@ -15,6 +15,7 @@ interface CommandPaletteProps {
   entries: Record<string, JournalEntry[]>;
   selectedEntryId: string | null;
   onSelectEntry: (entryId: string) => void;
+  onQuickCapture: () => void;
 }
 
 interface SearchResult {
@@ -30,6 +31,7 @@ export default function CommandPalette({
   entries,
   selectedEntryId,
   onSelectEntry,
+  onQuickCapture,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -101,6 +103,9 @@ export default function CommandPalette({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isOpen) return;
 
+      const hasQuickCapture = query.trim() === '';
+      const totalOptions = hasQuickCapture ? 1 : searchResults.length;
+
       switch (event.key) {
         case 'Escape':
           event.preventDefault();
@@ -109,18 +114,21 @@ export default function CommandPalette({
         case 'ArrowDown':
           event.preventDefault();
           setSelectedIndex(prev => 
-            prev < searchResults.length - 1 ? prev + 1 : 0
+            prev < totalOptions - 1 ? prev + 1 : 0
           );
           break;
         case 'ArrowUp':
           event.preventDefault();
           setSelectedIndex(prev => 
-            prev > 0 ? prev - 1 : searchResults.length - 1
+            prev > 0 ? prev - 1 : totalOptions - 1
           );
           break;
         case 'Enter':
           event.preventDefault();
-          if (searchResults[selectedIndex]) {
+          if (hasQuickCapture && selectedIndex === 0) {
+            onQuickCapture();
+            onClose();
+          } else if (searchResults[selectedIndex]) {
             onSelectEntry(searchResults[selectedIndex].entry.id);
             onClose();
           }
@@ -130,7 +138,7 @@ export default function CommandPalette({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, searchResults, selectedIndex, onSelectEntry, onClose]);
+  }, [isOpen, searchResults, selectedIndex, onSelectEntry, onClose, onQuickCapture, query]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -187,10 +195,45 @@ export default function CommandPalette({
           className="max-h-96 overflow-y-auto"
         >
           {query.trim() === '' ? (
-            <div className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400">
-              <div className="text-sm">Start typing to search your journal entries</div>
-              <div className="text-xs mt-2 text-neutral-400 dark:text-neutral-500">
-                Search by content or date
+            <div className="py-2">
+              <div
+                className={`px-4 py-3 cursor-pointer transition-colors ${
+                  selectedIndex === 0
+                    ? 'bg-neutral-100 dark:bg-neutral-700'
+                    : 'hover:bg-neutral-50 dark:hover:bg-neutral-750'
+                }`}
+                onClick={() => {
+                  onQuickCapture();
+                  onClose();
+                }}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                        Quick Capture
+                      </span>
+                      <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
+                        New entry
+                      </span>
+                    </div>
+                    <div className="text-sm text-neutral-600 dark:text-neutral-300">
+                      Create a new journal entry without leaving this page
+                    </div>
+                  </div>
+                  {selectedIndex === 0 && (
+                    <div className="ml-2 text-xs text-neutral-400 dark:text-neutral-500">
+                      ↵
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400 border-t border-neutral-200 dark:border-neutral-700">
+                <div className="text-sm">Start typing to search your journal entries</div>
+                <div className="text-xs mt-2 text-neutral-400 dark:text-neutral-500">
+                  Search by content or date
+                </div>
               </div>
             </div>
           ) : searchResults.length === 0 ? (

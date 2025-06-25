@@ -99,7 +99,7 @@ export default function JournalApp() {
     });
   };
 
-  const createNewEntry = useCallback(() => {
+  const createNewEntry = useCallback((silent: boolean = false) => {
     const now = new Date();
     const todayKey = formatDate(now);
     const newEntry: JournalEntry = {
@@ -113,23 +113,25 @@ export default function JournalApp() {
       [todayKey]: [newEntry, ...(prev[todayKey] || [])]
     }));
     
-    setSelectedEntryId(newEntry.id);
-    
-    // Auto-scroll to the new entry after a brief delay
-    setTimeout(() => {
-      const entryElement = entryRefs.current[newEntry.id];
-      const sidebar = sidebarRef.current;
+    if (!silent) {
+      setSelectedEntryId(newEntry.id);
       
-      if (entryElement && sidebar) {
-        // Calculate the position to center the new entry in the trigger zone
-        const sidebarRect = sidebar.getBoundingClientRect();
-        const triggerPoint = sidebarRect.height / 3;
+      // Auto-scroll to the new entry after a brief delay
+      setTimeout(() => {
+        const entryElement = entryRefs.current[newEntry.id];
+        const sidebar = sidebarRef.current;
         
-        // Scroll to position the entry at the trigger point
-        const targetScrollTop = entryElement.offsetTop - triggerPoint;
-        sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-      }
-    }, 100);
+        if (entryElement && sidebar) {
+          // Calculate the position to center the new entry in the trigger zone
+          const sidebarRect = sidebar.getBoundingClientRect();
+          const triggerPoint = sidebarRect.height / 3;
+          
+          // Scroll to position the entry at the trigger point
+          const targetScrollTop = entryElement.offsetTop - triggerPoint;
+          sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+        }
+      }, 100);
+    }
   }, []);
 
   const deleteEntry = (entryId: string) => {
@@ -429,6 +431,7 @@ export default function JournalApp() {
                 }
               }, 50);
             }}
+            onQuickCapture={() => createNewEntry(true)}
           />
           
           {/* AI Chat Sidebar */}
