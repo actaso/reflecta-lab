@@ -165,6 +165,49 @@ html {
   display: list-item;
 }
 
+/* Task list styling */
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  margin: 0.25em 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li::before {
+  display: none;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-right: 0.5em;
+  margin-top: 0.125em;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"] {
+  width: 1em;
+  height: 1em;
+  cursor: pointer;
+}
+
+.ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"] {
+    accent-color: #3b82f6;
+  }
+}
+
 /* Tag highlighting for [word]: format - using regex-like CSS targeting */
 .ProseMirror p:has-text('['), 
 .ProseMirror {

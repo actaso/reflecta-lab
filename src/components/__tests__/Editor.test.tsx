@@ -11,9 +11,18 @@ jest.mock('@tiptap/react', () => ({
   ),
 }));
 
-jest.mock('@tiptap/starter-kit', () => ({
-  configure: jest.fn(() => 'mock-starter-kit'),
+jest.mock('@tiptap/extension-document', () => 'mock-document');
+jest.mock('@tiptap/extension-paragraph', () => 'mock-paragraph');
+jest.mock('@tiptap/extension-text', () => 'mock-text');
+jest.mock('@tiptap/extension-heading', () => ({
+  configure: jest.fn(() => 'mock-heading'),
 }));
+jest.mock('@tiptap/extension-bold', () => 'mock-bold');
+jest.mock('@tiptap/extension-italic', () => 'mock-italic');
+jest.mock('@tiptap/extension-code', () => 'mock-code');
+jest.mock('@tiptap/extension-blockquote', () => 'mock-blockquote');
+jest.mock('@tiptap/extension-hard-break', () => 'mock-hard-break');
+jest.mock('@tiptap/extension-history', () => 'mock-history');
 
 jest.mock('@tiptap/extension-placeholder', () => ({
   configure: jest.fn(() => 'mock-placeholder'),
@@ -21,6 +30,12 @@ jest.mock('@tiptap/extension-placeholder', () => ({
 
 jest.mock('@tiptap/extension-link', () => ({
   configure: jest.fn(() => 'mock-link'),
+}));
+
+jest.mock('@tiptap/extension-task-list', () => 'mock-task-list');
+
+jest.mock('@tiptap/extension-task-item', () => ({
+  configure: jest.fn(() => 'mock-task-item'),
 }));
 
 jest.mock('../AutoTagExtension', () => ({
@@ -72,13 +87,25 @@ describe('Editor', () => {
 
     expect(mockUseEditor).toHaveBeenCalledWith({
       extensions: [
-        'mock-starter-kit',
+        'mock-document',
+        'mock-paragraph',
+        'mock-text',
+        'mock-heading',
+        'mock-bold',
+        'mock-italic',
+        'mock-code',
+        'mock-blockquote',
+        'mock-hard-break',
+        'mock-history',
         'mock-placeholder',
         'mock-link',
+        'mock-task-list',
+        'mock-task-item',
         'mock-auto-tag-extension',
       ],
       content,
       autofocus: true,
+      immediatelyRender: false,
       onUpdate: expect.any(Function),
       editorProps: {
         attributes: {
