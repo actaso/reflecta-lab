@@ -169,6 +169,24 @@ describe('Journal App Workflows', () => {
       expect(screen.getByText('Cmd+↑')).toBeInTheDocument();
       expect(screen.getByText('Cmd+↓')).toBeInTheDocument();
     });
+
+    it('should close help modal when ESC key is pressed', async () => {
+      render(
+        <ClerkProvider>
+          <JournalApp />
+        </ClerkProvider>
+      );
+      
+      const helpButton = screen.getByRole('button', { name: /show shortcuts/i });
+      await user.click(helpButton);
+
+      expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
+
+      // Press ESC key
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(screen.queryByText('Keyboard Shortcuts')).not.toBeInTheDocument();
+    });
   });
 
   describe('Entry Creation', () => {

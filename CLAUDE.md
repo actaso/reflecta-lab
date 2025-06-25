@@ -9,6 +9,7 @@ Development:
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
+- `npm run pull-env` - Pull latest environment variables from Vercel (includes Clerk keys)
 
 The project uses npm as the package manager. All commands should be run from the `reflecta/` directory.
 
@@ -29,6 +30,14 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **TypeScript**: Strict mode enabled with path aliases (`@/*` → `./src/*`)
 
 ## Key Features
+
+### Authentication System
+- **Optional Clerk integration**: Users can sign in for enhanced features while maintaining full anonymous functionality
+- **Modal-based signin**: Seamless authentication without page redirects using Clerk's modal mode
+- **UserButton integration**: Clean avatar/menu system for signed-in users with custom styling
+- **Graceful degradation**: App works perfectly without Clerk configuration (disabled signin button)
+- **Local-first data**: localStorage remains primary storage for all users (signed-in or anonymous)
+- **Three authentication states**: No config, configured+anonymous, configured+signed-in
 
 ### Journal Interface
 - **Multi-entry system**: Multiple entries per day with timestamps
@@ -91,6 +100,7 @@ src/
 │   └── TagExtension.ts     # TipTap mark extension (utility)
 └── docs/
     ├── AI_CHAT_SIDEBAR.md     # Comprehensive AI feature documentation
+    ├── AUTHENTICATION.md      # Authentication system documentation and setup
     └── DEVELOPER_ONBOARDING.md # Developer setup and patterns guide
 ```
 
@@ -148,6 +158,10 @@ entries: Record<string, JournalEntry[]>
 - **ai**: Vercel AI SDK for streaming responses and chat hooks
 - **@ai-sdk/openai**: OpenAI provider for Vercel AI SDK
 - **openai**: OpenAI API client library
+
+### Authentication
+- **@clerk/nextjs**: Optional authentication provider for signin/user management
+- **Conditional integration**: Only active when environment variables are configured
 
 ## Testing
 

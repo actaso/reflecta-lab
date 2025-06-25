@@ -1,5 +1,6 @@
 'use client';
 
+import { useUser, SignInButton, UserButton } from '@clerk/nextjs';
 import { formatDisplayDate, formatTime } from '../utils/formatters';
 
 type JournalEntry = {
@@ -11,10 +12,10 @@ type JournalEntry = {
 interface EntryHeaderProps {
   currentEntry: { entry: JournalEntry; dateKey: string } | null;
   onDeleteEntry: (entryId: string) => void;
-  onShowHelp: () => void;
 }
 
-export default function EntryHeader({ currentEntry, onDeleteEntry, onShowHelp }: EntryHeaderProps) {
+export default function EntryHeader({ currentEntry, onDeleteEntry }: EntryHeaderProps) {
+  const { isSignedIn } = useUser();
   const hasClerkKeys = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
   return (
@@ -41,32 +42,63 @@ export default function EntryHeader({ currentEntry, onDeleteEntry, onShowHelp }:
         )}
       </div>
       
-      <div className="flex items-center space-x-2">
-        {/* Authentication Button - always show, works when Clerk is configured */}
-        <button
-          className="px-3 py-1.5 text-sm bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded-md hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
-          title={hasClerkKeys ? "Sign in to sync your journal" : "Authentication not configured"}
-          aria-label="Sign in"
-          onClick={() => {
-            if (hasClerkKeys) {
-              console.log('Sign in clicked - would open Clerk modal');
-            } else {
-              console.log('Sign in clicked - Clerk not configured');
-            }
-          }}
-        >
-          signin
-        </button>
-        
-        {/* ? Button for help */}
-        <button
-          onClick={onShowHelp}
-          className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
-          title="Show shortcuts"
-          aria-label="Show shortcuts"
-        >
-          <span className="text-lg leading-none">?</span>
-        </button>
+      <div className="flex items-center">
+        {/* Authentication - conditional rendering based on Clerk setup and sign-in status */}
+        {hasClerkKeys ? (
+          isSignedIn ? (
+            <UserButton 
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8",
+                  userButtonPopoverCard: "bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700"
+                }
+              }}
+            />
+          ) : (
+            <SignInButton mode="modal">
+              <button
+                className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
+                title="Sign in to sync your journal"
+                aria-label="Sign in"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </button>
+            </SignInButton>
+          )
+        ) : (
+          <button
+            className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-300 dark:text-neutral-600 flex items-center justify-center cursor-not-allowed"
+            title="Authentication not configured"
+            aria-label="Authentication not configured"
+            disabled
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );
