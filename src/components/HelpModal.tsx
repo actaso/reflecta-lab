@@ -23,6 +23,11 @@ export default function HelpModal({ isOpen, onClose }: HelpModalProps) {
         
         <div className="space-y-3 text-sm">
           <div className="flex justify-between items-center">
+            <span className="text-neutral-600 dark:text-neutral-300">Search entries</span>
+            <kbd className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-300 rounded text-xs font-mono">Cmd+K</kbd>
+          </div>
+          
+          <div className="flex justify-between items-center">
             <span className="text-neutral-600 dark:text-neutral-300">Create new entry</span>
             <kbd className="px-2 py-1 bg-neutral-100 dark:bg-neutral-700 dark:text-neutral-300 rounded text-xs font-mono">Cmd+Enter</kbd>
           </div>
