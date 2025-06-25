@@ -99,13 +99,13 @@ export default function JournalApp() {
     });
   };
 
-  const createNewEntry = useCallback((silent: boolean = false) => {
+  const createNewEntry = useCallback((silent: boolean = false, content: string = '') => {
     const now = new Date();
     const todayKey = formatDate(now);
     const newEntry: JournalEntry = {
       id: Date.now().toString(),
       timestamp: now,
-      content: ''
+      content: content
     };
     
     setEntries(prev => ({
@@ -431,7 +431,7 @@ export default function JournalApp() {
                 }
               }, 50);
             }}
-            onQuickCapture={() => createNewEntry(true)}
+            onQuickCapture={(content) => createNewEntry(true, content)}
           />
           
           {/* AI Chat Sidebar */}

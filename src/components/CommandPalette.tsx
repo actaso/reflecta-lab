@@ -15,7 +15,7 @@ interface CommandPaletteProps {
   entries: Record<string, JournalEntry[]>;
   selectedEntryId: string | null;
   onSelectEntry: (entryId: string) => void;
-  onQuickCapture: () => void;
+  onQuickCapture: (content: string) => void;
 }
 
 interface SearchResult {
@@ -35,13 +35,18 @@ export default function CommandPalette({
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isQuickCaptureMode, setIsQuickCaptureMode] = useState(false);
+  const [quickCaptureContent, setQuickCaptureContent] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const quickCaptureInputRef = useRef<HTMLTextAreaElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
+      setIsQuickCaptureMode(false);
+      setQuickCaptureContent('');
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
@@ -103,6 +108,31 @@ export default function CommandPalette({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isOpen) return;
 
+      if (isQuickCaptureMode) {
+        switch (event.key) {
+          case 'Escape':
+            event.preventDefault();
+            if (quickCaptureContent.trim()) {
+              setIsQuickCaptureMode(false);
+              setQuickCaptureContent('');
+              setTimeout(() => inputRef.current?.focus(), 100);
+            } else {
+              onClose();
+            }
+            break;
+          case 'Enter':
+            if (event.metaKey || event.ctrlKey) {
+              event.preventDefault();
+              if (quickCaptureContent.trim()) {
+                onQuickCapture(quickCaptureContent.trim());
+                onClose();
+              }
+            }
+            break;
+        }
+        return;
+      }
+
       const hasQuickCapture = query.trim() === '';
       const totalOptions = hasQuickCapture ? 1 : searchResults.length;
 
@@ -126,8 +156,8 @@ export default function CommandPalette({
         case 'Enter':
           event.preventDefault();
           if (hasQuickCapture && selectedIndex === 0) {
-            onQuickCapture();
-            onClose();
+            setIsQuickCaptureMode(true);
+            setTimeout(() => quickCaptureInputRef.current?.focus(), 100);
           } else if (searchResults[selectedIndex]) {
             onSelectEntry(searchResults[selectedIndex].entry.id);
             onClose();
@@ -138,7 +168,7 @@ export default function CommandPalette({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, searchResults, selectedIndex, onSelectEntry, onClose, onQuickCapture, query]);
+  }, [isOpen, searchResults, selectedIndex, onSelectEntry, onClose, onQuickCapture, query, isQuickCaptureMode, quickCaptureContent]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -189,54 +219,98 @@ export default function CommandPalette({
           </kbd>
         </div>
 
-        {/* Search Results */}
-        <div 
-          ref={resultsRef}
-          className="max-h-96 overflow-y-auto"
-        >
-          {query.trim() === '' ? (
-            <div className="py-2">
-              <div
-                className={`px-4 py-3 cursor-pointer transition-colors ${
-                  selectedIndex === 0
-                    ? 'bg-neutral-100 dark:bg-neutral-700'
-                    : 'hover:bg-neutral-50 dark:hover:bg-neutral-750'
-                }`}
-                onClick={() => {
-                  onQuickCapture();
-                  onClose();
-                }}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                        Quick Capture
-                      </span>
-                      <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
-                        New entry
-                      </span>
-                    </div>
-                    <div className="text-sm text-neutral-600 dark:text-neutral-300">
-                      Create a new journal entry without leaving this page
-                    </div>
-                  </div>
-                  {selectedIndex === 0 && (
-                    <div className="ml-2 text-xs text-neutral-400 dark:text-neutral-500">
-                      ↵
-                    </div>
-                  )}
-                </div>
+        {/* Quick Capture Mode */}
+        {isQuickCaptureMode ? (
+          <div className="p-4">
+            <div className="mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                  Quick Capture
+                </span>
+                <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
+                  New entry
+                </span>
               </div>
-              
-              <div className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400 border-t border-neutral-200 dark:border-neutral-700">
-                <div className="text-sm">Start typing to search your journal entries</div>
-                <div className="text-xs mt-2 text-neutral-400 dark:text-neutral-500">
-                  Search by content or date
-                </div>
+              <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                Type your thoughts below. Press Cmd+Enter to save, Esc to cancel.
               </div>
             </div>
-          ) : searchResults.length === 0 ? (
+            <textarea
+              ref={quickCaptureInputRef}
+              value={quickCaptureContent}
+              onChange={(e) => setQuickCaptureContent(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  if (quickCaptureContent.trim()) {
+                    onQuickCapture(quickCaptureContent.trim());
+                    onClose();
+                  }
+                }
+              }}
+              placeholder="What's on your mind?"
+              className="w-full h-32 p-3 border border-neutral-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              autoFocus
+            />
+            <div className="flex items-center justify-between mt-3 text-xs text-neutral-500 dark:text-neutral-400">
+              <div>
+                {quickCaptureContent.length} characters
+              </div>
+              <div className="flex items-center gap-4">
+                <span>⌘+↵ to save</span>
+                <span>ESC to cancel</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Search Results */
+          <div 
+            ref={resultsRef}
+            className="max-h-96 overflow-y-auto"
+          >
+            {query.trim() === '' ? (
+              <div className="py-2">
+                <div
+                  className={`px-4 py-3 cursor-pointer transition-colors ${
+                    selectedIndex === 0
+                      ? 'bg-neutral-100 dark:bg-neutral-700'
+                      : 'hover:bg-neutral-50 dark:hover:bg-neutral-750'
+                  }`}
+                  onClick={() => {
+                    setIsQuickCaptureMode(true);
+                    setTimeout(() => quickCaptureInputRef.current?.focus(), 100);
+                  }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                          Quick Capture
+                        </span>
+                        <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
+                          New entry
+                        </span>
+                      </div>
+                      <div className="text-sm text-neutral-600 dark:text-neutral-300">
+                        Create a new journal entry without leaving this page
+                      </div>
+                    </div>
+                    {selectedIndex === 0 && (
+                      <div className="ml-2 text-xs text-neutral-400 dark:text-neutral-500">
+                        ↵
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400 border-t border-neutral-200 dark:border-neutral-700">
+                  <div className="text-sm">Start typing to search your journal entries</div>
+                  <div className="text-xs mt-2 text-neutral-400 dark:text-neutral-500">
+                    Search by content or date
+                  </div>
+                </div>
+              </div>
+            ) : searchResults.length === 0 ? (
             <div className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400">
               <div className="text-sm">No entries found</div>
               <div className="text-xs mt-2 text-neutral-400 dark:text-neutral-500">
@@ -291,7 +365,8 @@ export default function CommandPalette({
               ))}
             </div>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Footer */}
         {searchResults.length > 0 && (
