@@ -372,7 +372,6 @@ export default function JournalApp() {
               <EntryHeader
                 currentEntry={currentEntry}
                 onDeleteEntry={deleteEntry}
-                onShowHelp={() => setShowHelp(!showHelp)}
               />
               
               {/* Writing area */}
@@ -443,6 +442,16 @@ export default function JournalApp() {
           />
         </div>
       </div>
+      
+      {/* Floating Help Button - Bottom Right */}
+      <button
+        onClick={() => setShowHelp(!showHelp)}
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors shadow-lg hover:shadow-xl z-50"
+        title="Show shortcuts"
+        aria-label="Show shortcuts"
+      >
+        <span className="text-xl leading-none">?</span>
+      </button>
     </div>
   );
 }
