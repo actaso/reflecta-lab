@@ -2,8 +2,39 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Journal entries collection
+    match /entries/{entryId} {
+      // Users can only access their own entries
+      allow read, write: if request.auth != null 
+                        && request.auth.uid == resource.data.userId;
+      
+      // Allow creation if user sets their own userId
+      allow create: if request.auth != null 
+                   && request.auth.uid == request.resource.data.userId
+                   && validateEntryData(request.resource.data);
+    }
+    
+    // User profiles collection (optional for future use)
+    match /users/{userId} {
+      // Users can only access their own profile
+      allow read, write: if request.auth != null 
+                        && request.auth.uid == userId;
+    }
+    
+    // Deny all other document access
     match /{document=**} {
       allow read, write: if false;
     }
+  }
+  
+  // Helper functions for validation
+  function validateEntryData(data) {
+    return data.keys().hasAll(['content', 'timestamp', 'userId', 'createdAt', 'updatedAt', 'syncedAt'])
+           && data.content is string
+           && data.timestamp is timestamp
+           && data.userId is string
+           && data.createdAt is timestamp
+           && data.updatedAt is timestamp
+           && data.syncedAt is timestamp;
   }
 }

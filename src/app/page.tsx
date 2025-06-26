@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Toaster } from 'sonner';
+import { useUser } from '@clerk/nextjs';
 import Editor from '../components/Editor';
 import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
@@ -8,60 +10,39 @@ import EntryHeader from '../components/EntryHeader';
 import AIChatSidebar from '../components/AIChatSidebar';
 import CommandPalette from '../components/CommandPalette';
 import { AIMode } from '../components/AIDropdown';
-import { formatDate, getAllEntriesChronological } from '../utils/formatters';
-
-type JournalEntry = {
-  id: string;
-  timestamp: Date;
-  content: string;
-};
+import { formatDate } from '../utils/formatters';
+import { 
+  useEntries, 
+  useEntriesChronological, 
+  useCreateEntry, 
+  useUpdateEntry, 
+  useDeleteEntry,
+  useSyncEntries 
+} from '@/hooks/useEntries';
+import { useFirebaseAuth } from '@/lib/firebase-auth';
 
 export default function JournalApp() {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
-  const [entries, setEntries] = useState<Record<string, JournalEntry[]>>({});
-  const [isLoaded, setIsLoaded] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
   const [chatMode, setChatMode] = useState<AIMode | null>(null);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   
+  // Refs for scroll handling
   const sidebarRef = useRef<HTMLDivElement>(null);
   const entryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const isKeyboardNavigatingRef = useRef(false);
+  const hasInitialSyncRef = useRef(false);
 
-  // Load entries from localStorage on mount
-  useEffect(() => {
-    const savedEntries = localStorage.getItem('journal-entries');
-    if (savedEntries) {
-      try {
-        const parsed = JSON.parse(savedEntries);
-        // Convert timestamp strings back to Date objects
-        const entriesWithDates: Record<string, JournalEntry[]> = {};
-        Object.keys(parsed).forEach(dateKey => {
-          entriesWithDates[dateKey] = parsed[dateKey].map((entry: {id: string; timestamp: string; content: string}) => ({
-            ...entry,
-            timestamp: new Date(entry.timestamp)
-          }));
-        });
-        setEntries(entriesWithDates);
-      } catch (error) {
-        console.error('Failed to load entries from localStorage:', error);
-      }
-    }
-    setIsLoaded(true);
-  }, []);
-
-  // Save entries to localStorage whenever entries change
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('journal-entries', JSON.stringify(entries));
-    }
-  }, [entries, isLoaded]);
-
-
-
-
-  const allEntriesChronological = getAllEntriesChronological(entries);
+  // Hooks
+  const { user } = useUser();
+  const { isAuthenticated } = useFirebaseAuth();
+  const { data: entries = {}, isLoading } = useEntries();
+  const allEntriesChronological = useEntriesChronological();
+  const createEntryMutation = useCreateEntry();
+  const updateEntryMutation = useUpdateEntry();
+  const deleteEntryMutation = useDeleteEntry();
+  const syncEntriesMutation = useSyncEntries();
 
   // Get the current selected entry
   const getCurrentEntry = () => {
@@ -75,122 +56,102 @@ export default function JournalApp() {
     return null;
   };
 
-  const handleEntryChange = (value: string) => {
+  const currentEntry = getCurrentEntry();
+
+  // Handle entry content changes with optimistic updates
+  const handleEntryChange = useCallback((value: string) => {
     if (!selectedEntryId) return;
     
-    setEntries(prev => {
-      const newEntries = { ...prev };
-      
-      // Find and update the entry
-      for (const dateKey of Object.keys(newEntries)) {
-        const dayEntries = newEntries[dateKey] || [];
-        const entryIndex = dayEntries.findIndex(e => e.id === selectedEntryId);
-        if (entryIndex !== -1) {
-          newEntries[dateKey] = [...dayEntries];
-          newEntries[dateKey][entryIndex] = {
-            ...dayEntries[entryIndex],
-            content: value
-          };
-          break;
-        }
-      }
-      
-      return newEntries;
+    updateEntryMutation.mutate({ 
+      entryId: selectedEntryId, 
+      content: value 
     });
-  };
+  }, [selectedEntryId, updateEntryMutation]);
 
+  // Create new entry with optimistic updates
   const createNewEntry = useCallback(() => {
-    const now = new Date();
-    const todayKey = formatDate(now);
-    const newEntry: JournalEntry = {
-      id: Date.now().toString(),
-      timestamp: now,
-      content: ''
-    };
-    
-    setEntries(prev => ({
-      ...prev,
-      [todayKey]: [newEntry, ...(prev[todayKey] || [])]
-    }));
-    
-    setSelectedEntryId(newEntry.id);
-    
-    // Auto-scroll to the new entry after a brief delay
-    setTimeout(() => {
-      const entryElement = entryRefs.current[newEntry.id];
-      const sidebar = sidebarRef.current;
-      
-      if (entryElement && sidebar) {
-        // Calculate the position to center the new entry in the trigger zone
-        const sidebarRect = sidebar.getBoundingClientRect();
-        const triggerPoint = sidebarRect.height / 3;
+    console.log('📝 Creating new entry...');
+    createEntryMutation.mutate('', {
+      onSuccess: (data) => {
+        setSelectedEntryId(data.entry.id);
+        console.log(`📝 Created entry ${data.entry.id} for user ${user?.id || 'anonymous'}`);
         
-        // Scroll to position the entry at the trigger point
-        const targetScrollTop = entryElement.offsetTop - triggerPoint;
-        sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-      }
-    }, 100);
-  }, []);
-
-  const deleteEntry = (entryId: string) => {
-    setEntries(prev => {
-      const newEntries = { ...prev };
-      
-      // Find and remove the entry
-      for (const dateKey of Object.keys(newEntries)) {
-        const dayEntries = newEntries[dateKey] || [];
-        const entryIndex = dayEntries.findIndex(e => e.id === entryId);
-        if (entryIndex !== -1) {
-          newEntries[dateKey] = dayEntries.filter(e => e.id !== entryId);
+        // Auto-scroll to the new entry after a brief delay
+        setTimeout(() => {
+          const entryElement = entryRefs.current[data.entry.id];
+          const sidebar = sidebarRef.current;
           
-          // If this was the selected entry, select another one
-          if (selectedEntryId === entryId) {
-            const allEntries = getAllEntriesChronological(newEntries);
-            const remainingEntries = allEntries.filter(({ entry }) => entry.id !== entryId);
-            setSelectedEntryId(remainingEntries.length > 0 ? remainingEntries[0].entry.id : null);
+          if (entryElement && sidebar) {
+            const sidebarRect = sidebar.getBoundingClientRect();
+            const triggerPoint = sidebarRect.height / 3;
+            const targetScrollTop = entryElement.offsetTop - triggerPoint;
+            sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
           }
-          break;
+        }, 100);
+      }
+    });
+  }, [createEntryMutation, user?.id]);
+
+  // Delete entry with optimistic updates
+  const deleteEntry = useCallback((entryId: string) => {
+    console.log(`🗑️ Deleting entry ${entryId}`);
+    deleteEntryMutation.mutate(entryId, {
+      onSuccess: () => {
+        // If this was the selected entry, select another one
+        if (selectedEntryId === entryId) {
+          const remainingEntries = allEntriesChronological.filter(({ entry }) => entry.id !== entryId);
+          setSelectedEntryId(remainingEntries.length > 0 ? remainingEntries[0].entry.id : null);
         }
       }
-      
-      return newEntries;
     });
-  };
+  }, [deleteEntryMutation, selectedEntryId, allEntriesChronological]);
+
+  // Initial sync when user authenticates
+  useEffect(() => {
+    if (!isAuthenticated || !user || hasInitialSyncRef.current) return;
+
+    console.log('🔐 User authenticated, starting initial sync...');
+    hasInitialSyncRef.current = true;
+    
+    syncEntriesMutation.mutate(entries);
+  }, [isAuthenticated, user?.id, syncEntriesMutation, entries]);
+
+  // Reset sync flag when user logs out
+  useEffect(() => {
+    if (!isAuthenticated) {
+      hasInitialSyncRef.current = false;
+    }
+  }, [isAuthenticated]);
 
   // Initialize with the first entry and set initial scroll position
   useEffect(() => {
-    if (isLoaded && !selectedEntryId) {
-      if (allEntriesChronological.length > 0) {
-        setSelectedEntryId(allEntriesChronological[0].entry.id);
-        
-        // Set initial scroll position to show the first entry in the trigger zone
-        // Use multiple animation frames to ensure everything is fully rendered
-        setTimeout(() => {
+    if (isLoading || selectedEntryId) return;
+
+    if (allEntriesChronological.length > 0) {
+      setSelectedEntryId(allEntriesChronological[0].entry.id);
+      
+      // Set initial scroll position
+      setTimeout(() => {
+        requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              const sidebar = sidebarRef.current;
-              const firstEntryElement = entryRefs.current[allEntriesChronological[0].entry.id];
-              
-              if (sidebar && firstEntryElement) {
-                // Double-check that the element has been rendered
-                if (firstEntryElement.offsetHeight > 0) {
-                  const sidebarHeight = sidebar.clientHeight;
-                  const triggerPoint = sidebarHeight / 3;
-                  const targetScrollTop = Math.max(0, firstEntryElement.offsetTop - triggerPoint);
-                  sidebar.scrollTo({ top: targetScrollTop, behavior: 'auto' });
-                }
-              }
-            });
+            const sidebar = sidebarRef.current;
+            const firstEntryElement = entryRefs.current[allEntriesChronological[0].entry.id];
+            
+            if (sidebar && firstEntryElement && firstEntryElement.offsetHeight > 0) {
+              const sidebarHeight = sidebar.clientHeight;
+              const triggerPoint = sidebarHeight / 3;
+              const targetScrollTop = Math.max(0, firstEntryElement.offsetTop - triggerPoint);
+              sidebar.scrollTo({ top: targetScrollTop, behavior: 'auto' });
+            }
           });
-        }, 150);
-      }
+        });
+      }, 150);
     }
-  }, [selectedEntryId, allEntriesChronological, isLoaded]);
+  }, [selectedEntryId, allEntriesChronological, isLoading]);
 
   // Scroll-hijacking: Auto-select entry based on scroll position in sidebar
   useEffect(() => {
     const handleScroll = () => {
-      // Skip scroll-hijacking during keyboard navigation
       if (!sidebarRef.current || isKeyboardNavigatingRef.current) return;
 
       const sidebar = sidebarRef.current;
@@ -198,84 +159,69 @@ export default function JournalApp() {
       const triggerPoint = sidebarRect.top + sidebarRect.height / 3;
       
       let closestEntryId = null;
-      let closestDistance = Infinity;
-      
-      if (allEntriesChronological.length === 0) return;
+      let minDistance = Infinity;
 
-      // Simple approach: find the entry closest to the trigger point
-      for (const { entry } of allEntriesChronological) {
-        const element = entryRefs.current[entry.id];
+      Object.values(entryRefs.current).forEach((entryElement) => {
+        if (!entryElement) return;
         
-        if (element) {
-          const elementRect = element.getBoundingClientRect();
-          const elementCenter = elementRect.top + elementRect.height / 2;
-          const distance = Math.abs(elementCenter - triggerPoint);
-          
-          // Keep track of the closest element
-          if (distance < closestDistance) {
-            closestDistance = distance;
-            closestEntryId = entry.id;
-          }
+        const entryRect = entryElement.getBoundingClientRect();
+        const entryCenter = entryRect.top + entryRect.height / 2;
+        const distance = Math.abs(entryCenter - triggerPoint);
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestEntryId = entryElement.dataset.entryId || null;
         }
-      }
+      });
 
-      // Update selected entry if we found one and it's different
-      if (closestEntryId && selectedEntryId !== closestEntryId) {
+      if (closestEntryId && closestEntryId !== selectedEntryId) {
         setSelectedEntryId(closestEntryId);
       }
     };
 
     const sidebar = sidebarRef.current;
     if (sidebar) {
-      sidebar.addEventListener('scroll', handleScroll, { passive: true });
-      
+      sidebar.addEventListener('scroll', handleScroll);
       return () => sidebar.removeEventListener('scroll', handleScroll);
     }
-  }, [selectedEntryId, allEntriesChronological]);
+  }, [selectedEntryId]);
 
-  // Add keyboard shortcuts
+  // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-        event.preventDefault();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Command Palette: Cmd+K
+      if (e.metaKey && e.key === 'k') {
+        e.preventDefault();
         setShowCommandPalette(true);
         return;
       }
 
-      // CMD+Enter to create new entry
-      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-        event.preventDefault();
+      // Create new entry: Cmd+Enter
+      if (e.metaKey && e.key === 'Enter') {
+        e.preventDefault();
         createNewEntry();
         return;
       }
 
-      // CMD+Up/Down to navigate through entries
-      if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-        event.preventDefault();
+      // Navigation: Cmd+Up/Down
+      if (e.metaKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
         
-        if (allEntriesChronological.length === 0) return;
+        const currentIndex = allEntriesChronological.findIndex(({ entry }) => entry.id === selectedEntryId);
+        if (currentIndex === -1) return;
 
-        let currentIndex = selectedEntryId 
-          ? allEntriesChronological.findIndex(({ entry }) => entry.id === selectedEntryId)
-          : -1;
-
-        if (event.key === 'ArrowUp') {
-          // Move to previous entry (newer)
-          currentIndex = currentIndex <= 0 ? allEntriesChronological.length - 1 : currentIndex - 1;
-        } else {
-          // Move to next entry (older)
-          currentIndex = currentIndex >= allEntriesChronological.length - 1 ? 0 : currentIndex + 1;
-        }
-
-        const newSelectedEntry = allEntriesChronological[currentIndex];
-        if (newSelectedEntry) {
-          // Set flag to disable scroll-hijacking during navigation (immediate, synchronous)
+        const newIndex = e.key === 'ArrowUp' 
+          ? Math.max(0, currentIndex - 1)
+          : Math.min(allEntriesChronological.length - 1, currentIndex + 1);
+        
+        const newEntryId = allEntriesChronological[newIndex]?.entry.id;
+        if (newEntryId) {
           isKeyboardNavigatingRef.current = true;
-          setSelectedEntryId(newSelectedEntry.entry.id);
+          setSelectedEntryId(newEntryId);
           
-          // Scroll to the selected entry
+          // Scroll to the entry
           setTimeout(() => {
-            const entryElement = entryRefs.current[newSelectedEntry.entry.id];
+            const entryElement = entryRefs.current[newEntryId];
             const sidebar = sidebarRef.current;
             
             if (entryElement && sidebar) {
@@ -284,10 +230,9 @@ export default function JournalApp() {
               const targetScrollTop = entryElement.offsetTop - triggerPoint;
               sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
               
-              // Re-enable scroll-hijacking after scroll animation completes
               setTimeout(() => {
                 isKeyboardNavigatingRef.current = false;
-              }, 500); // Allow time for smooth scroll to complete
+              }, 500);
             }
           }, 50);
         }
@@ -298,24 +243,20 @@ export default function JournalApp() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedEntryId, createNewEntry, allEntriesChronological]);
 
-  const currentEntry = getCurrentEntry();
-
-  // Handle AI mode selection from dropdown
+  // Handle AI mode selection
   const handleAIModeSelect = (mode: AIMode) => {
     setChatMode(mode);
     setChatSidebarOpen(true);
   };
 
-  // Get context for AI chat (current entry content + some additional context)
+  // Get context for AI chat
   const getChatContext = () => {
     if (!currentEntry) return '';
     
-    // Extract plain text from HTML content
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = currentEntry.entry.content;
     const textContent = tempDiv.textContent || tempDiv.innerText || '';
     
-    // Format with timestamp for better context
     const timestamp = currentEntry.entry.timestamp.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -327,6 +268,15 @@ export default function JournalApp() {
     
     return `Journal Entry from ${timestamp}:\n\n${textContent}`;
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900 items-center justify-center">
+        <div className="text-neutral-500 dark:text-neutral-400">Loading your journal...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
@@ -340,11 +290,9 @@ export default function JournalApp() {
             sidebarRef={sidebarRef}
             entryRefs={entryRefs}
             onSelectEntry={(entryId) => {
-              // Disable scroll-hijacking during manual selection
               isKeyboardNavigatingRef.current = true;
               setSelectedEntryId(entryId);
               
-              // Scroll to the selected entry
               setTimeout(() => {
                 const entryElement = entryRefs.current[entryId];
                 const sidebar = sidebarRef.current;
@@ -355,7 +303,6 @@ export default function JournalApp() {
                   const targetScrollTop = entryElement.offsetTop - triggerPoint;
                   sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
                   
-                  // Re-enable scroll-hijacking after scroll animation completes
                   setTimeout(() => {
                     isKeyboardNavigatingRef.current = false;
                   }, 500);
@@ -366,15 +313,12 @@ export default function JournalApp() {
 
           {/* Main Content Area */}
           <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden">
-            {/* Content Container with max width */}
             <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full overflow-hidden">
-              {/* Header with entry info and buttons */}
               <EntryHeader
                 currentEntry={currentEntry}
                 onDeleteEntry={deleteEntry}
               />
               
-              {/* Writing area */}
               <div className="flex-1 px-8 pb-8 overflow-auto min-h-0 scrollbar-hide">
                 {currentEntry ? (
                   <Editor
@@ -396,21 +340,18 @@ export default function JournalApp() {
             </div>
           </div>
           
-          {/* Help Modal */}
+          {/* Modals and Sidebars */}
           <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
           
-          {/* Command Palette */}
           <CommandPalette
             isOpen={showCommandPalette}
             onClose={() => setShowCommandPalette(false)}
             entries={entries}
             selectedEntryId={selectedEntryId}
             onSelectEntry={(entryId) => {
-              // Disable scroll-hijacking during command palette selection
               isKeyboardNavigatingRef.current = true;
               setSelectedEntryId(entryId);
               
-              // Scroll to the selected entry
               setTimeout(() => {
                 const entryElement = entryRefs.current[entryId];
                 const sidebar = sidebarRef.current;
@@ -421,7 +362,6 @@ export default function JournalApp() {
                   const targetScrollTop = entryElement.offsetTop - triggerPoint;
                   sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
                   
-                  // Re-enable scroll-hijacking after scroll animation completes
                   setTimeout(() => {
                     isKeyboardNavigatingRef.current = false;
                   }, 500);
@@ -430,7 +370,6 @@ export default function JournalApp() {
             }}
           />
           
-          {/* AI Chat Sidebar */}
           <AIChatSidebar
             isOpen={chatSidebarOpen}
             mode={chatMode}
@@ -443,7 +382,7 @@ export default function JournalApp() {
         </div>
       </div>
       
-      {/* Floating Help Button - Bottom Right */}
+      {/* Floating Help Button */}
       <button
         onClick={() => setShowHelp(!showHelp)}
         className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors shadow-lg hover:shadow-xl z-50"
@@ -452,6 +391,18 @@ export default function JournalApp() {
       >
         <span className="text-xl leading-none">?</span>
       </button>
+
+      {/* Toast Notifications */}
+      <Toaster 
+        position="top-right" 
+        toastOptions={{
+          style: {
+            background: 'var(--colors-neutral-50)',
+            border: '1px solid var(--colors-neutral-200)',
+            color: 'var(--colors-neutral-900)',
+          },
+        }}
+      />
     </div>
   );
 }

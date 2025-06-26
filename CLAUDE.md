@@ -10,6 +10,10 @@ Development:
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
+Firebase Development:
+- `firebase emulators:start` - Start Firebase emulators (Firestore on port 8080, Auth on port 9099)
+- `firebase emulators:start --only firestore` - Start only Firestore emulator
+
 The project uses npm as the package manager. All commands should be run from the `reflecta/` directory.
 
 ## Project Overview
@@ -25,7 +29,8 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Rich Text**: TipTap editor with markdown support and custom extensions
 - **AI Integration**: Vercel AI SDK with OpenAI GPT-4o-mini for founder-focused assistance
 - **Authentication**: Optional Clerk integration for user management
-- **Data Storage**: localStorage for client-side persistence
+- **Data Management**: TanStack Query v5 for state management with optimistic updates
+- **Data Storage**: localStorage (primary) + Firestore (cloud sync) with automatic migration
 - **Fonts**: Geist Sans and Geist Mono from next/font/google
 - **TypeScript**: Strict mode enabled with path aliases (`@/*` → `./src/*`)
 
