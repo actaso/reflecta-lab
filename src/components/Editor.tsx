@@ -17,6 +17,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { AutoTagExtension } from './AutoTagExtension';
+import { YouTubeLinkExtension } from './YouTubeLinkExtension';
 import AIDropdown, { AIMode } from './AIDropdown';
 
 interface EditorProps {
@@ -63,6 +64,7 @@ export default function Editor({ content, onChange, placeholder = "Start writing
         nested: true,
       }),
       AutoTagExtension,
+      YouTubeLinkExtension,
     ],
     content,
     autofocus: autoFocus,

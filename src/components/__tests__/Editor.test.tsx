@@ -42,6 +42,10 @@ jest.mock('../AutoTagExtension', () => ({
   AutoTagExtension: 'mock-auto-tag-extension',
 }));
 
+jest.mock('../YouTubeLinkExtension', () => ({
+  YouTubeLinkExtension: 'mock-youtube-link-extension',
+}));
+
 const mockUseEditor = useEditor as jest.MockedFunction<typeof useEditor>;
 
 describe('Editor', () => {
@@ -102,6 +106,7 @@ describe('Editor', () => {
         'mock-task-list',
         'mock-task-item',
         'mock-auto-tag-extension',
+        'mock-youtube-link-extension',
       ],
       content,
       autofocus: true,
