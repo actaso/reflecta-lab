@@ -57,10 +57,16 @@ The mobile app provides a native iOS experience with the same data structure. Ke
 ### Authentication System
 - **Optional Clerk integration**: Users can sign in for enhanced features while maintaining full anonymous functionality
 - **Modal-based signin**: Seamless authentication without page redirects using Clerk's modal mode
+- **Minimalistic user icon**: Clean, subtle SVG user icon instead of text button for better design consistency
 - **UserButton integration**: Clean avatar/menu system for signed-in users with custom styling
 - **Graceful degradation**: App works perfectly without Clerk configuration (disabled signin button)
 - **Local-first data**: localStorage remains primary storage for all users (signed-in or anonymous)
 - **Three authentication states**: No config, configured+anonymous, configured+signed-in
+
+### UI Design Elements
+- **Floating help button**: Positioned at bottom-right corner with fixed positioning and subtle shadow
+- **Minimalistic icons**: SVG-based icons for consistent, scalable design
+- **Responsive modals**: ESC key support for quick modal dismissal
 
 ### Journal Interface
 - **Multi-entry system**: Multiple entries per day with timestamps
@@ -90,12 +96,13 @@ The mobile app provides a native iOS experience with the same data structure. Ke
 - **Keyboard shortcuts**:
   - `Cmd+Enter`: Create new entry
   - `Cmd+Up/Down`: Navigate between entries
+  - `Cmd+K`: Open command palette for entry search
   - `Shift+Cmd`: Open AI mode selector (while in editor)
-  - `ESC`: Close AI sidebar
+  - `ESC`: Close help modal or AI sidebar
   - `Enter`: Send chat message / Select dropdown option
   - `Shift+Enter`: New line in chat input
 - **Mouse interactions**: Click entries to select, hover to show delete buttons
-- **Help system**: `?` button with comprehensive usage documentation
+- **Help system**: Floating `?` button (bottom-right) with comprehensive usage documentation
 
 ### Data Management
 - **localStorage persistence**: Automatic saving/loading of journal entries
