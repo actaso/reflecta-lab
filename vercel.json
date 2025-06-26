@@ -1,0 +1,15 @@
+{
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/*/route.ts": {
+      "runtime": "edge"
+    }
+  },
+  "build": {
+    "env": {
+      "VERCEL_ANALYTICS_ID": "@vercel_analytics_id"
+    }
+  }
+} 
