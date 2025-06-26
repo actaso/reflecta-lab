@@ -175,7 +175,7 @@ graph TD
 OPENAI_API_KEY=your_openai_api_key_here
 
 # Optional - for YouTube link enhancement
-NEXT_PUBLIC_YOUTUBE_API_KEY=your_youtube_api_key_here
+YOUTUBE_API_KEY=your_youtube_api_key_here
 
 # Optional (defaults shown)
 NODE_ENV=development

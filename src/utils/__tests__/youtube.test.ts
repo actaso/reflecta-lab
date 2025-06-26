@@ -1,6 +1,10 @@
 import { extractYouTubeVideoId, isYouTubeUrl, fetchYouTubeVideoTitle } from '../youtube';
 
-global.fetch = jest.fn();
+const mockFetch = jest.fn();
+Object.defineProperty(global, 'fetch', {
+  value: mockFetch,
+  writable: true,
+});
 
 describe('YouTube utilities', () => {
   describe('extractYouTubeVideoId', () => {
@@ -40,44 +44,35 @@ describe('YouTube utilities', () => {
   describe('fetchYouTubeVideoTitle', () => {
     beforeEach(() => {
       global.fetch = jest.fn();
-      process.env.NEXT_PUBLIC_YOUTUBE_API_KEY = 'test-api-key';
     });
 
     afterEach(() => {
       jest.resetAllMocks();
-      delete process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
     });
 
     it('should return video title when API call succeeds', async () => {
       const mockResponse = {
-        items: [
-          {
-            snippet: {
-              title: 'Test Video Title'
-            }
-          }
-        ]
+        title: 'Test Video Title'
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockResponse)
       });
 
       const title = await fetchYouTubeVideoTitle('dQw4w9WgXcQ');
       expect(title).toBe('Test Video Title');
-    });
-
-    it('should return null when API key is not configured', async () => {
-      delete process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-      
-      const title = await fetchYouTubeVideoTitle('dQw4w9WgXcQ');
-      expect(title).toBeNull();
+      expect(mockFetch).toHaveBeenCalledWith('/api/youtube/title', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId: 'dQw4w9WgXcQ' })
+      });
     });
 
     it('should return null when API call fails', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        statusText: 'Internal Server Error'
       });
 
       const title = await fetchYouTubeVideoTitle('dQw4w9WgXcQ');
@@ -86,15 +81,22 @@ describe('YouTube utilities', () => {
 
     it('should return null when video is not found', async () => {
       const mockResponse = {
-        items: []
+        title: null
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockResponse)
       });
 
       const title = await fetchYouTubeVideoTitle('invalid-id');
+      expect(title).toBeNull();
+    });
+
+    it('should handle network errors gracefully', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      const title = await fetchYouTubeVideoTitle('dQw4w9WgXcQ');
       expect(title).toBeNull();
     });
   });

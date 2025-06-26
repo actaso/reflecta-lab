@@ -24,20 +24,21 @@ export function isYouTubeUrl(url: string): boolean {
 
 export async function fetchYouTubeVideoTitle(videoId: string): Promise<string | null> {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-    if (!apiKey) {
-      console.warn('YouTube API key not configured');
+    const response = await fetch('/api/youtube/title', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ videoId }),
+    });
+    
+    if (!response.ok) {
+      console.warn('Failed to fetch YouTube video title:', response.statusText);
       return null;
     }
-
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${apiKey}&part=snippet`
-    );
-    
-    if (!response.ok) return null;
     
     const data = await response.json();
-    return data.items?.[0]?.snippet?.title || null;
+    return data.title || null;
   } catch (error) {
     console.error('Failed to fetch YouTube video title:', error);
     return null;
