@@ -14,7 +14,7 @@ The project uses npm as the package manager. All commands should be run from the
 
 ## Project Overview
 
-**Reflecta Labs** is a minimalist journal interface designed for rapid reflection and note-taking. The application provides a seamless, Apple Notes-inspired experience with advanced features like scroll-hijacking navigation, tag highlighting, and markdown support.
+**Reflecta Labs** is a minimalist journal interface designed for rapid reflection and note-taking. The application provides a seamless, Apple Notes-inspired experience with advanced features like scroll-hijacking navigation, tag highlighting, markdown support, and optional authentication.
 
 ## Architecture
 
@@ -24,6 +24,7 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Styling**: TailwindCSS v4 with PostCSS
 - **Rich Text**: TipTap editor with markdown support and custom extensions
 - **AI Integration**: Vercel AI SDK with OpenAI GPT-4o-mini for founder-focused assistance
+- **Authentication**: Optional Clerk integration for user management
 - **Data Storage**: localStorage for client-side persistence
 - **Fonts**: Geist Sans and Geist Mono from next/font/google
 - **TypeScript**: Strict mode enabled with path aliases (`@/*` → `./src/*`)
@@ -54,6 +55,13 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **VS Code-style interface**: Resizable sidebar (300-600px) with professional design
 - **Auto-focus input**: Cursor automatically goes to chat input when sidebar opens
 
+### Authentication System
+- **Optional integration**: Clerk-based authentication with graceful fallbacks
+- **Three states**: No config (disabled), not signed in (signin button), signed in (user avatar)
+- **Modal signin**: Seamless authentication without page redirects
+- **Local-first**: All functionality available to anonymous users
+- **Future-ready**: Architecture supports sync features when needed
+
 ### User Interactions
 - **Keyboard shortcuts**:
   - `Cmd+Enter`: Create new entry
@@ -63,7 +71,8 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
   - `Enter`: Send chat message / Select dropdown option
   - `Shift+Enter`: New line in chat input
 - **Mouse interactions**: Click entries to select, hover to show delete buttons
-- **Help system**: `?` button with comprehensive usage documentation
+- **Help system**: Floating `?` button (bottom-right) with comprehensive usage documentation
+- **Authentication**: Optional signin button (top-right) for enhanced features
 
 ### Data Management
 - **localStorage persistence**: Automatic saving/loading of journal entries
@@ -77,11 +86,12 @@ src/
 ├── app/
 │   ├── api/chat/
 │   │   └── route.ts        # OpenAI API endpoint for streaming AI responses
-│   ├── layout.tsx          # Root layout with fonts and metadata
-│   ├── page.tsx            # Main journal application component
+│   ├── layout.tsx          # Root layout with fonts, metadata, and ClerkProvider
+│   ├── page.tsx            # Main journal application component with floating help
 │   └── globals.css         # Global styles and TipTap customizations
 ├── components/
 │   ├── Editor.tsx          # TipTap editor wrapper with AI integration
+│   ├── EntryHeader.tsx     # Header with auth UI and entry info
 │   ├── AIChatSidebar.tsx   # Resizable VS Code-style AI chat sidebar
 │   ├── ChatInterface.tsx   # Chat message management and state
 │   ├── ChatMessage.tsx     # Individual message bubble component
@@ -91,6 +101,7 @@ src/
 │   └── TagExtension.ts     # TipTap mark extension (utility)
 └── docs/
     ├── AI_CHAT_SIDEBAR.md     # Comprehensive AI feature documentation
+    ├── AUTHENTICATION.md      # Authentication implementation guide
     └── DEVELOPER_ONBOARDING.md # Developer setup and patterns guide
 ```
 
@@ -148,6 +159,9 @@ entries: Record<string, JournalEntry[]>
 - **ai**: Vercel AI SDK for streaming responses and chat hooks
 - **@ai-sdk/openai**: OpenAI provider for Vercel AI SDK
 - **openai**: OpenAI API client library
+
+### Authentication
+- **@clerk/nextjs**: Optional authentication provider for user management
 
 ## Testing
 
