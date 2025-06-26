@@ -1,0 +1,14 @@
+# Exclude mobile app from Vercel deployment
+_mobile/
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+src/__tests__/
+src/setupTests.ts
+
+# Development files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

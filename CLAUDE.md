@@ -12,14 +12,14 @@ Development:
 - `npm run lint` - Run ESLint
 - `npm run pull-env` - Pull latest environment variables from Vercel (includes Clerk keys)
 
-### Mobile Application (mobile/reflecta-mobile/)
+### Mobile Application (_mobile/reflecta-mobile/)
 Development:
 - `npm start` - Start Expo development server
 - `npm run ios` - Run on iOS simulator
 - `npm run android` - Run on Android simulator
 - `npm run web` - Run mobile app on web
 
-The project uses npm as the package manager. Web commands should be run from the `reflecta/` directory, mobile commands from `reflecta/mobile/reflecta-mobile/`.
+The project uses npm as the package manager. Web commands should be run from the `reflecta/` directory, mobile commands from `reflecta/_mobile/reflecta-mobile/`.
 
 ## Project Overview
 
@@ -137,7 +137,7 @@ src/
 
 ### Mobile Application
 ```
-mobile/reflecta-mobile/
+_mobile/reflecta-mobile/
 ├── App.tsx                 # Main application component with timeline overlay
 ├── src/
 │   ├── components/
