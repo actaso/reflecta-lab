@@ -1,10 +1,5 @@
 {
   "buildCommand": "npm run build",
   "installCommand": "npm ci",
-  "framework": "nextjs",
-  "functions": {
-    "src/app/api/*/route.ts": {
-      "runtime": "edge"
-    }
-  }
+  "framework": "nextjs"
 } 
