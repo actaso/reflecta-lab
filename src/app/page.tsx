@@ -34,9 +34,12 @@ export default function JournalApp() {
         // Convert timestamp strings back to Date objects
         const entriesWithDates: Record<string, JournalEntry[]> = {};
         Object.keys(parsed).forEach(dateKey => {
-          entriesWithDates[dateKey] = parsed[dateKey].map((entry: {id: string; timestamp: string; content: string}) => ({
-            ...entry,
-            timestamp: new Date(entry.timestamp)
+          entriesWithDates[dateKey] = parsed[dateKey].map((entry: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+            id: entry.id as string,
+            timestamp: new Date(entry.timestamp as string),
+            content: entry.content as string,
+            uid: (entry.uid as string) || 'local-user', // Fallback for existing entries
+            lastUpdated: entry.lastUpdated ? new Date(entry.lastUpdated as string) : new Date(entry.timestamp as string) // Fallback for existing entries
           }));
         });
         setEntries(entriesWithDates);
@@ -85,7 +88,8 @@ export default function JournalApp() {
           newEntries[dateKey] = [...dayEntries];
           newEntries[dateKey][entryIndex] = {
             ...dayEntries[entryIndex],
-            content: value
+            content: value,
+            lastUpdated: new Date() // Update lastUpdated when content changes
           };
           break;
         }
@@ -101,7 +105,9 @@ export default function JournalApp() {
     const newEntry: JournalEntry = {
       id: crypto.randomUUID(),
       timestamp: now,
-      content: ''
+      content: '',
+      uid: 'local-user', // This will be replaced when auth is implemented
+      lastUpdated: now
     };
     
     setEntries(prev => ({

@@ -31,7 +31,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       // Connect to Auth emulator
       connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
       console.log('   ✅ Auth emulator connected: http://localhost:9099');
-    } catch (error) {
+    } catch {
       // Emulator connection might already be established
       console.log('   ⚠️ Auth emulator connection skipped (likely already connected)');
     }
@@ -40,7 +40,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       // Connect to Firestore emulator
       connectFirestoreEmulator(db, 'localhost', 8080);
       console.log('   ✅ Firestore emulator connected: localhost:8080');
-    } catch (error) {
+    } catch {
       // Emulator connection might already be established
       console.log('   ⚠️ Firestore emulator connection skipped (likely already connected)');
     }

@@ -88,7 +88,9 @@ describe('Journal App Workflows', () => {
           {
             id: '1',
             timestamp: '2024-03-15T10:30:00.000Z',
-            content: '<p>Test entry content</p>'
+            content: '<p>Test entry content</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T10:30:00.000Z'
           }
         ]
       };
@@ -198,19 +200,25 @@ describe('Journal App Workflows', () => {
           {
             id: '1',
             timestamp: '2024-03-15T10:30:00.000Z',
-            content: '<p>First entry</p>'
+            content: '<p>First entry</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T10:30:00.000Z'
           },
           {
             id: '2',
             timestamp: '2024-03-15T11:30:00.000Z',
-            content: '<p>Second entry</p>'
+            content: '<p>Second entry</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T11:30:00.000Z'
           }
         ],
         '2024-03-14': [
           {
             id: '3',
             timestamp: '2024-03-14T10:30:00.000Z',
-            content: '<p>Third entry</p>'
+            content: '<p>Third entry</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-14T10:30:00.000Z'
           }
         ]
       };
@@ -296,7 +304,9 @@ describe('Journal App Workflows', () => {
           {
             id: '1',
             timestamp: '2024-03-15T10:30:00.000Z',
-            content: '<p>Clickable entry</p>'
+            content: '<p>Clickable entry</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T10:30:00.000Z'
           }
         ]
       };
@@ -327,7 +337,9 @@ describe('Journal App Workflows', () => {
           {
             id: '1',
             timestamp: '2024-03-15T10:30:00.000Z',
-            content: '<p>Entry with timestamp</p>'
+            content: '<p>Entry with timestamp</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T10:30:00.000Z'
           }
         ]
       };

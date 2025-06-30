@@ -12,7 +12,8 @@ import {
   serverTimestamp,
   Timestamp,
   WriteBatch,
-  writeBatch
+  writeBatch,
+  FieldValue
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { JournalEntry } from '@/types/journal';
@@ -20,25 +21,32 @@ import { JournalEntry } from '@/types/journal';
 // Firestore document interface (includes Firestore metadata)
 export interface FirestoreJournalEntry {
   id?: string;
-  userId: string;
+  uid: string;
   content: string;
-  timestamp: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  timestamp: Timestamp | FieldValue;
+  lastUpdated: Timestamp | FieldValue;
+  createdAt: Timestamp | FieldValue;
+  updatedAt: Timestamp | FieldValue;
 }
 
 // Convert Firestore document to JournalEntry
-const convertFirestoreEntry = (doc: { id: string; data: () => { content: string; timestamp: { toDate: () => Date } } }): JournalEntry => ({
-  id: doc.id,
-  content: doc.data().content,
-  timestamp: doc.data().timestamp.toDate()
-});
+const convertFirestoreEntry = (doc: { id: string; data: () => any }): JournalEntry => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const data = doc.data();
+  return {
+    id: doc.id,
+    content: data.content as string,
+    timestamp: (data.timestamp as Timestamp).toDate(),
+    uid: data.uid as string,
+    lastUpdated: data.lastUpdated ? (data.lastUpdated as Timestamp).toDate() : (data.updatedAt as Timestamp).toDate()
+  };
+};
 
 // Convert JournalEntry to Firestore document data
 const convertToFirestoreData = (entry: Partial<JournalEntry>, userId: string): Partial<FirestoreJournalEntry> => ({
-  userId,
+  uid: userId,
   content: entry.content,
   timestamp: entry.timestamp ? Timestamp.fromDate(entry.timestamp) : serverTimestamp(),
+  lastUpdated: entry.lastUpdated ? Timestamp.fromDate(entry.lastUpdated) : serverTimestamp(),
   updatedAt: serverTimestamp(),
   ...(entry.id ? {} : { createdAt: serverTimestamp() })
 });
@@ -51,7 +59,7 @@ export class FirestoreService {
     try {
       const q = query(
         collection(db, this.COLLECTION_NAME),
-        where('userId', '==', userId),
+        where('uid', '==', userId),
         orderBy('timestamp', 'desc')
       );
       
@@ -130,7 +138,7 @@ export class FirestoreService {
   ): () => void {
     const q = query(
       collection(db, this.COLLECTION_NAME),
-      where('userId', '==', userId),
+      where('uid', '==', userId),
       orderBy('timestamp', 'desc')
     );
 

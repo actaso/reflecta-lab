@@ -18,9 +18,12 @@ export default function AuthTestPanel() {
 
     try {
       setTestResult('⏳ Testing Firestore write...');
+      const now = new Date();
       const entryId = await addEntry({
         content: testEntry,
-        timestamp: new Date()
+        timestamp: now,
+        uid: user!.uid, // Use the authenticated user's uid
+        lastUpdated: now
       });
       
       if (entryId) {

@@ -44,7 +44,13 @@ export const useJournal = () => {
 
     try {
       setError(null);
-      const entryId = await FirestoreService.addEntry(entry, user.uid);
+      // Ensure the entry has the required fields
+      const entryWithUserData: Omit<JournalEntry, 'id'> = {
+        ...entry,
+        uid: user.uid,
+        lastUpdated: entry.lastUpdated || new Date()
+      };
+      const entryId = await FirestoreService.addEntry(entryWithUserData, user.uid);
       return entryId;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add entry');
@@ -60,7 +66,12 @@ export const useJournal = () => {
 
     try {
       setError(null);
-      await FirestoreService.updateEntry(entryId, updates, user.uid);
+      // Always update lastUpdated when making changes
+      const updatesWithTimestamp: Partial<JournalEntry> = {
+        ...updates,
+        lastUpdated: new Date()
+      };
+      await FirestoreService.updateEntry(entryId, updatesWithTimestamp, user.uid);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update entry');
