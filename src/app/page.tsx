@@ -10,6 +10,7 @@ import CommandPalette from '../components/CommandPalette';
 import { AIMode } from '../components/AIDropdown';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry } from '../types/journal';
+import AuthTestPanel from '../components/AuthTestPanel';
 
 export default function JournalApp() {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -447,6 +448,11 @@ export default function JournalApp() {
       >
         <span className="text-xl leading-none">?</span>
       </button>
+
+      {/* Test Panel - Remove this after testing */}
+      <div className="fixed top-4 left-4 max-w-md z-50">
+        <AuthTestPanel />
+      </div>
     </div>
   );
 }

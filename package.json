@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 next dev --turbopack",
+    "dev:emulators": "firebase emulators:start --only auth,firestore,ui",
+    "dev:full": "concurrently \"npm run dev:emulators\" \"npm run dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -32,10 +34,13 @@
     "@tiptap/react": "^2.14.0",
     "@tiptap/starter-kit": "^2.14.0",
     "ai": "^4.3.16",
+    "firebase": "^11.9.1",
+    "firebase-admin": "^13.4.0",
     "next": "15.3.4",
     "openai": "^5.5.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-firebase-hooks": "^5.1.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
