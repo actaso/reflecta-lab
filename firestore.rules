@@ -4,8 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Allow users to access their own journal entries
     match /journal_entries/{entryId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
     }
     
     // Deny access to all other collections
