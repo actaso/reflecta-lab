@@ -9,12 +9,7 @@ import AIChatSidebar from '../components/AIChatSidebar';
 import CommandPalette from '../components/CommandPalette';
 import { AIMode } from '../components/AIDropdown';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
-
-type JournalEntry = {
-  id: string;
-  timestamp: Date;
-  content: string;
-};
+import { JournalEntry } from '../types/journal';
 
 export default function JournalApp() {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -103,7 +98,7 @@ export default function JournalApp() {
     const now = new Date();
     const todayKey = formatDate(now);
     const newEntry: JournalEntry = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       timestamp: now,
       content: ''
     };
