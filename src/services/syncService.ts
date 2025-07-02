@@ -149,14 +149,14 @@ export class SyncService {
       const allEntries: JournalEntry[] = [];
       
       // Convert the date-keyed format back to flat array
-      Object.values(parsed).forEach((dayEntries: any) => {
-        dayEntries.forEach((entry: any) => {
+      Object.values(parsed).forEach((dayEntries: unknown) => {
+        (dayEntries as JournalEntry[]).forEach((entry: unknown) => {
           allEntries.push({
-            id: entry.id as string,
-            timestamp: new Date(entry.timestamp as string),
-            content: entry.content as string,
-            uid: entry.uid as string,
-            lastUpdated: new Date(entry.lastUpdated as string)
+            id: (entry as JournalEntry).id,
+            timestamp: new Date((entry as JournalEntry).timestamp),
+            content: (entry as JournalEntry).content,
+            uid: (entry as JournalEntry).uid,
+            lastUpdated: new Date((entry as JournalEntry).lastUpdated)
           });
         });
       });
@@ -232,7 +232,7 @@ export class SyncService {
           // Conflict detected - add to conflicts list for handling
           conflicts.push(result.conflict);
         }
-      } catch (error) {
+      } catch {
         // Failed - re-queue with increased retry count and exponential backoff
         item.retryCount++;
         item.lastAttempt = new Date();

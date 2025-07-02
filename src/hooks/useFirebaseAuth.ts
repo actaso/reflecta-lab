@@ -41,7 +41,7 @@ export const useFirebaseAuth = () => {
     };
 
     handleTokenExchange();
-  }, [clerkUser?.id, firebaseUser?.uid, clerkLoaded]); // Use stable IDs instead of full objects
+  }, [clerkUser?.id, firebaseUser?.uid, clerkLoaded, clerkUser, firebaseUser]); // Use stable IDs instead of full objects
 
   // Memoize the authUser object to prevent unnecessary re-renders
   const authUser: AuthUser | null = useMemo(() => {
@@ -59,7 +59,9 @@ export const useFirebaseAuth = () => {
     firebaseUser?.displayName,
     clerkUser?.id,
     clerkUser?.primaryEmailAddress?.emailAddress,
-    clerkUser?.fullName
+    clerkUser?.fullName,
+    clerkUser,
+    firebaseUser
   ]);
 
   const loading = !clerkLoaded || firebaseLoading || isExchangingToken;

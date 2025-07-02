@@ -17,11 +17,9 @@ export default function JournalApp() {
   const { 
     entries: flatEntries, 
     loading, 
-    syncState, 
     addEntry, 
     updateEntry, 
-    deleteEntry: deleteEntryFromHook,
-    manualSync 
+    deleteEntry: deleteEntryFromHook 
   } = useJournal();
   
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);

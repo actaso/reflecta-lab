@@ -35,6 +35,41 @@ jest.mock('../components/AutoTagExtension', () => ({
   AutoTagExtension: 'mock-auto-tag-extension',
 }));
 
+// Mock Firebase and Clerk
+jest.mock('@clerk/nextjs', () => ({
+  useUser: jest.fn(() => ({ user: null, isLoaded: true })),
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('react-firebase-hooks/auth', () => ({
+  useAuthState: jest.fn(() => [null, false, null]),
+}));
+
+jest.mock('@/lib/firebase', () => ({
+  auth: {},
+}));
+
+jest.mock('@/lib/clerk-firebase-auth', () => ({
+  signInWithClerkToken: jest.fn(),
+  signOutFromFirebase: jest.fn(),
+}));
+
+jest.mock('@/lib/firestore', () => ({
+  syncEntryToFirestore: jest.fn(),
+  loadEntriesFromFirestore: jest.fn(() => Promise.resolve([])),
+  deleteEntryFromFirestore: jest.fn(),
+}));
+
+jest.mock('@/services/syncService', () => ({
+  SyncService: {
+    init: jest.fn(),
+    queueEntryForSync: jest.fn(),
+    queueEntryForDeletion: jest.fn(),
+    processQueue: jest.fn(),
+    getStats: jest.fn(() => ({ queued: 0, synced: 0, failed: 0 })),
+  },
+}));
+
 // Mock scrollTo
 const mockScrollTo = jest.fn();
 Object.defineProperty(Element.prototype, 'scrollTo', {
