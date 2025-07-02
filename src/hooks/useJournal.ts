@@ -10,82 +10,172 @@ export const useJournal = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>('offline');
-  const [conflicts] = useState<JournalEntry[]>([]);
+  const [conflicts, setConflicts] = useState<JournalEntry[]>([]);
   
   // Enhanced debouncing with content change detection
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncedContentRef = useRef<Map<string, string>>(new Map()); // Track last synced content per entry
+  const previousAuthStateRef = useRef<boolean>(false); // Track previous auth state for transitions
   const SYNC_DEBOUNCE_MS = 1500; // Slightly longer debounce
 
-  // Load entries from localStorage and sync when authenticated
-  useEffect(() => {
-    // Always load from localStorage first (immediate UI)
-    const loadLocalEntries = () => {
-      try {
-        const savedEntries = localStorage.getItem('journal-entries');
-        if (savedEntries) {
-          const parsed = JSON.parse(savedEntries);
-          const allEntries: JournalEntry[] = [];
-          
-          Object.values(parsed).forEach((dayEntries: unknown) => {
-            (dayEntries as JournalEntry[]).forEach((entry: unknown) => {
-              allEntries.push({
-                id: (entry as JournalEntry).id,
-                timestamp: new Date((entry as JournalEntry).timestamp),
-                content: (entry as JournalEntry).content,
-                uid: (entry as JournalEntry).uid || 'local-user',
-                lastUpdated: (entry as JournalEntry).lastUpdated ? new Date((entry as JournalEntry).lastUpdated) : new Date((entry as JournalEntry).timestamp)
-              });
-            });
-          });
-          
-          setEntries(allEntries);
-          
-          // Initialize last synced content tracking
-          allEntries.forEach(entry => {
-            lastSyncedContentRef.current.set(entry.id, entry.content);
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load local entries:', error);
-        setError('Failed to load entries from local storage');
-      }
-      setLoading(false);
-    };
+  // Handle the transition from anonymous to authenticated user
+  const handleAnonymousToAuthenticatedTransition = useCallback(async () => {
+    if (!user?.uid) return;
 
     setLoading(true);
     setError(null);
-    loadLocalEntries();
+    setSyncState('syncing');
 
-    // If authenticated, sync with Firestore in the background
-    if (isAuthenticated && user?.uid) {
-      setSyncState('syncing');
+    try {
+      // 1. Load existing local entries (anonymous entries)
+      const localEntries = loadLocalEntriesFromStorage();
+      const anonymousEntries = localEntries.filter(entry => entry.uid === 'local-user');
       
-      const performBackgroundSync = async () => {
-        try {
-          // Sync from remote (pull changes)
-          const mergedEntries = await SyncService.syncFromRemote(user.uid);
-          setEntries(mergedEntries);
-          
-          // Update last synced content tracking after successful sync
-          mergedEntries.forEach(entry => {
-            lastSyncedContentRef.current.set(entry.id, entry.content);
-          });
-          
-          setSyncState('synced');
-        } catch (error) {
-          console.error('Background sync failed:', error);
-          setSyncState('error');
-          setError('Sync failed - working offline');
-        }
-      };
+      console.log(`📝 [AUTH-TRANSITION] Found ${anonymousEntries.length} anonymous entries to preserve`);
 
-      // Start background sync after a brief delay to not block UI
-      setTimeout(performBackgroundSync, 100);
-    } else {
-      setSyncState('offline');
+      // 2. Fetch remote entries for this user
+      let remoteEntries: JournalEntry[] = [];
+      try {
+        remoteEntries = await FirestoreService.getUserEntries(user.uid);
+        console.log(`☁️ [AUTH-TRANSITION] Found ${remoteEntries.length} existing remote entries`);
+      } catch (err) {
+        console.warn('Failed to fetch existing remote entries, proceeding with local only:', err);
+      }
+
+      // 3. Update anonymous entries to belong to the authenticated user
+      const updatedAnonymousEntries = anonymousEntries.map(entry => ({
+        ...entry,
+        uid: user.uid,
+        lastUpdated: new Date() // Mark as recently updated for sync priority
+      }));
+
+      // 4. Merge all entries (remote + converted anonymous)
+      const mergedEntries = [...remoteEntries, ...updatedAnonymousEntries];
+      
+      // 5. Update state and localStorage
+      setEntries(mergedEntries);
+      saveToLocalStorage(mergedEntries);
+
+      // 6. Initialize content tracking
+      mergedEntries.forEach(entry => {
+        lastSyncedContentRef.current.set(entry.id, entry.content);
+      });
+
+      // 7. Sync anonymous entries to Firestore in background
+      if (updatedAnonymousEntries.length > 0) {
+        console.log(`🔄 [AUTH-TRANSITION] Syncing ${updatedAnonymousEntries.length} anonymous entries to Firestore`);
+        
+        try {
+          // Use Promise.allSettled to attempt all syncs, don't fail on individual errors
+          const syncResults = await Promise.allSettled(
+            updatedAnonymousEntries.map(entry => 
+              FirestoreService.upsertEntry(entry, user.uid)
+            )
+          );
+
+          const successfulSyncs = syncResults.filter(result => result.status === 'fulfilled').length;
+          const failedSyncs = syncResults.filter(result => result.status === 'rejected').length;
+
+          console.log(`✅ [AUTH-TRANSITION] Sync complete: ${successfulSyncs} successful, ${failedSyncs} failed`);
+          
+          if (failedSyncs > 0) {
+            setError(`Some entries failed to sync (${failedSyncs}/${updatedAnonymousEntries.length}) - they are saved locally`);
+          }
+        } catch (err) {
+          console.error('Failed to sync anonymous entries:', err);
+          setError('Failed to sync some entries - they are saved locally');
+        }
+      }
+
+      setSyncState('synced');
+      console.log('🎉 [AUTH-TRANSITION] Anonymous-to-authenticated transition complete');
+
+    } catch (err) {
+      console.error('Failed during anonymous-to-authenticated transition:', err);
+      setError('Transition failed - working offline');
+      setSyncState('error');
+      
+      // Fallback: just load local entries
+      const localEntries = loadLocalEntriesFromStorage();
+      setEntries(localEntries);
+    } finally {
+      setLoading(false);
     }
-  }, [user?.uid, isAuthenticated]);
+  }, [user?.uid]);
+
+  // Helper function to load entries from localStorage
+  const loadLocalEntriesFromStorage = useCallback((): JournalEntry[] => {
+    try {
+      const savedEntries = localStorage.getItem('journal-entries');
+      if (!savedEntries) return [];
+      
+      const parsed = JSON.parse(savedEntries);
+      const allEntries: JournalEntry[] = [];
+      
+      Object.values(parsed).forEach((dayEntries: any) => {
+        dayEntries.forEach((entry: any) => {
+          allEntries.push({
+            id: entry.id as string,
+            timestamp: new Date(entry.timestamp as string),
+            content: entry.content as string,
+            uid: (entry.uid as string) || 'local-user',
+            lastUpdated: entry.lastUpdated ? new Date(entry.lastUpdated as string) : new Date(entry.timestamp as string)
+          });
+        });
+      });
+      
+      return allEntries;
+    } catch (error) {
+      console.error('Failed to load local entries:', error);
+      return [];
+    }
+  }, []);
+
+  // Load entries from localStorage and sync when authenticated (standard behavior)
+  const loadLocalEntries = useCallback(() => {
+    try {
+      const allEntries = loadLocalEntriesFromStorage();
+      setEntries(allEntries);
+      
+      // Initialize last synced content tracking
+      allEntries.forEach(entry => {
+        lastSyncedContentRef.current.set(entry.id, entry.content);
+      });
+
+      // If authenticated, sync with Firestore in the background
+      if (isAuthenticated && user?.uid) {
+        setSyncState('syncing');
+        
+        const performBackgroundSync = async () => {
+          try {
+            // Sync from remote (pull changes)
+            const mergedEntries = await SyncService.syncFromRemote(user.uid);
+            setEntries(mergedEntries);
+            
+            // Update last synced content tracking after successful sync
+            mergedEntries.forEach(entry => {
+              lastSyncedContentRef.current.set(entry.id, entry.content);
+            });
+            
+            setSyncState('synced');
+          } catch (error) {
+            console.error('Background sync failed:', error);
+            setSyncState('error');
+            setError('Sync failed - working offline');
+          }
+        };
+
+        // Start background sync after a brief delay to not block UI
+        setTimeout(performBackgroundSync, 100);
+      } else {
+        setSyncState('offline');
+      }
+    } catch (error) {
+      console.error('Failed to load local entries:', error);
+      setError('Failed to load entries from local storage');
+    }
+    setLoading(false);
+  }, [isAuthenticated, user?.uid, loadLocalEntriesFromStorage]);
 
   // Helper function to save entries to localStorage
   const saveToLocalStorage = useCallback((entriesToSave: JournalEntry[]) => {
@@ -161,7 +251,7 @@ export const useJournal = () => {
       setEntries(currentEntries);
       saveToLocalStorage(currentEntries);
 
-      // 2. Immediate sync for new entries using atomic upsert
+      // 2. Immediate sync for new entries using atomic upsert (only if authenticated)
       if (isAuthenticated && user?.uid) {
         setSyncState('syncing');
         try {
@@ -312,6 +402,36 @@ export const useJournal = () => {
       return false;
     }
   }, [user?.uid, isAuthenticated, entries, saveToLocalStorage]);
+
+  // Handle authentication state changes and localStorage management
+  useEffect(() => {
+    const wasAuthenticated = previousAuthStateRef.current;
+    const isNowAuthenticated = isAuthenticated;
+
+    // Update the ref for next time
+    previousAuthStateRef.current = isNowAuthenticated;
+
+    // Case 1: User signed out (was authenticated, now not)
+    if (wasAuthenticated && !isNowAuthenticated) {
+      console.log('🔓 [AUTH] User signed out, clearing localStorage');
+      localStorage.removeItem('journal-entries');
+      setEntries([]);
+      lastSyncedContentRef.current.clear();
+      setSyncState('offline');
+      setError(null);
+      return; // Exit early, no need to load entries
+    }
+
+    // Case 2: User signed in (was not authenticated, now is)
+    if (!wasAuthenticated && isNowAuthenticated && user?.uid) {
+      console.log('🔐 [AUTH] User signed in, handling anonymous-to-authenticated transition');
+      handleAnonymousToAuthenticatedTransition();
+      return; // handleAnonymousToAuthenticatedTransition will load entries
+    }
+
+    // Case 3: Initial load or no auth state change
+    loadLocalEntries();
+  }, [isAuthenticated, user?.uid]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
