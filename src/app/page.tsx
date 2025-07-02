@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Editor from '../components/Editor';
 import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
@@ -10,52 +10,50 @@ import CommandPalette from '../components/CommandPalette';
 import { AIMode } from '../components/AIDropdown';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry } from '../types/journal';
-import AuthTestPanel from '../components/AuthTestPanel';
+import { useJournal } from '../hooks/useJournal';
 
 export default function JournalApp() {
+  // Use the sync-enabled journal hook
+  const { 
+    entries: flatEntries, 
+    loading, 
+    syncState, 
+    addEntry, 
+    updateEntry, 
+    deleteEntry: deleteEntryFromHook,
+    manualSync 
+  } = useJournal();
+  
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
-  const [entries, setEntries] = useState<Record<string, JournalEntry[]>>({});
-  const [isLoaded, setIsLoaded] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
   const [chatMode, setChatMode] = useState<AIMode | null>(null);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   
+  // Convert flat array to date-keyed format for UI compatibility
+  const entries = useMemo(() => {
+    const entriesByDate: Record<string, JournalEntry[]> = {};
+    flatEntries.forEach(entry => {
+      const dateKey = formatDate(entry.timestamp);
+      if (!entriesByDate[dateKey]) {
+        entriesByDate[dateKey] = [];
+      }
+      entriesByDate[dateKey].push(entry);
+    });
+    
+    // Sort entries within each day by timestamp (newest first)
+    Object.keys(entriesByDate).forEach(dateKey => {
+      entriesByDate[dateKey].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    });
+    
+    return entriesByDate;
+  }, [flatEntries]);
+  
   const sidebarRef = useRef<HTMLDivElement>(null);
   const entryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const isKeyboardNavigatingRef = useRef(false);
 
-  // Load entries from localStorage on mount
-  useEffect(() => {
-    const savedEntries = localStorage.getItem('journal-entries');
-    if (savedEntries) {
-      try {
-        const parsed = JSON.parse(savedEntries);
-        // Convert timestamp strings back to Date objects
-        const entriesWithDates: Record<string, JournalEntry[]> = {};
-        Object.keys(parsed).forEach(dateKey => {
-          entriesWithDates[dateKey] = parsed[dateKey].map((entry: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-            id: entry.id as string,
-            timestamp: new Date(entry.timestamp as string),
-            content: entry.content as string,
-            uid: (entry.uid as string) || 'local-user', // Fallback for existing entries
-            lastUpdated: entry.lastUpdated ? new Date(entry.lastUpdated as string) : new Date(entry.timestamp as string) // Fallback for existing entries
-          }));
-        });
-        setEntries(entriesWithDates);
-      } catch (error) {
-        console.error('Failed to load entries from localStorage:', error);
-      }
-    }
-    setIsLoaded(true);
-  }, []);
-
-  // Save entries to localStorage whenever entries change
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('journal-entries', JSON.stringify(entries));
-    }
-  }, [entries, isLoaded]);
+  // useJournal hook now handles localStorage loading/saving
 
 
 
@@ -77,91 +75,57 @@ export default function JournalApp() {
   const handleEntryChange = (value: string) => {
     if (!selectedEntryId) return;
     
-    setEntries(prev => {
-      const newEntries = { ...prev };
-      
-      // Find and update the entry
-      for (const dateKey of Object.keys(newEntries)) {
-        const dayEntries = newEntries[dateKey] || [];
-        const entryIndex = dayEntries.findIndex(e => e.id === selectedEntryId);
-        if (entryIndex !== -1) {
-          newEntries[dateKey] = [...dayEntries];
-          newEntries[dateKey][entryIndex] = {
-            ...dayEntries[entryIndex],
-            content: value,
-            lastUpdated: new Date() // Update lastUpdated when content changes
-          };
-          break;
-        }
-      }
-      
-      return newEntries;
-    });
+    // Use the hook's updateEntry method
+    updateEntry(selectedEntryId, { content: value });
   };
 
-  const createNewEntry = useCallback(() => {
+  const createNewEntry = useCallback(async () => {
     const now = new Date();
-    const todayKey = formatDate(now);
-    const newEntry: JournalEntry = {
-      id: crypto.randomUUID(),
+    
+    // Use the hook's addEntry method
+    const newEntryId = await addEntry({
       timestamp: now,
       content: '',
-      uid: 'local-user', // This will be replaced when auth is implemented
+      uid: 'local-user', // Will be set by hook when authenticated
       lastUpdated: now
-    };
-    
-    setEntries(prev => ({
-      ...prev,
-      [todayKey]: [newEntry, ...(prev[todayKey] || [])]
-    }));
-    
-    setSelectedEntryId(newEntry.id);
-    
-    // Auto-scroll to the new entry after a brief delay
-    setTimeout(() => {
-      const entryElement = entryRefs.current[newEntry.id];
-      const sidebar = sidebarRef.current;
-      
-      if (entryElement && sidebar) {
-        // Calculate the position to center the new entry in the trigger zone
-        const sidebarRect = sidebar.getBoundingClientRect();
-        const triggerPoint = sidebarRect.height / 3;
-        
-        // Scroll to position the entry at the trigger point
-        const targetScrollTop = entryElement.offsetTop - triggerPoint;
-        sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-      }
-    }, 100);
-  }, []);
-
-  const deleteEntry = (entryId: string) => {
-    setEntries(prev => {
-      const newEntries = { ...prev };
-      
-      // Find and remove the entry
-      for (const dateKey of Object.keys(newEntries)) {
-        const dayEntries = newEntries[dateKey] || [];
-        const entryIndex = dayEntries.findIndex(e => e.id === entryId);
-        if (entryIndex !== -1) {
-          newEntries[dateKey] = dayEntries.filter(e => e.id !== entryId);
-          
-          // If this was the selected entry, select another one
-          if (selectedEntryId === entryId) {
-            const allEntries = getAllEntriesChronological(newEntries);
-            const remainingEntries = allEntries.filter(({ entry }) => entry.id !== entryId);
-            setSelectedEntryId(remainingEntries.length > 0 ? remainingEntries[0].entry.id : null);
-          }
-          break;
-        }
-      }
-      
-      return newEntries;
     });
+    
+    if (newEntryId) {
+      setSelectedEntryId(newEntryId);
+      
+      // Auto-scroll to the new entry after a brief delay
+      setTimeout(() => {
+        const entryElement = entryRefs.current[newEntryId];
+        const sidebar = sidebarRef.current;
+        
+        if (entryElement && sidebar) {
+          // Calculate the position to center the new entry in the trigger zone
+          const sidebarRect = sidebar.getBoundingClientRect();
+          const triggerPoint = sidebarRect.height / 3;
+          
+          // Scroll to position the entry at the trigger point
+          const targetScrollTop = entryElement.offsetTop - triggerPoint;
+          sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, [addEntry]);
+
+  const deleteEntry = async (entryId: string) => {
+    // Use the hook's deleteEntry method
+    const success = await deleteEntryFromHook(entryId);
+    
+    if (success && selectedEntryId === entryId) {
+      // If this was the selected entry, select another one
+      const allEntries = getAllEntriesChronological(entries);
+      const remainingEntries = allEntries.filter(({ entry }) => entry.id !== entryId);
+      setSelectedEntryId(remainingEntries.length > 0 ? remainingEntries[0].entry.id : null);
+    }
   };
 
   // Initialize with the first entry and set initial scroll position
   useEffect(() => {
-    if (isLoaded && !selectedEntryId) {
+    if (!loading && !selectedEntryId) {
       if (allEntriesChronological.length > 0) {
         setSelectedEntryId(allEntriesChronological[0].entry.id);
         
@@ -187,7 +151,7 @@ export default function JournalApp() {
         }, 150);
       }
     }
-  }, [selectedEntryId, allEntriesChronological, isLoaded]);
+  }, [selectedEntryId, allEntriesChronological, loading]);
 
   // Scroll-hijacking: Auto-select entry based on scroll position in sidebar
   useEffect(() => {
@@ -454,11 +418,6 @@ export default function JournalApp() {
       >
         <span className="text-xl leading-none">?</span>
       </button>
-
-      {/* Test Panel - Remove this after testing */}
-      <div className="fixed top-4 left-4 max-w-md z-50">
-        <AuthTestPanel />
-      </div>
     </div>
   );
 }
