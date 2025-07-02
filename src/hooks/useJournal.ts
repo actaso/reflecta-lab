@@ -10,7 +10,7 @@ export const useJournal = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>('offline');
-  const [conflicts, setConflicts] = useState<JournalEntry[]>([]);
+  const [conflicts] = useState<JournalEntry[]>([]);
   
   // Enhanced debouncing with content change detection
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -112,14 +112,14 @@ export const useJournal = () => {
       const parsed = JSON.parse(savedEntries);
       const allEntries: JournalEntry[] = [];
       
-      Object.values(parsed).forEach((dayEntries: any) => {
-        dayEntries.forEach((entry: any) => {
+      Object.values(parsed).forEach((dayEntries: unknown) => {
+        (dayEntries as JournalEntry[]).forEach((entry: unknown) => {
           allEntries.push({
-            id: entry.id as string,
-            timestamp: new Date(entry.timestamp as string),
-            content: entry.content as string,
-            uid: (entry.uid as string) || 'local-user',
-            lastUpdated: entry.lastUpdated ? new Date(entry.lastUpdated as string) : new Date(entry.timestamp as string)
+            id: (entry as JournalEntry).id,
+            timestamp: new Date((entry as JournalEntry).timestamp),
+            content: (entry as JournalEntry).content,
+            uid: (entry as JournalEntry).uid || 'local-user',
+            lastUpdated: (entry as JournalEntry).lastUpdated ? new Date((entry as JournalEntry).lastUpdated) : new Date((entry as JournalEntry).timestamp)
           });
         });
       });
@@ -431,7 +431,7 @@ export const useJournal = () => {
 
     // Case 3: Initial load or no auth state change
     loadLocalEntries();
-  }, [isAuthenticated, user?.uid]);
+  }, [isAuthenticated, user?.uid, handleAnonymousToAuthenticatedTransition, loadLocalEntries]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
