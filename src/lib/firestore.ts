@@ -4,6 +4,7 @@ import {
   getDocs, 
   addDoc, 
   updateDoc, 
+  setDoc,
   deleteDoc, 
   query, 
   where, 
@@ -53,6 +54,21 @@ const convertToFirestoreData = (entry: Partial<JournalEntry>, userId: string): P
 
 export class FirestoreService {
   private static COLLECTION_NAME = 'journal_entries';
+
+  // NEW: Upsert method using set() with merge - handles both create and update atomically
+  static async upsertEntry(entry: JournalEntry, userId: string): Promise<void> {
+    try {
+      const docRef = doc(db, this.COLLECTION_NAME, entry.id);
+      await setDoc(docRef, convertToFirestoreData(entry, userId), { merge: true });
+      // Only log in development for debugging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ [FIRESTORE] Entry synced:', entry.id);
+      }
+    } catch (error) {
+      console.error('❌ [FIRESTORE] Upsert failed:', error);
+      throw new Error('Failed to upsert entry in Firestore');
+    }
+  }
 
   // Get all entries for a user
   static async getUserEntries(userId: string): Promise<JournalEntry[]> {
@@ -113,15 +129,9 @@ export class FirestoreService {
       const batch: WriteBatch = writeBatch(db);
       
       entries.forEach((entry) => {
-        if (entry.id) {
-          // Update existing entry
-          const docRef = doc(db, this.COLLECTION_NAME, entry.id);
-          batch.update(docRef, convertToFirestoreData(entry, userId));
-        } else {
-          // Add new entry
-          const docRef = doc(collection(db, this.COLLECTION_NAME));
-          batch.set(docRef, convertToFirestoreData(entry, userId));
-        }
+        const docRef = doc(db, this.COLLECTION_NAME, entry.id);
+        // Use set with merge for batch operations too
+        batch.set(docRef, convertToFirestoreData(entry, userId), { merge: true });
       });
 
       await batch.commit();

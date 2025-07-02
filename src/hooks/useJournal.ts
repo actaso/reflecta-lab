@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { JournalEntry } from '@/types/journal';
 import { FirestoreService } from '@/lib/firestore';
 import { SyncService, SyncState } from '@/services/syncService';
@@ -11,6 +11,11 @@ export const useJournal = () => {
   const [error, setError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>('offline');
   const [conflicts, setConflicts] = useState<JournalEntry[]>([]);
+  
+  // Enhanced debouncing with content change detection
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSyncedContentRef = useRef<Map<string, string>>(new Map()); // Track last synced content per entry
+  const SYNC_DEBOUNCE_MS = 1500; // Slightly longer debounce
 
   // Load entries from localStorage and sync when authenticated
   useEffect(() => {
@@ -35,6 +40,11 @@ export const useJournal = () => {
           });
           
           setEntries(allEntries);
+          
+          // Initialize last synced content tracking
+          allEntries.forEach(entry => {
+            lastSyncedContentRef.current.set(entry.id, entry.content);
+          });
         }
       } catch (error) {
         console.error('Failed to load local entries:', error);
@@ -57,11 +67,10 @@ export const useJournal = () => {
           const mergedEntries = await SyncService.syncFromRemote(user.uid);
           setEntries(mergedEntries);
           
-          // Process any queued entries (push changes)
-          const queueResult = await SyncService.processQueue(user.uid);
-          if (queueResult.conflicts.length > 0) {
-            setConflicts(queueResult.conflicts);
-          }
+          // Update last synced content tracking after successful sync
+          mergedEntries.forEach(entry => {
+            lastSyncedContentRef.current.set(entry.id, entry.content);
+          });
           
           setSyncState('synced');
         } catch (error) {
@@ -78,6 +87,59 @@ export const useJournal = () => {
     }
   }, [user?.uid, isAuthenticated]);
 
+  // Helper function to save entries to localStorage
+  const saveToLocalStorage = useCallback((entriesToSave: JournalEntry[]) => {
+    const entriesByDate: Record<string, JournalEntry[]> = {};
+    entriesToSave.forEach(entry => {
+      const dateKey = entry.timestamp.toISOString().split('T')[0];
+      if (!entriesByDate[dateKey]) {
+        entriesByDate[dateKey] = [];
+      }
+      entriesByDate[dateKey].push(entry);
+    });
+    localStorage.setItem('journal-entries', JSON.stringify(entriesByDate));
+  }, []);
+
+  // Smart debounced sync with content change detection
+  const debouncedUpsert = useCallback(async (entry: JournalEntry) => {
+    if (!isAuthenticated || !user?.uid) return;
+
+    // Clear any existing timeout
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced sync
+    syncTimeoutRef.current = setTimeout(async () => {
+      try {
+        // Check if content has actually changed since last sync
+        const lastSyncedContent = lastSyncedContentRef.current.get(entry.id);
+        const currentContent = entry.content.trim();
+        
+        if (lastSyncedContent === currentContent) {
+          console.log('📝 [SYNC] Content unchanged, skipping sync for:', entry.id);
+          return; // No need to sync if content hasn't changed
+        }
+        
+        console.log('☁️ [SYNC] Content changed, syncing entry:', entry.id);
+        setSyncState('syncing');
+        
+        // Perform the sync
+        await FirestoreService.upsertEntry(entry, user.uid);
+        
+        // Update our tracking after successful sync
+        lastSyncedContentRef.current.set(entry.id, currentContent);
+        
+        console.log('✅ [SYNC] Sync completed for:', entry.id);
+        setSyncState('synced');
+      } catch (err) {
+        console.error('❌ [SYNC] Sync failed:', err);
+        setSyncState('error');
+        setError('Sync failed - changes saved locally');
+      }
+    }, SYNC_DEBOUNCE_MS);
+  }, [user?.uid, isAuthenticated]);
+
   const addEntry = useCallback(async (entry: Omit<JournalEntry, 'id'>): Promise<string | null> => {
     try {
       setError(null);
@@ -92,47 +154,37 @@ export const useJournal = () => {
         timestamp: entry.timestamp || now
       };
 
+      console.log('🆕 [ADD] Creating new entry:', newEntry.id);
+
       // 1. Update localStorage immediately (fast UI response)
       const currentEntries = [...entries, newEntry];
       setEntries(currentEntries);
-      
-      // Save to localStorage in the expected date-keyed format
-      const entriesByDate: Record<string, JournalEntry[]> = {};
-      currentEntries.forEach(entry => {
-        const dateKey = entry.timestamp.toISOString().split('T')[0];
-        if (!entriesByDate[dateKey]) {
-          entriesByDate[dateKey] = [];
-        }
-        entriesByDate[dateKey].push(entry);
-      });
-      localStorage.setItem('journal-entries', JSON.stringify(entriesByDate));
+      saveToLocalStorage(currentEntries);
 
-      // 2. Background sync to Firestore if authenticated
+      // 2. Immediate sync for new entries using atomic upsert
       if (isAuthenticated && user?.uid) {
         setSyncState('syncing');
         try {
-          const syncResult = await SyncService.syncEntryToRemote(newEntry, user.uid);
+          await FirestoreService.upsertEntry(newEntry, user.uid);
           
-          if (syncResult.synced) {
-            setSyncState('synced');
-          } else if (syncResult.conflict) {
-            setConflicts([...conflicts, syncResult.conflict]);
-            setSyncState('conflict');
-          }
+          // Track this content as synced
+          lastSyncedContentRef.current.set(newEntry.id, newEntry.content);
+          
+          console.log('✅ [ADD] New entry synced:', newEntry.id);
+          setSyncState('synced');
         } catch (err) {
-          // Sync failed - queue for retry
-          SyncService.queueForSync(newEntry, 'create');
+          console.warn('⚠️ [ADD] Immediate sync failed, will retry on edit:', err);
           setSyncState('error');
-          console.warn('Failed to sync new entry, queued for retry:', err);
         }
       }
 
       return newEntry.id;
     } catch (err) {
+      console.error('💥 [ADD] Failed to add entry:', err);
       setError(err instanceof Error ? err.message : 'Failed to add entry');
       return null;
     }
-  }, [user?.uid, isAuthenticated, entries, conflicts]);
+  }, [user?.uid, isAuthenticated, entries, saveToLocalStorage]);
 
   const updateEntry = useCallback(async (entryId: string, updates: Partial<JournalEntry>): Promise<boolean> => {
     try {
@@ -155,44 +207,20 @@ export const useJournal = () => {
       const updatedEntries = [...entries];
       updatedEntries[entryIndex] = updatedEntry;
       setEntries(updatedEntries);
-      
-      // Save to localStorage in the expected date-keyed format
-      const entriesByDate: Record<string, JournalEntry[]> = {};
-      updatedEntries.forEach(entry => {
-        const dateKey = entry.timestamp.toISOString().split('T')[0];
-        if (!entriesByDate[dateKey]) {
-          entriesByDate[dateKey] = [];
-        }
-        entriesByDate[dateKey].push(entry);
-      });
-      localStorage.setItem('journal-entries', JSON.stringify(entriesByDate));
+      saveToLocalStorage(updatedEntries);
 
-      // 2. Background sync to Firestore if authenticated
+      // 2. Smart debounced upsert (only if content actually changed)
       if (isAuthenticated && user?.uid) {
-        setSyncState('syncing');
-        try {
-          const syncResult = await SyncService.syncEntryToRemote(updatedEntry, user.uid);
-          
-          if (syncResult.synced) {
-            setSyncState('synced');
-          } else if (syncResult.conflict) {
-            setConflicts([...conflicts, syncResult.conflict]);
-            setSyncState('conflict');
-          }
-        } catch (err) {
-          // Sync failed - queue for retry
-          SyncService.queueForSync(updatedEntry, 'update');
-          setSyncState('error');
-          console.warn('Failed to sync updated entry, queued for retry:', err);
-        }
+        await debouncedUpsert(updatedEntry);
       }
 
       return true;
     } catch (err) {
+      console.error('💥 [UPDATE] Failed to update entry:', err);
       setError(err instanceof Error ? err.message : 'Failed to update entry');
       return false;
     }
-  }, [user?.uid, isAuthenticated, entries, conflicts]);
+  }, [user?.uid, isAuthenticated, entries, saveToLocalStorage, debouncedUpsert]);
 
   const deleteEntry = useCallback(async (entryId: string): Promise<boolean> => {
     try {
@@ -205,41 +233,37 @@ export const useJournal = () => {
         return false;
       }
 
+      console.log('🗑️ [DELETE] Deleting entry:', entryId);
+
+      // Remove from content tracking
+      lastSyncedContentRef.current.delete(entryId);
+
       // 1. Update localStorage immediately (fast UI response)
       const updatedEntries = entries.filter(e => e.id !== entryId);
       setEntries(updatedEntries);
-      
-      // Save to localStorage in the expected date-keyed format
-      const entriesByDate: Record<string, JournalEntry[]> = {};
-      updatedEntries.forEach(entry => {
-        const dateKey = entry.timestamp.toISOString().split('T')[0];
-        if (!entriesByDate[dateKey]) {
-          entriesByDate[dateKey] = [];
-        }
-        entriesByDate[dateKey].push(entry);
-      });
-      localStorage.setItem('journal-entries', JSON.stringify(entriesByDate));
+      saveToLocalStorage(updatedEntries);
 
-      // 2. Background sync to Firestore if authenticated
+      // 2. Immediate sync to Firestore for deletions
       if (isAuthenticated && user?.uid) {
         setSyncState('syncing');
         try {
           await FirestoreService.deleteEntry(entryId);
+          console.log('✅ [DELETE] Deletion synced successfully:', entryId);
           setSyncState('synced');
         } catch (err) {
-          // Sync failed - queue for retry
-          SyncService.queueForSync(entryToDelete, 'delete');
+          console.warn('⚠️ [DELETE] Failed to sync deletion:', err);
           setSyncState('error');
-          console.warn('Failed to sync entry deletion, queued for retry:', err);
+          setError('Delete failed to sync - entry removed locally');
         }
       }
 
       return true;
     } catch (err) {
+      console.error('💥 [DELETE] Failed to delete entry:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete entry');
       return false;
     }
-  }, [user?.uid, isAuthenticated, entries]);
+  }, [user?.uid, isAuthenticated, entries, saveToLocalStorage]);
 
   // Manual sync trigger for UI
   const manualSync = useCallback(async (): Promise<boolean> => {
@@ -252,25 +276,51 @@ export const useJournal = () => {
       setError(null);
       setSyncState('syncing');
       
-      // Sync from remote and process queue
-      const mergedEntries = await SyncService.syncFromRemote(user.uid);
-      setEntries(mergedEntries);
-      
-      const queueResult = await SyncService.processQueue(user.uid);
-      if (queueResult.conflicts.length > 0) {
-        setConflicts([...conflicts, ...queueResult.conflicts]);
-        setSyncState('conflict');
-      } else {
-        setSyncState('synced');
+      // Clear any pending debounced syncs
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
       }
       
+      console.log('🔄 [MANUAL-SYNC] Starting manual sync');
+      
+      // Sync all local entries using atomic upsert
+      for (const entry of entries) {
+        if (entry.uid === user.uid || entry.uid === 'local-user') {
+          await FirestoreService.upsertEntry(entry, user.uid);
+          // Update tracking after manual sync
+          lastSyncedContentRef.current.set(entry.id, entry.content);
+        }
+      }
+      
+      // Then sync from remote to get any changes
+      const mergedEntries = await SyncService.syncFromRemote(user.uid);
+      setEntries(mergedEntries);
+      saveToLocalStorage(mergedEntries);
+      
+      // Update tracking after remote sync
+      mergedEntries.forEach(entry => {
+        lastSyncedContentRef.current.set(entry.id, entry.content);
+      });
+      
+      console.log('✅ [MANUAL-SYNC] Manual sync completed');
+      setSyncState('synced');
       return true;
     } catch (err) {
+      console.error('💥 [MANUAL-SYNC] Manual sync failed:', err);
       setError(err instanceof Error ? err.message : 'Manual sync failed');
       setSyncState('error');
       return false;
     }
-  }, [user?.uid, isAuthenticated, conflicts]);
+  }, [user?.uid, isAuthenticated, entries, saveToLocalStorage]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     entries,

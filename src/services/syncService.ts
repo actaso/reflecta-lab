@@ -20,18 +20,25 @@ export class SyncService {
    * Called after local updates to push changes to the server
    */
   static async syncEntryToRemote(entry: JournalEntry, userId: string): Promise<{ synced: boolean; conflict?: JournalEntry }> {
+    console.log('🔄 [SYNC-SERVICE] syncEntryToRemote called for entry:', entry.id);
+    
     try {
       // First, try to update the entry (most common case for existing entries)
+      console.log('📝 [SYNC-SERVICE] Attempting UPDATE first for entry:', entry.id);
       try {
         await FirestoreService.updateEntry(entry.id, entry, userId);
+        console.log('✅ [SYNC-SERVICE] UPDATE successful for entry:', entry.id);
         return { synced: true };
       } catch (updateError) {
+        console.warn('❌ [SYNC-SERVICE] UPDATE failed, trying CREATE:', updateError);
         // Update failed - either entry doesn't exist or there's another issue
         // Try to create it (handles new entries)
         try {
           await FirestoreService.addEntry(entry, userId);
+          console.log('✅ [SYNC-SERVICE] CREATE successful after UPDATE failure for entry:', entry.id);
           return { synced: true };
         } catch (createError) {
+          console.error('❌ [SYNC-SERVICE] Both UPDATE and CREATE failed, checking for conflicts:', createError);
           // Both update and create failed - this suggests the entry exists but there might be a conflict
           // Now we need to fetch the remote entry to check for conflicts
           console.warn('Both update and create failed, checking for conflicts...');
@@ -40,25 +47,29 @@ export class SyncService {
           const remoteEntry = remoteEntries.find(e => e.id === entry.id);
           
           if (remoteEntry) {
+            console.log('🔍 [SYNC-SERVICE] Remote entry found, resolving conflict for:', entry.id);
             // There's a conflict - resolve it
             const resolvedEntry = this.resolveConflict(entry, remoteEntry);
             
             if (resolvedEntry.id === entry.id && resolvedEntry.lastUpdated.getTime() === entry.lastUpdated.getTime()) {
+              console.log('🏆 [SYNC-SERVICE] Local wins conflict resolution, forcing update:', entry.id);
               // Local wins - force update
               await FirestoreService.updateEntry(entry.id, entry, userId);
               return { synced: true };
             } else {
+              console.log('🏆 [SYNC-SERVICE] Remote wins conflict resolution:', entry.id);
               // Remote wins - return conflict for handling by caller
               return { synced: false, conflict: remoteEntry };
             }
           } else {
+            console.error('💥 [SYNC-SERVICE] Entry does not exist remotely but CREATE failed - unexpected state');
             // Entry doesn't exist remotely, but create failed - this is unexpected
             throw createError;
           }
         }
       }
     } catch (error) {
-      console.error('Failed to sync entry to remote:', error);
+      console.error('💥 [SYNC-SERVICE] Failed to sync entry to remote:', error);
       throw error;
     }
   }
