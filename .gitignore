@@ -4,6 +4,9 @@
 firebase-debug.log
 firestore-debug.log
 
+# devin config
+.envrc
+
 # dependencies
 /node_modules
 /.pnp

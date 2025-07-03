@@ -1,4 +1,4 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
 // Check if we're using emulators
@@ -7,9 +7,18 @@ const isUsingEmulators = !!(
   process.env.FIRESTORE_EMULATOR_HOST
 );
 
-// Initialize Firebase Admin SDK only if it hasn't been initialized already
-const app = getApps().length === 0 
-  ? initializeApp(
+// Initialize Firebase Admin SDK only if it hasn't been initialized already and we have proper config
+let app: App | null = null;
+
+const hasFirebaseConfig = isUsingEmulators || (
+  process.env.FIREBASE_PROJECT_ID && 
+  process.env.FIREBASE_CLIENT_EMAIL && 
+  process.env.FIREBASE_PRIVATE_KEY
+);
+
+if (hasFirebaseConfig && getApps().length === 0) {
+  try {
+    app = initializeApp(
       isUsingEmulators 
         ? {
             // For emulators, we only need a project ID - no real credentials required
@@ -24,13 +33,23 @@ const app = getApps().length === 0
             }),
             projectId: process.env.FIREBASE_PROJECT_ID,
           }
-    )
-  : getApps()[0];
+    );
+  } catch (error) {
+    console.warn('Firebase Admin SDK initialization failed:', error);
+    app = null;
+  }
+} else if (getApps().length > 0) {
+  app = getApps()[0];
+}
 
-export const adminAuth = getAuth(app);
+export const adminAuth = app ? getAuth(app) : null;
 
 // Helper function to create custom token for Clerk users
 export const createCustomToken = async (clerkUserId: string, additionalClaims?: Record<string, unknown>) => {
+  if (!adminAuth) {
+    throw new Error('Firebase Admin SDK not properly initialized - check your environment variables');
+  }
+  
   try {
     const customToken = await adminAuth.createCustomToken(clerkUserId, additionalClaims);
     
