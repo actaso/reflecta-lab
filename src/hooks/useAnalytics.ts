@@ -7,7 +7,7 @@ import { useRef, useCallback } from 'react';
 export function useAnalytics() {
   const posthog = usePostHog();
   const { user } = useUser();
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Identify user if authenticated
   if (user && posthog) {
