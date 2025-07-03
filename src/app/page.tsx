@@ -11,6 +11,7 @@ import { AIMode } from '../components/AIDropdown';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry } from '../types/journal';
 import { useJournal } from '../hooks/useJournal';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 export default function JournalApp() {
   // Use the sync-enabled journal hook
@@ -21,6 +22,8 @@ export default function JournalApp() {
     updateEntry, 
     deleteEntry: deleteEntryFromHook 
   } = useJournal();
+  
+  const { trackPageView, trackEntryCreated, trackEntryUpdated } = useAnalytics();
   
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -75,6 +78,9 @@ export default function JournalApp() {
     
     // Use the hook's updateEntry method
     updateEntry(selectedEntryId, { content: value });
+    
+    // Track content changes (debounced)
+    trackEntryUpdated(selectedEntryId, value.length);
   };
 
   const createNewEntry = useCallback(async () => {
@@ -89,6 +95,9 @@ export default function JournalApp() {
     });
     
     if (newEntryId) {
+      // Track entry creation
+      trackEntryCreated();
+      
       setSelectedEntryId(newEntryId);
       
       // Auto-scroll to the new entry after a brief delay
@@ -107,7 +116,7 @@ export default function JournalApp() {
         }
       }, 100);
     }
-  }, [addEntry]);
+  }, [addEntry, trackEntryCreated]);
 
   const deleteEntry = async (entryId: string) => {
     // Use the hook's deleteEntry method
@@ -124,6 +133,9 @@ export default function JournalApp() {
   // Initialize with the first entry and set initial scroll position
   useEffect(() => {
     if (!loading && !selectedEntryId) {
+      // Track page view on initial load
+      trackPageView();
+      
       if (allEntriesChronological.length > 0) {
         setSelectedEntryId(allEntriesChronological[0].entry.id);
         
@@ -149,7 +161,7 @@ export default function JournalApp() {
         }, 150);
       }
     }
-  }, [selectedEntryId, allEntriesChronological, loading]);
+  }, [selectedEntryId, allEntriesChronological, loading, trackPageView]);
 
   // Scroll-hijacking: Auto-select entry based on scroll position in sidebar
   useEffect(() => {

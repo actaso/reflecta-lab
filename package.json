@@ -6,6 +6,7 @@
     "dev": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 next dev --turbopack",
     "dev:emulators": "firebase emulators:start --only auth,firestore,ui",
     "dev:full": "concurrently \"npm run dev:emulators\" \"npm run dev\"",
+    "env": "vercel env pull .env.local",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -38,6 +39,8 @@
     "firebase-admin": "^13.4.0",
     "next": "15.3.4",
     "openai": "^5.5.1",
+    "posthog-js": "^1.256.1",
+    "posthog-node": "^5.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-firebase-hooks": "^5.1.1"
