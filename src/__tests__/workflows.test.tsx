@@ -35,6 +35,41 @@ jest.mock('../components/AutoTagExtension', () => ({
   AutoTagExtension: 'mock-auto-tag-extension',
 }));
 
+// Mock Firebase and Clerk
+jest.mock('@clerk/nextjs', () => ({
+  useUser: jest.fn(() => ({ user: null, isLoaded: true })),
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+jest.mock('react-firebase-hooks/auth', () => ({
+  useAuthState: jest.fn(() => [null, false, null]),
+}));
+
+jest.mock('@/lib/firebase', () => ({
+  auth: {},
+}));
+
+jest.mock('@/lib/clerk-firebase-auth', () => ({
+  signInWithClerkToken: jest.fn(),
+  signOutFromFirebase: jest.fn(),
+}));
+
+jest.mock('@/lib/firestore', () => ({
+  syncEntryToFirestore: jest.fn(),
+  loadEntriesFromFirestore: jest.fn(() => Promise.resolve([])),
+  deleteEntryFromFirestore: jest.fn(),
+}));
+
+jest.mock('@/services/syncService', () => ({
+  SyncService: {
+    init: jest.fn(),
+    queueEntryForSync: jest.fn(),
+    queueEntryForDeletion: jest.fn(),
+    processQueue: jest.fn(),
+    getStats: jest.fn(() => ({ queued: 0, synced: 0, failed: 0 })),
+  },
+}));
+
 // Mock scrollTo
 const mockScrollTo = jest.fn();
 Object.defineProperty(Element.prototype, 'scrollTo', {
@@ -88,7 +123,9 @@ describe('Journal App Workflows', () => {
           {
             id: '1',
             timestamp: '2024-03-15T10:30:00.000Z',
-            content: '<p>Test entry content</p>'
+            content: '<p>Test entry content</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T10:30:00.000Z'
           }
         ]
       };
@@ -198,19 +235,25 @@ describe('Journal App Workflows', () => {
           {
             id: '1',
             timestamp: '2024-03-15T10:30:00.000Z',
-            content: '<p>First entry</p>'
+            content: '<p>First entry</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T10:30:00.000Z'
           },
           {
             id: '2',
             timestamp: '2024-03-15T11:30:00.000Z',
-            content: '<p>Second entry</p>'
+            content: '<p>Second entry</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T11:30:00.000Z'
           }
         ],
         '2024-03-14': [
           {
             id: '3',
             timestamp: '2024-03-14T10:30:00.000Z',
-            content: '<p>Third entry</p>'
+            content: '<p>Third entry</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-14T10:30:00.000Z'
           }
         ]
       };
@@ -296,7 +339,9 @@ describe('Journal App Workflows', () => {
           {
             id: '1',
             timestamp: '2024-03-15T10:30:00.000Z',
-            content: '<p>Clickable entry</p>'
+            content: '<p>Clickable entry</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T10:30:00.000Z'
           }
         ]
       };
@@ -327,7 +372,9 @@ describe('Journal App Workflows', () => {
           {
             id: '1',
             timestamp: '2024-03-15T10:30:00.000Z',
-            content: '<p>Entry with timestamp</p>'
+            content: '<p>Entry with timestamp</p>',
+            uid: 'test-user-id',
+            lastUpdated: '2024-03-15T10:30:00.000Z'
           }
         ]
       };

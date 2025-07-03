@@ -2,6 +2,28 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Allow users to access their own journal entries
+    match /journal_entries/{entryId} {
+      // Read operations - check document ownership
+      allow read: if request.auth != null && 
+                    resource.data.uid == request.auth.uid;
+      
+      // Create operations - check new document ownership  
+      allow create: if request.auth != null && 
+                      request.resource.data.uid == request.auth.uid;
+      
+      // Update operations - check document ownership with fallback
+      allow update: if request.auth != null && 
+                      (resource.data.uid == request.auth.uid ||
+                       request.resource.data.uid == request.auth.uid);
+      
+      // Delete operations - check document ownership with null safety
+      allow delete: if request.auth != null && 
+                      (resource.data.uid == request.auth.uid ||
+                       resource.data.uid == null);
+    }
+    
+    // Deny access to all other collections
     match /{document=**} {
       allow read, write: if false;
     }

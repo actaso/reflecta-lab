@@ -2,12 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { stripHtml, formatDisplayDate, formatTime } from '../utils/formatters';
-
-type JournalEntry = {
-  id: string;
-  timestamp: Date;
-  content: string;
-};
+import { JournalEntry } from '../types/journal';
 
 interface CommandPaletteProps {
   isOpen: boolean;

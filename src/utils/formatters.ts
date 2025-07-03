@@ -1,3 +1,5 @@
+import { JournalEntry } from '../types/journal';
+
 export const formatDate = (date: Date): string => {
   return date.toISOString().split('T')[0];
 };
@@ -46,11 +48,6 @@ export const getPreviewText = (content: string): string => {
   return text.length > 12 ? text.substring(0, 12) + '...' : text;
 };
 
-type JournalEntry = {
-  id: string;
-  timestamp: Date;
-  content: string;
-};
 
 // Get all entries sorted by date and time (newest first)
 export const getAllEntriesChronological = (entries: Record<string, JournalEntry[]>): Array<{ entry: JournalEntry; dateKey: string }> => {

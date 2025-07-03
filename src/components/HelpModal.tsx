@@ -1,10 +1,6 @@
 'use client';
 
-type JournalEntry = {
-  id: string;
-  timestamp: Date;
-  content: string;
-};
+import { JournalEntry } from '../types/journal';
 
 interface HelpModalProps {
   isOpen: boolean;

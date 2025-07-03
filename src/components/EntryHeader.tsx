@@ -2,15 +2,10 @@
 
 import { formatDisplayDate, formatTime } from '../utils/formatters';
 import { SignInButton, UserButton, SignedIn, SignedOut } from '@clerk/nextjs';
+import { JournalEntry } from '../types/journal';
 
 // Environment check
 const hasClerkKeys = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
-type JournalEntry = {
-  id: string;
-  timestamp: Date;
-  content: string;
-};
 
 interface EntryHeaderProps {
   currentEntry: { entry: JournalEntry; dateKey: string } | null;

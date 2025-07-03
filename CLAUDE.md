@@ -135,8 +135,10 @@ The AI chat provides founder-focused assistance through:
 ```typescript
 type JournalEntry = {
   id: string;
-  timestamp: Date;
+  timestamp: Date; // created at
   content: string; // HTML from TipTap editor
+  uid: string; // user id from firebase auth & clerk (should be the same)
+  lastUpdated: Date; // last time a change happened to this entry
 };
 
 // Organized by date keys (YYYY-MM-DD format)
