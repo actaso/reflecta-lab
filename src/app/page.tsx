@@ -361,7 +361,7 @@ export default function JournalApp() {
           </div>
           
           {/* Help Modal */}
-          <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+          <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} entries={entries} />
           
           {/* Command Palette */}
           <CommandPalette
