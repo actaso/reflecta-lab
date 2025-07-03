@@ -78,12 +78,14 @@ export class SyncService {
    * Pull all entries from Firestore and merge with local storage
    * Called on app startup when user is authenticated
    */
-  static async syncFromRemote(userId: string): Promise<JournalEntry[]> {
+  static async syncFromRemote(userId: string, localEntries?: JournalEntry[]): Promise<JournalEntry[]> {
     try {
       const remoteEntries = await FirestoreService.getUserEntries(userId);
-      const localEntries = this.getLocalEntries();
       
-      const mergedEntries = this.mergeEntries(localEntries, remoteEntries);
+      // Use provided local entries or fall back to reading from localStorage
+      const entriesToMerge = localEntries || this.getLocalEntries();
+      
+      const mergedEntries = this.mergeEntries(entriesToMerge, remoteEntries);
       
       // Update localStorage with merged entries
       this.saveLocalEntries(mergedEntries);

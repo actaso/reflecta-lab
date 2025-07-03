@@ -161,8 +161,8 @@ export const useJournal = () => {
         
         const performBackgroundSync = async () => {
           try {
-            // Sync from remote (pull changes)
-            const mergedEntries = await SyncService.syncFromRemote(user.uid);
+            // Sync from remote (pull changes) - pass current entries to avoid re-reading localStorage
+            const mergedEntries = await SyncService.syncFromRemote(user.uid, allEntries);
             setEntries(mergedEntries);
             
             // Update last synced content tracking after successful sync
@@ -383,7 +383,7 @@ export const useJournal = () => {
       }
       
       // Then sync from remote to get any changes
-      const mergedEntries = await SyncService.syncFromRemote(user.uid);
+      const mergedEntries = await SyncService.syncFromRemote(user.uid, entries);
       setEntries(mergedEntries);
       saveToLocalStorage(mergedEntries);
       
