@@ -15,6 +15,8 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import BulletList from '@tiptap/extension-bullet-list';
+import ListItem from '@tiptap/extension-list-item';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { AutoTagExtension } from './AutoTagExtension';
 import AIDropdown, { AIMode } from './AIDropdown';
@@ -62,6 +64,8 @@ export default function Editor({ content, onChange, placeholder = "Start writing
       TaskItem.configure({
         nested: true,
       }),
+      BulletList,
+      ListItem,
       AutoTagExtension,
     ],
     content,

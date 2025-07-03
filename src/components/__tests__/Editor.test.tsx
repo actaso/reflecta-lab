@@ -38,6 +38,9 @@ jest.mock('@tiptap/extension-task-item', () => ({
   configure: jest.fn(() => 'mock-task-item'),
 }));
 
+jest.mock('@tiptap/extension-bullet-list', () => 'mock-bullet-list');
+jest.mock('@tiptap/extension-list-item', () => 'mock-list-item');
+
 jest.mock('../AutoTagExtension', () => ({
   AutoTagExtension: 'mock-auto-tag-extension',
 }));
@@ -101,6 +104,8 @@ describe('Editor', () => {
         'mock-link',
         'mock-task-list',
         'mock-task-item',
+        'mock-bullet-list',
+        'mock-list-item',
         'mock-auto-tag-extension',
       ],
       content,
