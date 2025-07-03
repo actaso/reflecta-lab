@@ -53,16 +53,7 @@ export const useFirebaseAuth = () => {
       displayName: firebaseUser.displayName || clerkUser.fullName,
       clerkUserId: clerkUser.id
     };
-  }, [
-    firebaseUser?.uid, 
-    firebaseUser?.email, 
-    firebaseUser?.displayName,
-    clerkUser?.id,
-    clerkUser?.primaryEmailAddress?.emailAddress,
-    clerkUser?.fullName,
-    clerkUser,
-    firebaseUser
-  ]);
+  }, [firebaseUser, clerkUser]);
 
   const loading = !clerkLoaded || firebaseLoading || isExchangingToken;
   const finalError = error || firebaseError;

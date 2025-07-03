@@ -18,6 +18,47 @@ export const useJournal = () => {
   const previousAuthStateRef = useRef<boolean>(false); // Track previous auth state for transitions
   const SYNC_DEBOUNCE_MS = 1500; // Slightly longer debounce
 
+  // Helper function to load entries from localStorage
+  const loadLocalEntriesFromStorage = useCallback((): JournalEntry[] => {
+    try {
+      const savedEntries = localStorage.getItem('journal-entries');
+      if (!savedEntries) return [];
+      
+      const parsed = JSON.parse(savedEntries);
+      const allEntries: JournalEntry[] = [];
+      
+      Object.values(parsed).forEach((dayEntries: unknown) => {
+        (dayEntries as JournalEntry[]).forEach((entry: unknown) => {
+          allEntries.push({
+            id: (entry as JournalEntry).id,
+            timestamp: new Date((entry as JournalEntry).timestamp),
+            content: (entry as JournalEntry).content,
+            uid: (entry as JournalEntry).uid || 'local-user',
+            lastUpdated: (entry as JournalEntry).lastUpdated ? new Date((entry as JournalEntry).lastUpdated) : new Date((entry as JournalEntry).timestamp)
+          });
+        });
+      });
+      
+      return allEntries;
+    } catch (error) {
+      console.error('Failed to load local entries:', error);
+      return [];
+    }
+  }, []);
+
+  // Helper function to save entries to localStorage
+  const saveToLocalStorage = useCallback((entriesToSave: JournalEntry[]) => {
+    const entriesByDate: Record<string, JournalEntry[]> = {};
+    entriesToSave.forEach(entry => {
+      const dateKey = entry.timestamp.toISOString().split('T')[0];
+      if (!entriesByDate[dateKey]) {
+        entriesByDate[dateKey] = [];
+      }
+      entriesByDate[dateKey].push(entry);
+    });
+    localStorage.setItem('journal-entries', JSON.stringify(entriesByDate));
+  }, []);
+
   // Handle the transition from anonymous to authenticated user
   const handleAnonymousToAuthenticatedTransition = useCallback(async () => {
     if (!user?.uid) return;
@@ -101,35 +142,7 @@ export const useJournal = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid]);
-
-  // Helper function to load entries from localStorage
-  const loadLocalEntriesFromStorage = useCallback((): JournalEntry[] => {
-    try {
-      const savedEntries = localStorage.getItem('journal-entries');
-      if (!savedEntries) return [];
-      
-      const parsed = JSON.parse(savedEntries);
-      const allEntries: JournalEntry[] = [];
-      
-      Object.values(parsed).forEach((dayEntries: unknown) => {
-        (dayEntries as JournalEntry[]).forEach((entry: unknown) => {
-          allEntries.push({
-            id: (entry as JournalEntry).id,
-            timestamp: new Date((entry as JournalEntry).timestamp),
-            content: (entry as JournalEntry).content,
-            uid: (entry as JournalEntry).uid || 'local-user',
-            lastUpdated: (entry as JournalEntry).lastUpdated ? new Date((entry as JournalEntry).lastUpdated) : new Date((entry as JournalEntry).timestamp)
-          });
-        });
-      });
-      
-      return allEntries;
-    } catch (error) {
-      console.error('Failed to load local entries:', error);
-      return [];
-    }
-  }, []);
+  }, [user?.uid, loadLocalEntriesFromStorage, saveToLocalStorage]);
 
   // Load entries from localStorage and sync when authenticated (standard behavior)
   const loadLocalEntries = useCallback(() => {
@@ -176,19 +189,6 @@ export const useJournal = () => {
     }
     setLoading(false);
   }, [isAuthenticated, user?.uid, loadLocalEntriesFromStorage]);
-
-  // Helper function to save entries to localStorage
-  const saveToLocalStorage = useCallback((entriesToSave: JournalEntry[]) => {
-    const entriesByDate: Record<string, JournalEntry[]> = {};
-    entriesToSave.forEach(entry => {
-      const dateKey = entry.timestamp.toISOString().split('T')[0];
-      if (!entriesByDate[dateKey]) {
-        entriesByDate[dateKey] = [];
-      }
-      entriesByDate[dateKey].push(entry);
-    });
-    localStorage.setItem('journal-entries', JSON.stringify(entriesByDate));
-  }, []);
 
   // Smart debounced sync with content change detection
   const debouncedUpsert = useCallback(async (entry: JournalEntry) => {

@@ -1,5 +1,4 @@
 import { JournalEntry } from '../types/journal';
-import { formatDate } from './formatters';
 
 type LegacyJournalEntry = {
   id: string;
@@ -44,7 +43,7 @@ export function migrateLegacyEntriesFlat(
 /**
  * Checks if an entry needs migration (missing uid or lastUpdated fields)
  */
-export function needsMigration(entry: any): boolean {
+export function needsMigration(entry: Record<string, unknown>): boolean {
   return !entry.uid || !entry.lastUpdated;
 }
 
@@ -75,10 +74,10 @@ export function migrateLocalStorageIfNeeded(uid: string = 'local-user'): void {
       // Convert timestamp strings back to Date objects for legacy format
       const entriesWithDates: Record<string, LegacyJournalEntry[]> = {};
       Object.keys(parsed).forEach(dateKey => {
-        entriesWithDates[dateKey] = parsed[dateKey].map((entry: any) => ({
-          id: entry.id,
-          timestamp: new Date(entry.timestamp),
-          content: entry.content || '',
+        entriesWithDates[dateKey] = parsed[dateKey].map((entry: Record<string, unknown>) => ({
+          id: entry.id as string,
+          timestamp: new Date(entry.timestamp as string),
+          content: (entry.content as string) || '',
         }));
       });
       
