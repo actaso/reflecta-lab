@@ -96,11 +96,19 @@ export async function POST(req: NextRequest) {
             if (contentItem.type === 'output_text' && 'text' in contentItem) {
               const responseText = contentItem.text;
               
-              // Parse the response as direct JSON
+              // Parse the response as JSON (handle markdown code blocks)
               console.log('🔍 [DEBUG] Full OpenAI response text:', responseText);
               
               try {
-                const jsonData = JSON.parse(responseText);
+                // Strip markdown code block formatting if present
+                let cleanedText = responseText.trim();
+                if (cleanedText.startsWith('```json')) {
+                  cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                }
+                
+                console.log('🔍 [DEBUG] Cleaned JSON text:', cleanedText);
+                
+                const jsonData = JSON.parse(cleanedText);
                 console.log('🔍 [DEBUG] Parsed JSON data:', jsonData);
                 
                 if (jsonData.journalQuestion) {
