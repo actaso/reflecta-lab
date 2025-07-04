@@ -21,8 +21,8 @@ if (hasFirebaseConfig && getApps().length === 0) {
     app = initializeApp(
       isUsingEmulators 
         ? {
-            // For emulators, we only need a project ID - no real credentials required
-            projectId: process.env.FIREBASE_PROJECT_ID || 'demo-project',
+            // For emulators, use the project ID that matches .firebaserc and client SDK
+            projectId: 'reflecta-labs-v2',
           }
         : {
             // For production, use real credentials

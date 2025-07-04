@@ -3,6 +3,7 @@ import { useUser } from '@clerk/nextjs';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
 import { signInWithClerkToken, signOutFromFirebase } from '@/lib/clerk-firebase-auth';
+import { FirestoreService } from '@/lib/firestore';
 
 export interface AuthUser {
   uid: string;
@@ -42,6 +43,24 @@ export const useFirebaseAuth = () => {
 
     handleTokenExchange();
   }, [clerkUser?.id, firebaseUser?.uid, clerkLoaded, clerkUser, firebaseUser]); // Use stable IDs instead of full objects
+
+  // Initialize user document in Firestore when authentication is established
+  useEffect(() => {
+    const initializeUserDocument = async () => {
+      if (!firebaseUser?.uid) return;
+
+      try {
+        // Ensure user document exists in Firestore
+        await FirestoreService.getUserAccount(firebaseUser.uid);
+        console.log('✅ User document initialized for:', firebaseUser.uid);
+      } catch (error) {
+        console.error('Failed to initialize user document:', error);
+        // Don't throw error here as this is not critical for basic functionality
+      }
+    };
+
+    initializeUserDocument();
+  }, [firebaseUser?.uid]); // Only run when firebaseUser.uid changes
 
   // Memoize the authUser object to prevent unnecessary re-renders
   const authUser: AuthUser | null = useMemo(() => {
