@@ -127,6 +127,21 @@ export default function JournalApp() {
     }
   };
 
+  const handleImport = useCallback(async (importedEntries: JournalEntry[]) => {
+    try {
+      for (const entry of importedEntries) {
+        await addEntry({
+          timestamp: entry.timestamp,
+          content: entry.content,
+          uid: entry.uid,
+          lastUpdated: entry.lastUpdated
+        });
+      }
+    } catch (error) {
+      console.error('Failed to import entries:', error);
+    }
+  }, [addEntry]);
+
   // Initialize with the first entry and set initial scroll position
   useEffect(() => {
     if (!loading && !selectedEntryId) {
@@ -347,14 +362,14 @@ export default function JournalApp() {
         <div className="h-[76px]"></div>
         
         {/* Morning Guidance */}
-        <div className="pt-12">
+        <div className="pt-36">
           <MorningGuidanceCard onJournalNow={createNewEntry} />
         </div>
       </div>
     </div>
       
     {/* Help Modal */}
-      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} entries={entries} />
+      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} entries={entries} onImport={handleImport} />
       
       {/* Command Palette */}
       <CommandPalette
