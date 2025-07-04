@@ -93,7 +93,7 @@ function AuthSection() {
 
 export default function EntryHeader({ currentEntry, onDeleteEntry }: EntryHeaderProps) {
   return (
-    <div className="pt-8 px-8 pb-4 flex items-center justify-between flex-shrink-0">
+    <div className="pt-8 pb-4 flex items-center justify-between flex-shrink-0">
       <div className="flex items-center">
         <h1 className="text-base text-black dark:text-white font-normal">
           {currentEntry ? formatDisplayDate(new Date(currentEntry.dateKey)) : 'Select an entry'}

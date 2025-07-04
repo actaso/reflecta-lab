@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
 import CommandPalette from '../components/CommandPalette';
+import MorningGuidanceCard from '../components/MorningGuidanceCard';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry } from '../types/journal';
 import { useJournal } from '../hooks/useJournal';
@@ -275,50 +276,52 @@ export default function JournalApp() {
 
 
   return (
-    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
-      {/* Left Sidebar - Entry navigation */}
-      <Sidebar
-        entries={entries}
-        selectedEntryId={selectedEntryId}
-        sidebarRef={sidebarRef}
-        entryRefs={entryRefs}
-        onSelectEntry={(entryId) => {
-          // Disable scroll-hijacking during manual selection
-          isKeyboardNavigatingRef.current = true;
-          setSelectedEntryId(entryId);
-          
-          // Scroll to the selected entry
-          setTimeout(() => {
-            const entryElement = entryRefs.current[entryId];
-            const sidebar = sidebarRef.current;
+    <div className="h-screen bg-neutral-50 dark:bg-neutral-900 flex justify-center">
+      <div className="flex max-w-7xl w-full">
+        {/* Column 1: Left Sidebar */}
+        <div className="w-64 flex-shrink-0 bg-neutral-50 dark:bg-neutral-900 overflow-hidden px-6">
+        <Sidebar
+          entries={entries}
+          selectedEntryId={selectedEntryId}
+          sidebarRef={sidebarRef}
+          entryRefs={entryRefs}
+          onSelectEntry={(entryId) => {
+            // Disable scroll-hijacking during manual selection
+            isKeyboardNavigatingRef.current = true;
+            setSelectedEntryId(entryId);
             
-            if (entryElement && sidebar) {
-              const sidebarRect = sidebar.getBoundingClientRect();
-              const triggerPoint = sidebarRect.height / 3;
-              const targetScrollTop = entryElement.offsetTop - triggerPoint;
-              sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+            // Scroll to the selected entry
+            setTimeout(() => {
+              const entryElement = entryRefs.current[entryId];
+              const sidebar = sidebarRef.current;
               
-              // Re-enable scroll-hijacking after scroll animation completes
-              setTimeout(() => {
-                isKeyboardNavigatingRef.current = false;
-              }, 500);
-            }
-          }, 50);
-        }}
-      />
+              if (entryElement && sidebar) {
+                const sidebarRect = sidebar.getBoundingClientRect();
+                const triggerPoint = sidebarRect.height / 3;
+                const targetScrollTop = entryElement.offsetTop - triggerPoint;
+                sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                
+                // Re-enable scroll-hijacking after scroll animation completes
+                setTimeout(() => {
+                  isKeyboardNavigatingRef.current = false;
+                }, 500);
+              }
+            }, 50);
+          }}
+        />
+      </div>
 
-      {/* Center Content Area - Editor */}
-      <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden">
-        {/* Content Container with centered width */}
-        <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full overflow-hidden px-8">
-          {/* Header with entry info and buttons */}
+      {/* Column 2: Center Content (Header + Editor) */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-6">
+          {/* Header */}
           <EntryHeader
             currentEntry={currentEntry}
             onDeleteEntry={deleteEntry}
           />
           
-          {/* Writing area */}
-          <div className="flex-1 pb-8 overflow-auto min-h-0 scrollbar-hide">
+          {/* Editor */}
+          <div className="flex-1 overflow-auto min-h-0 scrollbar-hide">
             {currentEntry ? (
               <Editor
                 content={currentEntry.entry.content}
@@ -338,12 +341,19 @@ export default function JournalApp() {
         </div>
       </div>
 
-      {/* Right Section - Empty for now */}
-      <div className="w-64 flex-shrink-0 bg-neutral-50 dark:bg-neutral-900">
-        {/* Reserved for future features */}
+      {/* Column 3: Right Sidebar */}
+      <div className="w-80 flex-shrink-0 flex flex-col px-6">
+        {/* Align with header height */}
+        <div className="h-[76px]"></div>
+        
+        {/* Morning Guidance */}
+        <div className="pt-12">
+          <MorningGuidanceCard onJournalNow={createNewEntry} />
+        </div>
       </div>
+    </div>
       
-      {/* Help Modal */}
+    {/* Help Modal */}
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} entries={entries} />
       
       {/* Command Palette */}
