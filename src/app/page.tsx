@@ -5,9 +5,7 @@ import Editor from '../components/Editor';
 import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
-import AIChatSidebar from '../components/AIChatSidebar';
 import CommandPalette from '../components/CommandPalette';
-import { AIMode } from '../components/AIDropdown';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry } from '../types/journal';
 import { useJournal } from '../hooks/useJournal';
@@ -27,8 +25,6 @@ export default function JournalApp() {
   
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
-  const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
-  const [chatMode, setChatMode] = useState<AIMode | null>(null);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   
   // Convert flat array to date-keyed format for UI compatibility
@@ -276,107 +272,82 @@ export default function JournalApp() {
 
   const currentEntry = getCurrentEntry();
 
-  // Handle AI mode selection from dropdown
-  const handleAIModeSelect = (mode: AIMode) => {
-    setChatMode(mode);
-    setChatSidebarOpen(true);
-  };
 
-  // Get context for AI chat (current entry content + some additional context)
-  const getChatContext = () => {
-    if (!currentEntry) return '';
-    
-    // Extract plain text from HTML content
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = currentEntry.entry.content;
-    const textContent = tempDiv.textContent || tempDiv.innerText || '';
-    
-    // Format with timestamp for better context
-    const timestamp = currentEntry.entry.timestamp.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    
-    return `Journal Entry from ${timestamp}:\n\n${textContent}`;
-  };
 
   return (
     <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
-      {/* Container to center sidebar and content */}
-      <div className="flex-1 flex justify-center">
-        <div className={`flex max-w-7xl w-full ${chatSidebarOpen ? 'pr-0' : ''}`}>
-          {/* Left Sidebar - Entry navigation */}
-          <Sidebar
-            entries={entries}
-            selectedEntryId={selectedEntryId}
-            sidebarRef={sidebarRef}
-            entryRefs={entryRefs}
-            onSelectEntry={(entryId) => {
-              // Disable scroll-hijacking during manual selection
-              isKeyboardNavigatingRef.current = true;
-              setSelectedEntryId(entryId);
+      {/* Left Sidebar - Entry navigation */}
+      <Sidebar
+        entries={entries}
+        selectedEntryId={selectedEntryId}
+        sidebarRef={sidebarRef}
+        entryRefs={entryRefs}
+        onSelectEntry={(entryId) => {
+          // Disable scroll-hijacking during manual selection
+          isKeyboardNavigatingRef.current = true;
+          setSelectedEntryId(entryId);
+          
+          // Scroll to the selected entry
+          setTimeout(() => {
+            const entryElement = entryRefs.current[entryId];
+            const sidebar = sidebarRef.current;
+            
+            if (entryElement && sidebar) {
+              const sidebarRect = sidebar.getBoundingClientRect();
+              const triggerPoint = sidebarRect.height / 3;
+              const targetScrollTop = entryElement.offsetTop - triggerPoint;
+              sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
               
-              // Scroll to the selected entry
+              // Re-enable scroll-hijacking after scroll animation completes
               setTimeout(() => {
-                const entryElement = entryRefs.current[entryId];
-                const sidebar = sidebarRef.current;
-                
-                if (entryElement && sidebar) {
-                  const sidebarRect = sidebar.getBoundingClientRect();
-                  const triggerPoint = sidebarRect.height / 3;
-                  const targetScrollTop = entryElement.offsetTop - triggerPoint;
-                  sidebar.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                  
-                  // Re-enable scroll-hijacking after scroll animation completes
-                  setTimeout(() => {
-                    isKeyboardNavigatingRef.current = false;
-                  }, 500);
-                }
-              }, 50);
-            }}
-          />
+                isKeyboardNavigatingRef.current = false;
+              }, 500);
+            }
+          }, 50);
+        }}
+      />
 
-          {/* Main Content Area */}
-          <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden">
-            {/* Content Container with max width */}
-            <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full overflow-hidden">
-              {/* Header with entry info and buttons */}
-              <EntryHeader
-                currentEntry={currentEntry}
-                onDeleteEntry={deleteEntry}
+      {/* Center Content Area - Editor */}
+      <div className="flex-1 bg-neutral-50 dark:bg-neutral-900 flex flex-col overflow-hidden">
+        {/* Content Container with centered width */}
+        <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full overflow-hidden px-8">
+          {/* Header with entry info and buttons */}
+          <EntryHeader
+            currentEntry={currentEntry}
+            onDeleteEntry={deleteEntry}
+          />
+          
+          {/* Writing area */}
+          <div className="flex-1 pb-8 overflow-auto min-h-0 scrollbar-hide">
+            {currentEntry ? (
+              <Editor
+                content={currentEntry.entry.content}
+                onChange={handleEntryChange}
+                placeholder="Start writing, press ? for help..."
+                autoFocus={true}
               />
-              
-              {/* Writing area */}
-              <div className="flex-1 px-8 pb-8 overflow-auto min-h-0 scrollbar-hide">
-                {currentEntry ? (
-                  <Editor
-                    content={currentEntry.entry.content}
-                    onChange={handleEntryChange}
-                    placeholder="Start writing, press ? for help..."
-                    autoFocus={true}
-                    onAIModeSelect={handleAIModeSelect}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-neutral-400 dark:text-neutral-500">
-                    <div className="text-center">
-                      <div className="text-lg mb-2">Welcome to your journal</div>
-                      <div className="text-sm">Press Cmd+Enter to create your first entry</div>
-                    </div>
-                  </div>
-                )}
+            ) : (
+              <div className="flex items-center justify-center h-full text-neutral-400 dark:text-neutral-500">
+                <div className="text-center">
+                  <div className="text-lg mb-2">Welcome to your journal</div>
+                  <div className="text-sm">Press Cmd+Enter to create your first entry</div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-          
-          {/* Help Modal */}
-          <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} entries={entries} />
-          
-          {/* Command Palette */}
-          <CommandPalette
+        </div>
+      </div>
+
+      {/* Right Section - Empty for now */}
+      <div className="w-64 flex-shrink-0 bg-neutral-50 dark:bg-neutral-900">
+        {/* Reserved for future features */}
+      </div>
+      
+      {/* Help Modal */}
+      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} entries={entries} />
+      
+      {/* Command Palette */}
+      <CommandPalette
             isOpen={showCommandPalette}
             onClose={() => setShowCommandPalette(false)}
             entries={entries}
@@ -405,19 +376,6 @@ export default function JournalApp() {
               }, 50);
             }}
           />
-          
-          {/* AI Chat Sidebar */}
-          <AIChatSidebar
-            isOpen={chatSidebarOpen}
-            mode={chatMode}
-            context={getChatContext()}
-            onClose={() => {
-              setChatSidebarOpen(false);
-              setChatMode(null);
-            }}
-          />
-        </div>
-      </div>
       
       {/* Floating Help Button - Bottom Right */}
       <button

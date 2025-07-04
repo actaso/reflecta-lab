@@ -1,5 +1,28 @@
 import '@testing-library/jest-dom';
 
+// Mock PostHog
+jest.mock('posthog-js/react', () => ({
+  usePostHog: jest.fn(() => ({
+    capture: jest.fn(),
+    identify: jest.fn(),
+    init: jest.fn(),
+  })),
+  PostHogProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+jest.mock('posthog-js', () => ({
+  init: jest.fn(),
+  capture: jest.fn(),
+  identify: jest.fn(),
+}));
+
+// Mock Clerk
+jest.mock('@clerk/nextjs', () => ({
+  useUser: jest.fn(() => ({ user: null, isLoaded: true })),
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+
 // Mock localStorage
 const localStorageMock = {
   getItem: jest.fn(),

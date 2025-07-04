@@ -45,9 +45,44 @@ export function useAnalytics() {
     }, 500); // 500ms debounce
   }, [posthog]);
 
+  const trackSignIn = useCallback((properties?: {
+    method?: string;
+    hasExistingData?: boolean;
+    anonymousEntryCount?: number;
+  }) => {
+    posthog?.capture('user_signed_in', {
+      timestamp: new Date().toISOString(),
+      method: properties?.method || 'clerk',
+      has_existing_data: properties?.hasExistingData || false,
+      anonymous_entry_count: properties?.anonymousEntryCount || 0,
+    });
+  }, [posthog]);
+
+  const trackSignUp = useCallback((properties?: {
+    method?: string;
+    hasExistingData?: boolean;
+    anonymousEntryCount?: number;
+  }) => {
+    posthog?.capture('user_signed_up', {
+      timestamp: new Date().toISOString(),
+      method: properties?.method || 'clerk',
+      has_existing_data: properties?.hasExistingData || false,
+      anonymous_entry_count: properties?.anonymousEntryCount || 0,
+    });
+  }, [posthog]);
+
+  const trackSignOut = useCallback(() => {
+    posthog?.capture('user_signed_out', {
+      timestamp: new Date().toISOString(),
+    });
+  }, [posthog]);
+
   return {
     trackPageView,
     trackEntryCreated,
     trackEntryUpdated,
+    trackSignIn,
+    trackSignUp,
+    trackSignOut,
   };
 }
