@@ -2,190 +2,273 @@
 
 ## Overview
 
-Reflecta Labs implements optional authentication using [Clerk](https://clerk.dev), providing users the choice to sign in for enhanced features while maintaining full functionality for anonymous users.
+Reflecta Labs implements a sophisticated authentication system that bridges [Clerk](https://clerk.dev) and [Firebase Auth](https://firebase.google.com/docs/auth), providing users with enhanced features while maintaining full offline functionality.
 
 ## Architecture
 
-### Optional Authentication Design
-- **Anonymous usage**: All core functionality works without signing in
-- **Data persistence**: localStorage remains the primary data storage for all users
-- **Optional signin**: Users can sign in for future sync capabilities and personalized features
-- **Graceful fallbacks**: App functions normally when Clerk is not configured
+### Hybrid Authentication Design
+- **Offline-first**: All core functionality works without authentication
+- **Clerk Primary**: Clerk handles user interface and account management
+- **Firebase Backend**: Firebase Auth powers the backend with Firestore integration
+- **Token Exchange**: Seamless bridge between Clerk and Firebase tokens
+- **Anonymous-to-Authenticated**: Smooth transition when users sign in
 
 ### Authentication States
 
-1. **No Clerk Configuration**: 
-   - Signin button is disabled with visual indication
+1. **Anonymous Usage**: 
    - All journal functionality works normally
-   - Data stored only in localStorage
+   - Data stored in localStorage
+   - No sync capabilities
 
-2. **Clerk Configured + Not Signed In**:
-   - Active signin button opens Clerk modal
-   - All journal functionality works normally
-   - Data stored only in localStorage
-
-3. **Clerk Configured + Signed In**:
-   - UserButton displays user avatar and menu
-   - All journal functionality works normally
-   - Data stored in localStorage (sync features can be added later)
+2. **Authenticated Usage**:
+   - Clerk handles UI authentication
+   - Firebase token exchanged automatically
+   - Real-time sync with Firestore
+   - Cross-device data access
 
 ## Implementation Details
 
 ### Environment Variables
-Required for Clerk integration:
+Required for full authentication integration:
 ```bash
+# Clerk Configuration
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
 CLERK_SECRET_KEY=sk_...
+
+# Firebase Configuration  
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+FIREBASE_PROJECT_ID=...
+FIREBASE_CLIENT_EMAIL=...
+FIREBASE_PRIVATE_KEY=...
+
+# PostHog Analytics (Optional)
+NEXT_PUBLIC_POSTHOG_KEY=...
+NEXT_PUBLIC_POSTHOG_HOST=...
 ```
 
 ### Component Structure
 
-#### ClerkProvider Integration (`layout.tsx`)
+#### Root Layout (`app/layout.tsx`)
 ```typescript
-// Conditional ClerkProvider wrapping based on environment
-const hasClerkKeys = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
-if (hasClerkKeys) {
-  return <ClerkProvider>{content}</ClerkProvider>;
+// ClerkProvider wraps the entire application
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ClerkProvider>
+      <html lang="en">
+        <body>
+          <PostHogProvider>
+            {children}
+          </PostHogProvider>
+        </body>
+      </html>
+    </ClerkProvider>
+  );
 }
-return content;
 ```
 
-#### Authentication UI (`EntryHeader.tsx`)
+#### Authentication Hook (`hooks/useFirebaseAuth.ts`)
 ```typescript
-const { isSignedIn, user } = useUser();
+export const useFirebaseAuth = () => {
+  const { user: clerkUser } = useUser();
+  const [firebaseUser] = useAuthState(auth);
+  
+  // Automatic token exchange between Clerk and Firebase
+  useEffect(() => {
+    if (clerkUser && !firebaseUser) {
+      signInWithClerkToken();
+    }
+  }, [clerkUser, firebaseUser]);
 
-// Conditional rendering:
-// 1. Not configured: disabled button
-// 2. Configured + not signed in: SignInButton with modal
-// 3. Configured + signed in: UserButton with avatar
+  return {
+    user: combinedUser,
+    isAuthenticated: !!firebaseUser,
+    isLoading: clerkLoading || firebaseLoading || isExchangingToken
+  };
+};
 ```
 
-### Key Features
+### Token Exchange System
 
-#### SignIn Flow
-- **Modal-based**: Uses Clerk's modal mode for seamless UX
-- **No page redirects**: Keeps users in their journal context
-- **Styled integration**: Custom button styling matching app design
-
-#### UserButton Features
-- **Custom styling**: Matches app's design system
-- **Dark mode support**: Proper theming for dark/light modes
-- **Compact design**: 32px avatar fits header layout
-
-## Data Strategy
-
-### Current Implementation
-- **Primary storage**: localStorage for all users
-- **No auth-gated features**: All functionality available to anonymous users
-- **Future-ready**: Architecture supports adding sync features later
-
-### Future Enhancements (Not Yet Implemented)
-- Cloud sync of journal entries
-- Cross-device access
-- Backup and restore
-- Sharing capabilities
-
-## Testing Strategy
-
-### Authentication States Testing
+#### Server Route (`app/api/auth/firebase-token/route.ts`)
 ```typescript
-// Test all three states:
-1. No Clerk config (disabled button)
-2. Clerk config + not signed in (active signin)
-3. Clerk config + signed in (user button)
+export async function POST(request: Request) {
+  const { token } = await request.json();
+  
+  // Verify Clerk token and create Firebase custom token
+  const decodedToken = await clerkClient.verifyToken(token);
+  const firebaseToken = await admin.auth().createCustomToken(decodedToken.sub);
+  
+  return Response.json({ firebaseToken });
+}
 ```
 
-### Data Persistence Testing
+#### Client Integration (`lib/clerk-firebase-auth.ts`)
 ```typescript
-// Verify localStorage works in all auth states
-- Anonymous users can create/edit/delete entries
-- Signed-in users maintain localStorage functionality
-- No data loss during signin/signout
+export const signInWithClerkToken = async () => {
+  const clerkToken = await getToken();
+  
+  // Exchange Clerk token for Firebase token
+  const response = await fetch('/api/auth/firebase-token', {
+    method: 'POST',
+    body: JSON.stringify({ token: clerkToken })
+  });
+  
+  const { firebaseToken } = await response.json();
+  
+  // Sign in to Firebase with custom token
+  await signInWithCustomToken(auth, firebaseToken);
+};
 ```
 
-## User Experience
+## Data Synchronization
 
-### Authentication Flow
-1. User clicks "signin" button
-2. Clerk modal opens with signin/signup options
-3. User completes authentication
-4. Modal closes, UserButton appears
-5. Journal remains exactly as it was (no data changes)
+### Sync Strategy
+- **Primary Storage**: localStorage for immediate access
+- **Secondary Storage**: Firestore for backup and cross-device sync
+- **Sync Trigger**: Authentication state changes
+- **Conflict Resolution**: Last-write-wins based on `lastUpdated` timestamps
 
-### Signout Flow
-1. User clicks UserButton
-2. Dropdown menu appears
-3. User clicks "Sign out"
-4. Returns to anonymous state
-5. Journal data remains unchanged in localStorage
+### Anonymous-to-Authenticated Transition
+```typescript
+const handleAuthTransition = async () => {
+  // 1. Load existing localStorage entries
+  const localEntries = loadLocalEntriesFromStorage();
+  
+  // 2. Update UIDs from 'local-user' to authenticated UID
+  const updatedEntries = localEntries.map(entry => ({
+    ...entry,
+    uid: user.uid
+  }));
+  
+  // 3. Sync to Firestore
+  await Promise.all(
+    updatedEntries.map(entry => FirestoreService.upsertEntry(entry, user.uid))
+  );
+  
+  // 4. Set up real-time sync
+  setSyncState('synced');
+};
+```
 
-## Development Guidelines
+## Security
 
-### Environment Setup
+### Firestore Security Rules
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /entries/{document} {
+      allow read, write: if request.auth != null && 
+                           request.auth.uid == resource.data.uid;
+    }
+  }
+}
+```
+
+### Authentication Middleware (`middleware.ts`)
+```typescript
+import { clerkMiddleware } from '@clerk/nextjs/server';
+
+export default clerkMiddleware();
+
+export const config = {
+  matcher: [
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
+  ],
+};
+```
+
+## Testing
+
+### Authentication Mocking (`setupTests.ts`)
+```typescript
+// Mock Clerk
+jest.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: null, isLoaded: true }),
+  ClerkProvider: ({ children }: any) => children,
+  SignInButton: ({ children }: any) => <button>{children}</button>,
+  UserButton: () => <div>UserButton</div>
+}));
+
+// Mock Firebase Auth
+jest.mock('react-firebase-hooks/auth', () => ({
+  useAuthState: () => [null, false, null]
+}));
+```
+
+## Development Setup
+
+### Local Development with Emulators
 ```bash
-# Pull latest environment variables from Vercel
-npm run pull-env
+# Start Firebase emulators
+npm run firebase:emulator
 
-# Verify Clerk configuration
-echo $NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+# The auth emulator runs on localhost:9099
+# Firestore emulator runs on localhost:8080
 ```
 
-### Testing Authentication
-```bash
-# Run authentication tests
-npm test src/components/__tests__/EntryHeader.test.tsx
-
-# Run full test suite
-npm run test:ci
+### Firebase Configuration (`firebase.json`)
+```json
+{
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
+  }
+}
 ```
 
-### Error Handling
-- **Missing env vars**: App degrades gracefully to anonymous mode
-- **Clerk service issues**: Signin disabled, app remains functional
-- **Network issues**: localStorage ensures data persistence
+## Error Handling
 
-## Security Considerations
+### Common Error Scenarios
+1. **Network Offline**: Graceful fallback to localStorage
+2. **Token Exchange Failure**: Retry mechanism with exponential backoff
+3. **Firestore Permission Denied**: Clear error messaging
+4. **Concurrent Edits**: Automatic conflict resolution
 
-### Client-Side Security
-- **Public keys only**: Only publishable key exposed to client
-- **No sensitive data**: localStorage contains no auth tokens
-- **Optional authentication**: No forced user tracking
-
-### Data Privacy
-- **User choice**: Authentication is completely optional
-- **Local-first**: Data primarily stored locally
-- **No tracking**: Anonymous users leave no server traces
-
-## Troubleshooting
-
-### Common Issues
-
-#### Signin Button Not Working
-1. Check environment variables are set
-2. Verify Clerk publishable key format
-3. Check browser console for errors
-
-#### Modal Not Appearing
-1. Ensure ClerkProvider is properly wrapped
-2. Check for JavaScript errors
-3. Verify Clerk SDK version compatibility
-
-#### Styling Issues
-1. Check Clerk appearance customization
-2. Verify dark mode CSS variables
-3. Test responsive design on different screen sizes
-
-### Debug Commands
-```bash
-# Check environment
-npm run pull-env
-cat .env.local | grep CLERK
-
-# Test build
-npm run build
-npm run start
-
-# Run tests
-npm run test:ci
+### Error Recovery
+```typescript
+try {
+  await syncToFirestore(entry);
+} catch (error) {
+  console.warn('Sync failed, saved locally:', error);
+  setSyncState('error');
+  // Data remains in localStorage for next sync attempt
+}
 ```
+
+## Analytics Integration
+
+### User Tracking with PostHog
+```typescript
+export const useAnalytics = () => {
+  const { user } = useFirebaseAuth();
+  
+  useEffect(() => {
+    if (user) {
+      posthog.identify(user.uid, {
+        email: user.email,
+        displayName: user.displayName
+      });
+    }
+  }, [user]);
+};
+```
+
+## Best Practices
+
+1. **Always Test Offline**: Ensure full functionality without authentication
+2. **Handle Token Expiration**: Automatic refresh and re-authentication
+3. **Secure API Routes**: Verify tokens on server-side endpoints
+4. **Monitor Sync Status**: Provide clear UI feedback for sync state
+5. **Privacy First**: Users control their data with optional authentication

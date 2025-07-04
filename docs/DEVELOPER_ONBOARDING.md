@@ -14,29 +14,41 @@ npm install
 ### 2. Environment Setup
 ```bash
 cp .env.example .env.local
-# Add your OpenAI API key to .env.local
+# Configure required environment variables in .env.local:
+# - OpenAI API key for AI chat functionality
+# - Clerk keys for authentication (optional)
+# - Firebase configuration for sync (optional)
+# - PostHog keys for analytics (optional)
 ```
 
 ### 3. Start Development
 ```bash
+# Start the development server
 npm run dev
+
+# Optional: Start Firebase emulators for full functionality
+npm run firebase:emulator
+
 # Open http://localhost:3000
 ```
 
 ### 4. Verify Setup
-- Create a journal entry
-- Press `Shift` in the editor
-- Select an AI mode
-- Verify chat sidebar opens and responds
+- Create a journal entry with `Cmd+Enter`
+- Test search with `Cmd+K`
+- Press `Shift` in the editor to trigger AI mode selector
+- Select an AI mode and verify chat sidebar opens
+- Test import/export in help modal (`?` button)
 
 ## 📚 Understanding the Codebase
 
 ### Core Concepts
 
-**Reflecta Labs** is a founder-focused journaling app with AI-powered insights. Think of it as:
-- **Notion-style editor** for rapid note-taking
-- **Apple Notes simplicity** with professional features  
+**Reflecta Labs** is a founder-focused journaling app with AI-powered insights and comprehensive sync. Think of it as:
+- **Notion-style editor** for rapid note-taking with markdown support
+- **Apple Notes simplicity** with professional features and search
 - **GitHub Copilot approach** to AI assistance (contextual, on-demand)
+- **Firebase backend** for seamless cross-device synchronization
+- **PostHog analytics** for user behavior insights
 
 ### Architecture Overview
 
@@ -47,21 +59,31 @@ npm run dev
 │  📋 Navigation  │  ✍️  TipTap     │  🤖 OpenAI      │
 │  📅 Dates       │  🏷️  Tags       │  💬 Streaming   │
 │  🔍 Scroll      │  ⌨️  Shortcuts  │  🎯 3 Modes     │
+│  🔍 Search      │  📤 Import/Export│  🔄 Firebase    │
+│  ☁️  Sync       │  📊 Analytics   │  👤 Auth        │
 └─────────────────┴─────────────────┴─────────────────┘
 ```
 
 ### Key Components Map
 
 ```
-src/app/page.tsx                    # 🏠 Main app container
-├── components/Sidebar.tsx          # 📋 Left: Entry navigation  
-├── components/Editor.tsx           # ✍️  Center: TipTap editor
-├── components/AIChatSidebar.tsx    # 🤖 Right: AI chat
+src/app/page.tsx                    # 🏠 Main app container with sync
+├── components/Sidebar.tsx          # 📋 Left: Entry navigation with scroll-hijacking
+├── components/Editor.tsx           # ✍️  Center: TipTap editor with AI integration
+├── components/CommandPalette.tsx   # 🔍 Search overlay (Cmd+K)
+├── components/HelpModal.tsx        # ❓ Help modal with import/export
+├── components/MorningGuidanceCard.tsx # 🌅 Daily guidance prompts
+├── components/AIChatSidebar.tsx    # 🤖 Right: AI chat sidebar
 │   ├── ChatInterface.tsx           # 💬 Message management
-│   ├── ChatMessage.tsx             # 💭 Individual bubbles
-│   └── ChatInput.tsx               # ⌨️  Input field
-├── components/AIDropdown.tsx       # 🎯 Mode selector
-└── app/api/chat/route.ts           # 🔗 OpenAI API
+│   ├── ChatMessage.tsx             # 💭 Individual message bubbles
+│   └── ChatInput.tsx               # ⌨️  Auto-resizing input field
+├── components/AIDropdown.tsx       # 🎯 Three-mode AI selector
+├── hooks/useJournal.ts             # 🔄 Complete data management with sync
+├── hooks/useFirebaseAuth.ts        # 👤 Clerk + Firebase auth bridge
+├── hooks/useAnalytics.ts           # 📊 PostHog analytics integration
+├── services/syncService.ts         # ☁️  Advanced localStorage-Firestore sync
+├── app/api/chat/route.ts           # 🔗 OpenAI streaming API
+└── app/api/auth/firebase-token/route.ts # 🔑 Token exchange endpoint
 ```
 
 ## 🔍 Code Patterns
