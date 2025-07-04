@@ -96,31 +96,27 @@ export async function POST(req: NextRequest) {
             if (contentItem.type === 'output_text' && 'text' in contentItem) {
               const responseText = contentItem.text;
               
-              // Extract JSON from <result> tags
+              // Parse the response as direct JSON
               console.log('🔍 [DEBUG] Full OpenAI response text:', responseText);
-              const resultMatch = responseText.match(/<result>\s*```json\s*([\s\S]*?)\s*```\s*<\/result>/);
-              if (resultMatch) {
-                console.log('🔍 [DEBUG] Extracted JSON string:', resultMatch[1]);
-                try {
-                  const jsonData = JSON.parse(resultMatch[1]);
-                  console.log('🔍 [DEBUG] Parsed JSON data:', jsonData);
-                  if (jsonData.journalQuestion) {
-                    journalQuestion = jsonData.journalQuestion;
-                  }
-                  if (jsonData.detailedMorningPrompt) {
-                    detailedMorningPrompt = jsonData.detailedMorningPrompt;
-                  }
-                  if (jsonData.reasoning) {
-                    reasoning = jsonData.reasoning;
-                  }
-                  console.log('🔍 [DEBUG] Final extracted values:', { journalQuestion, detailedMorningPrompt, reasoning });
-                } catch (parseError) {
-                  console.error('Failed to parse JSON from OpenAI response:', parseError);
-                  console.error('Raw JSON string that failed to parse:', resultMatch[1]);
-                  // Keep default values if parsing fails
+              
+              try {
+                const jsonData = JSON.parse(responseText);
+                console.log('🔍 [DEBUG] Parsed JSON data:', jsonData);
+                
+                if (jsonData.journalQuestion) {
+                  journalQuestion = jsonData.journalQuestion;
                 }
-              } else {
-                console.warn('🔍 [DEBUG] No <result> tags found in OpenAI response');
+                if (jsonData.detailedMorningPrompt) {
+                  detailedMorningPrompt = jsonData.detailedMorningPrompt;
+                }
+                if (jsonData.reasoning) {
+                  reasoning = jsonData.reasoning;
+                }
+                console.log('🔍 [DEBUG] Final extracted values:', { journalQuestion, detailedMorningPrompt, reasoning });
+              } catch (parseError) {
+                console.error('Failed to parse JSON from OpenAI response:', parseError);
+                console.error('Raw response text that failed to parse:', responseText);
+                // Keep default values if parsing fails
               }
               break;
             }
