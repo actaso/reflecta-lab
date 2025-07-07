@@ -18,6 +18,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",
     "@clerk/nextjs": "^6.23.0",
+    "@radix-ui/react-slot": "^1.2.3",
     "@tiptap/extension-blockquote": "^2.22.3",
     "@tiptap/extension-bold": "^2.22.3",
     "@tiptap/extension-code": "^2.22.3",
@@ -35,15 +36,20 @@
     "@tiptap/react": "^2.14.0",
     "@tiptap/starter-kit": "^2.14.0",
     "ai": "^4.3.16",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "firebase": "^11.9.1",
     "firebase-admin": "^13.4.0",
+    "framer-motion": "^12.23.0",
+    "lucide-react": "^0.525.0",
     "next": "15.3.4",
     "openai": "^5.5.1",
     "posthog-js": "^1.256.1",
     "posthog-node": "^5.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-firebase-hooks": "^5.1.1"
+    "react-firebase-hooks": "^5.1.1",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -59,6 +65,7 @@
     "jest": "^30.0.2",
     "jest-environment-jsdom": "^30.0.2",
     "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.5",
     "typescript": "^5"
   }
 }

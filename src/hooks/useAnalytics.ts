@@ -45,9 +45,91 @@ export function useAnalytics() {
     }, 500); // 500ms debounce
   }, [posthog]);
 
+  const trackSignIn = useCallback((properties?: {
+    method?: string;
+    hasExistingData?: boolean;
+    anonymousEntryCount?: number;
+  }) => {
+    posthog?.capture('user_signed_in', {
+      timestamp: new Date().toISOString(),
+      method: properties?.method || 'clerk',
+      has_existing_data: properties?.hasExistingData || false,
+      anonymous_entry_count: properties?.anonymousEntryCount || 0,
+    });
+  }, [posthog]);
+
+  const trackSignUp = useCallback((properties?: {
+    method?: string;
+    hasExistingData?: boolean;
+    anonymousEntryCount?: number;
+  }) => {
+    posthog?.capture('user_signed_up', {
+      timestamp: new Date().toISOString(),
+      method: properties?.method || 'clerk',
+      has_existing_data: properties?.hasExistingData || false,
+      anonymous_entry_count: properties?.anonymousEntryCount || 0,
+    });
+  }, [posthog]);
+
+  const trackSignOut = useCallback(() => {
+    posthog?.capture('user_signed_out', {
+      timestamp: new Date().toISOString(),
+    });
+  }, [posthog]);
+
+  const trackMorningGuidanceGenerated = useCallback((properties?: {
+    fromCache?: boolean;
+    entryCount?: number;
+    hasAlignment?: boolean;
+  }) => {
+    posthog?.capture('morning_guidance_generated', {
+      timestamp: new Date().toISOString(),
+      from_cache: properties?.fromCache || false,
+      entry_count: properties?.entryCount || 0,
+      has_alignment: properties?.hasAlignment || false,
+    });
+  }, [posthog]);
+
+  const trackMorningGuidanceUsed = useCallback((properties?: {
+    useDetailedPrompt?: boolean;
+    entryCount?: number;
+    hasAlignment?: boolean;
+  }) => {
+    posthog?.capture('morning_guidance_used', {
+      timestamp: new Date().toISOString(),
+      use_detailed_prompt: properties?.useDetailedPrompt || false,
+      entry_count: properties?.entryCount || 0,
+      has_alignment: properties?.hasAlignment || false,
+    });
+  }, [posthog]);
+
+  const trackMorningGuidanceModalOpened = useCallback(() => {
+    posthog?.capture('morning_guidance_modal_opened', {
+      timestamp: new Date().toISOString(),
+    });
+  }, [posthog]);
+
+  const trackAlignmentSet = useCallback((properties?: {
+    alignmentLength?: number;
+    isUpdate?: boolean;
+  }) => {
+    posthog?.capture('alignment_set', {
+      timestamp: new Date().toISOString(),
+      alignment_length: properties?.alignmentLength || 0,
+      is_update: properties?.isUpdate || false,
+    });
+  }, [posthog]);
+
   return {
     trackPageView,
     trackEntryCreated,
     trackEntryUpdated,
+    trackSignIn,
+    trackSignUp,
+    trackSignOut,
+    trackMorningGuidanceGenerated,
+    trackMorningGuidanceUsed,
+    trackMorningGuidanceModalOpened,
+    trackAlignmentSet,
   };
 }

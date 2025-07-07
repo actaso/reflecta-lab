@@ -35,14 +35,23 @@ jest.mock('../components/AutoTagExtension', () => ({
   AutoTagExtension: 'mock-auto-tag-extension',
 }));
 
-// Mock Firebase and Clerk
-jest.mock('@clerk/nextjs', () => ({
-  useUser: jest.fn(() => ({ user: null, isLoaded: true })),
-  ClerkProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
+// Mock Firebase
 jest.mock('react-firebase-hooks/auth', () => ({
   useAuthState: jest.fn(() => [null, false, null]),
+}));
+
+// Mock providers
+jest.mock('../lib/providers', () => ({
+  PHProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+// Mock useAnalytics hook
+jest.mock('../hooks/useAnalytics', () => ({
+  useAnalytics: jest.fn(() => ({
+    trackPageView: jest.fn(),
+    trackEntryCreated: jest.fn(),
+    trackEntryUpdated: jest.fn(),
+  })),
 }));
 
 jest.mock('@/lib/firebase', () => ({

@@ -6,9 +6,10 @@ interface HelpModalProps {
   isOpen: boolean;
   onClose: () => void;
   entries: Record<string, JournalEntry[]>;
+  onImport: (entries: JournalEntry[]) => void;
 }
 
-export default function HelpModal({ isOpen, onClose, entries }: HelpModalProps) {
+export default function HelpModal({ isOpen, onClose, entries, onImport }: HelpModalProps) {
   if (!isOpen) return null;
 
   const exportToCSV = () => {
@@ -57,6 +58,83 @@ export default function HelpModal({ isOpen, onClose, entries }: HelpModalProps) 
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }
+  };
+
+  const importFromCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const csvContent = e.target?.result as string;
+        const lines = csvContent.split('\n').filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          alert('CSV file appears to be empty or invalid');
+          return;
+        }
+
+        const header = lines[0].toLowerCase();
+        if (!header.includes('date') || !header.includes('time') || !header.includes('content')) {
+          alert('CSV file must have Date, Time, and Content columns');
+          return;
+        }
+
+        const importedEntries: JournalEntry[] = [];
+        const errors: string[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          try {
+            const line = lines[i];
+            const matches = line.match(/^([^,]+),([^,]+),"(.*)"$/);
+            
+            if (!matches) {
+              errors.push(`Line ${i + 1}: Invalid format`);
+              continue;
+            }
+
+            const [, dateStr, timeStr, content] = matches;
+            const unescapedContent = content.replace(/""/g, '"');
+            
+            const dateTime = new Date(`${dateStr} ${timeStr}`);
+            if (isNaN(dateTime.getTime())) {
+              errors.push(`Line ${i + 1}: Invalid date/time format`);
+              continue;
+            }
+
+            const entry: JournalEntry = {
+              id: crypto.randomUUID(),
+              timestamp: dateTime,
+              content: unescapedContent,
+              uid: 'imported-user',
+              lastUpdated: new Date()
+            };
+
+            importedEntries.push(entry);
+          } catch (error) {
+            errors.push(`Line ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        }
+
+        if (errors.length > 0) {
+          const errorMessage = `Import completed with ${errors.length} errors:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... and ${errors.length - 5} more` : ''}`;
+          alert(errorMessage);
+        }
+
+        if (importedEntries.length > 0) {
+          onImport(importedEntries);
+          alert(`Successfully imported ${importedEntries.length} entries`);
+        } else {
+          alert('No valid entries found in the CSV file');
+        }
+      } catch (error) {
+        alert(`Failed to import CSV: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    };
+
+    reader.readAsText(file);
+    event.target.value = '';
   };
 
   return (
@@ -123,12 +201,31 @@ export default function HelpModal({ isOpen, onClose, entries }: HelpModalProps) 
           <div className="border-t border-neutral-200 dark:border-neutral-600 pt-3 mt-4">
             <button
               onClick={exportToCSV}
-              className="w-full px-4 py-2 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors text-sm font-medium"
+              className="w-full px-4 py-2 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors text-sm font-medium mb-3"
             >
               Export Backup (CSV)
             </button>
-            <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 text-center">
+            <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-4 text-center">
               Download all entries as CSV for backup
+            </div>
+            
+            <div className="relative">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={importFromCSV}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                id="import-csv"
+              />
+              <label
+                htmlFor="import-csv"
+                className="w-full px-4 py-2 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors text-sm font-medium cursor-pointer flex items-center justify-center"
+              >
+                Import from CSV
+              </label>
+            </div>
+            <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 text-center">
+              Upload a CSV file to import entries
             </div>
           </div>
         </div>

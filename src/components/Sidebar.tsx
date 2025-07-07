@@ -45,7 +45,7 @@ export default function Sidebar({
   const dates = generateDates();
 
   return (
-    <div className="w-64 bg-neutral-50 dark:bg-neutral-900 flex flex-col relative">
+    <div className="w-full h-full flex flex-col relative">
       {/* Scrollable content area */}
       <div 
         ref={sidebarRef}
