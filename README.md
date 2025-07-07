@@ -1,5 +1,8 @@
 # Reflecta Labs
 
+[![Test Coverage](https://github.com/actaso/reflecta-lab/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/actaso/reflecta-lab/actions/workflows/test-coverage.yml)
+[![codecov](https://codecov.io/gh/actaso/reflecta-lab/branch/main/graph/badge.svg)](https://codecov.io/gh/actaso/reflecta-lab)
+
 A minimalist journal interface designed for rapid reflection and note-taking, featuring AI-powered insights specifically tailored for founders and entrepreneurs.
 
 ## Features
