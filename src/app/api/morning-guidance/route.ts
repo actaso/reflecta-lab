@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
     // Convert journal entries to proper format (they come as plain objects from JSON)
     const typedEntries: JournalEntry[] = journalEntries.map((entry: Record<string, unknown>) => ({
       ...entry,
-      timestamp: new Date(entry.timestamp),
-      lastUpdated: new Date(entry.lastUpdated)
+      timestamp: new Date(entry.timestamp as string | number | Date),
+      lastUpdated: new Date(entry.lastUpdated as string | number | Date)
     }));
 
     // Sort by timestamp (newest first) and take the last 10 entries

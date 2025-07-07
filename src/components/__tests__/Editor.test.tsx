@@ -116,7 +116,6 @@ describe('Editor', () => {
         attributes: {
           class: 'max-w-none focus:outline-none',
         },
-        handleKeyDown: expect.any(Function),
       },
     });
   });

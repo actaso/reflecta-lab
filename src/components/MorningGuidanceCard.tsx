@@ -29,8 +29,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
   const {
     trackMorningGuidanceGenerated,
     trackMorningGuidanceUsed,
-    trackMorningGuidanceModalOpened,
-    trackAlignmentSet
+    trackMorningGuidanceModalOpened
   } = useAnalytics();
   const [journalQuestion, setJournalQuestion] = useState<string>('');
   const [detailedMorningPrompt, setDetailedMorningPrompt] = useState<string>('');

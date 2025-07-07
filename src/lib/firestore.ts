@@ -296,8 +296,8 @@ export class FirestoreService {
       console.error('🚨 [ERROR] Error getting user account:', error);
       console.error('🚨 [ERROR] Error details:', {
         userId,
-        errorCode: (error as any)?.code,
-        errorMessage: (error as any)?.message,
+        errorCode: error instanceof Error ? error.name : 'Unknown',
+        errorMessage: error instanceof Error ? error.message : String(error),
         fullError: error
       });
       throw new Error('Failed to get user account from Firestore');
