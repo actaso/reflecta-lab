@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useJournal } from '@/hooks/useJournal';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -41,8 +41,9 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
   const [showAlignModal, setShowAlignModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [journaledEntryId, setJournaledEntryId] = useState<string | null>(null);
+  const hasInitializedRef = useRef(false);
 
-  const generateMorningGuidance = useCallback(async (forceGenerate = false) => {
+  const generateMorningGuidance = useCallback(async (forceGenerate = false, journalEntries = entries) => {
     setLoading(true);
     setError(null);
     
@@ -54,7 +55,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
         },
         body: JSON.stringify({ 
           forceGenerate,
-          journalEntries: entries
+          journalEntries
         }),
       });
 
@@ -74,7 +75,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
         // Track analytics
         trackMorningGuidanceGenerated({
           fromCache: data.fromCache,
-          entryCount: entries.length,
+          entryCount: journalEntries.length,
           hasAlignment: Boolean(userAlignment)
         });
         
@@ -91,15 +92,22 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
     } finally {
       setLoading(false);
     }
-  }, [entries, trackMorningGuidanceGenerated, userAlignment]);
+  }, [trackMorningGuidanceGenerated, userAlignment]);
 
-  // Load guidance on component mount if user is authenticated
+  // Load guidance once when user becomes available
   useEffect(() => {
-    if (user) {
-      generateMorningGuidance();
+    if (user && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      // Use a slight delay to ensure entries are loaded
+      setTimeout(() => {
+        generateMorningGuidance(false, entries);
+      }, 50);
     }
-    // No card for non-authenticated users - only show when we have real guidance
-  }, [user, generateMorningGuidance]);
+    // Reset flag when user logs out
+    if (!user) {
+      hasInitializedRef.current = false;
+    }
+  }, [user]); // Only depend on user, not the function or entries
 
   // Track the entry the user journaled in, and hide guidance when they navigate away
   useEffect(() => {
@@ -118,7 +126,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
 
   const handleManualGenerate = () => {
     setHasGuidance(false);
-    generateMorningGuidance(true);
+    generateMorningGuidance(true, entries);
     setShowReasoning(false); // Hide reasoning tooltip
   };
 
