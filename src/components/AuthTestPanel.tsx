@@ -39,24 +39,24 @@ export default function AuthTestPanel() {
 
   if (loading) {
     return (
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h3 className="font-semibold text-blue-900">🔄 Authentication Loading...</h3>
+      <div className="p-4 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <h3 className="font-semibold text-blue-900 dark:text-blue-100">🔄 Authentication Loading...</h3>
       </div>
     );
   }
 
   return (
-    <div className="p-6 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
-      <h2 className="text-xl font-bold text-gray-900">🧪 Clerk + Firebase Test Panel</h2>
+    <div className="p-6 bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-lg space-y-4">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-neutral-100">🧪 Clerk + Firebase Test Panel</h2>
       
       {/* Authentication Status */}
       <div className="space-y-2">
-        <h3 className="font-semibold text-gray-700">Authentication Status:</h3>
+        <h3 className="font-semibold text-gray-700 dark:text-neutral-300">Authentication Status:</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-          <div className={`p-2 rounded ${clerkUser ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          <div className={`p-2 rounded ${clerkUser ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100'}`}>
             Clerk: {clerkUser ? '✅ Signed In' : '❌ Not Signed In'}
           </div>
-          <div className={`p-2 rounded ${firebaseUser ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          <div className={`p-2 rounded ${firebaseUser ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100'}`}>
             Firebase: {firebaseUser ? '✅ Signed In' : '❌ Not Signed In'}
           </div>
         </div>
@@ -65,8 +65,8 @@ export default function AuthTestPanel() {
       {/* User Information */}
       {user && (
         <div className="space-y-2">
-          <h3 className="font-semibold text-gray-700">User Information:</h3>
-          <div className="bg-white p-3 rounded border space-y-1 text-sm">
+          <h3 className="font-semibold text-gray-700 dark:text-neutral-300">User Information:</h3>
+          <div className="bg-white dark:bg-neutral-800 p-3 rounded border space-y-1 text-sm">
             <div><strong>Firebase UID:</strong> {user.uid}</div>
             <div><strong>Clerk User ID:</strong> {user.clerkUserId}</div>
             <div><strong>Email:</strong> {user.email || 'Not provided'}</div>
@@ -78,58 +78,58 @@ export default function AuthTestPanel() {
       {/* Firestore Test */}
       {isAuthenticated ? (
         <div className="space-y-3">
-          <h3 className="font-semibold text-gray-700">🔥 Firestore Test:</h3>
+          <h3 className="font-semibold text-gray-700 dark:text-neutral-300">🔥 Firestore Test:</h3>
           <div className="space-y-2">
             <input
               type="text"
               value={testEntry}
               onChange={(e) => setTestEntry(e.target.value)}
               placeholder="Enter test journal entry..."
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border border-gray-300 dark:border-neutral-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-neutral-700 text-gray-900 dark:text-neutral-100"
             />
             <button
               onClick={handleTestFirestore}
               disabled={!testEntry.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-neutral-600 disabled:cursor-not-allowed"
             >
               Test Firestore Write
             </button>
           </div>
           
           {testResult && (
-            <div className="p-2 bg-white border rounded text-sm">
+            <div className="p-2 bg-white dark:bg-neutral-800 border rounded text-sm">
               {testResult}
             </div>
           )}
           
           {journalError && (
-            <div className="p-2 bg-red-100 border border-red-300 rounded text-red-800 text-sm">
+            <div className="p-2 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-800 rounded text-red-800 dark:text-red-100 text-sm">
               Journal Error: {journalError}
             </div>
           )}
 
           <div className="space-y-2">
-            <h4 className="font-medium text-gray-600">📝 Your Entries ({entries.length}):</h4>
+            <h4 className="font-medium text-gray-600 dark:text-neutral-400">📝 Your Entries ({entries.length}):</h4>
             <div className="max-h-32 overflow-y-auto space-y-1">
               {entries.length > 0 ? (
                 entries.slice(0, 5).map((entry) => (
-                  <div key={entry.id} className="p-2 bg-white border rounded text-xs">
-                    <div className="font-mono text-gray-500">ID: {entry.id}</div>
+                  <div key={entry.id} className="p-2 bg-white dark:bg-neutral-800 border rounded text-xs">
+                    <div className="font-mono text-gray-500 dark:text-neutral-400">ID: {entry.id}</div>
                     <div className="truncate">{entry.content}</div>
                   </div>
                 ))
               ) : (
-                <div className="text-gray-500 text-sm">No entries yet</div>
+                <div className="text-gray-500 dark:text-neutral-400 text-sm">No entries yet</div>
               )}
               {entries.length > 5 && (
-                <div className="text-gray-500 text-xs">...and {entries.length - 5} more</div>
+                <div className="text-gray-500 dark:text-neutral-400 text-xs">...and {entries.length - 5} more</div>
               )}
             </div>
           </div>
         </div>
       ) : (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
-          <p className="text-yellow-800">
+        <div className="p-4 bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-800 rounded">
+          <p className="text-yellow-800 dark:text-yellow-100">
             🔐 Please sign in with Clerk to test Firestore functionality
           </p>
         </div>

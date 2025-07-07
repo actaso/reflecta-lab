@@ -156,10 +156,8 @@ html {
   padding: 0 0 50vh 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  .ProseMirror {
-    color: #ededed;
-  }
+.dark .ProseMirror {
+  color: #ededed;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
@@ -170,10 +168,8 @@ html {
   height: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  .ProseMirror p.is-editor-empty:first-child::before {
-    color: #52525b;
-  }
+.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: #52525b;
 }
 
 /* Minimal markdown styling */
@@ -210,11 +206,9 @@ html {
   font-size: 0.9em;
 }
 
-@media (prefers-color-scheme: dark) {
-  .ProseMirror code {
-    background: #374151;
-    color: #d1d5db;
-  }
+.dark .ProseMirror code {
+  background: #374151;
+  color: #d1d5db;
 }
 
 .ProseMirror blockquote {
@@ -224,11 +218,9 @@ html {
   color: #666;
 }
 
-@media (prefers-color-scheme: dark) {
-  .ProseMirror blockquote {
-    border-left-color: #4b5563;
-    color: #9ca3af;
-  }
+.dark .ProseMirror blockquote {
+  border-left-color: #4b5563;
+  color: #9ca3af;
 }
 
 .ProseMirror ul {
@@ -298,10 +290,8 @@ html {
   opacity: 0.6;
 }
 
-@media (prefers-color-scheme: dark) {
-  .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"] {
-    accent-color: #3b82f6;
-  }
+.dark .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"] {
+  accent-color: #3b82f6;
 }
 
 /* Tag highlighting for [word]: format - using regex-like CSS targeting */

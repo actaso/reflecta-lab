@@ -3,6 +3,7 @@
 import { formatDisplayDate, formatTime } from '../utils/formatters';
 import { SignInButton, UserButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { JournalEntry } from '../types/journal';
+import { DarkModeToggle } from './DarkModeToggle';
 
 // Environment check
 const hasClerkKeys = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -116,7 +117,8 @@ export default function EntryHeader({ currentEntry, onDeleteEntry }: EntryHeader
         )}
       </div>
       
-      <div className="flex items-center">
+      <div className="flex items-center gap-3">
+        <DarkModeToggle />
         {/* Authentication - conditional rendering based on Clerk setup and sign-in status */}
         <AuthSection />
       </div>
