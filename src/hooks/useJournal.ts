@@ -24,6 +24,11 @@ export const useJournal = () => {
       const savedEntries = localStorage.getItem('journal-entries');
       if (!savedEntries) return [];
       
+      // Guard against invalid JSON in test environment
+      if (savedEntries === 'undefined' || savedEntries === 'null') {
+        return [];
+      }
+      
       const parsed = JSON.parse(savedEntries);
       const allEntries: JournalEntry[] = [];
       
@@ -42,6 +47,10 @@ export const useJournal = () => {
       return allEntries;
     } catch (error) {
       console.error('Failed to load local entries:', error);
+      // Clear corrupted data to prevent future errors
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('journal-entries');
+      }
       return [];
     }
   }, []);
