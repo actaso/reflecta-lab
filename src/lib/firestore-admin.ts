@@ -113,6 +113,7 @@ class FirestoreAdminService {
       const docRef = adminDb.collection(this.USERS_COLLECTION_NAME).doc(userId);
       await docRef.update({
         alignment,
+        alignmentSetAt: new Date(),
         updatedAt: new Date()
       });
     } catch (error) {

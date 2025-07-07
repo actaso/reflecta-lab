@@ -42,6 +42,7 @@ export interface FirestoreUserAccount {
     usedAt?: Timestamp | FieldValue;
   };
   alignment?: string;
+  alignmentSetAt?: Timestamp | FieldValue;
   createdAt: Timestamp | FieldValue;
   updatedAt: Timestamp | FieldValue;
 }
@@ -101,6 +102,7 @@ const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): User
     uid: data.uid as string,
     currentMorningGuidance,
     alignment: data.alignment as string | undefined,
+    alignmentSetAt: data.alignmentSetAt ? (data.alignmentSetAt as Timestamp).toDate() : undefined,
     createdAt,
     updatedAt: (data.updatedAt as Timestamp).toDate()
   };
@@ -132,6 +134,11 @@ const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): Partial<
   // Include alignment if it exists
   if (userAccount.alignment !== undefined) {
     data.alignment = userAccount.alignment;
+  }
+
+  // Include alignmentSetAt if it exists
+  if (userAccount.alignmentSetAt !== undefined) {
+    data.alignmentSetAt = Timestamp.fromDate(userAccount.alignmentSetAt);
   }
 
   return data;
@@ -369,6 +376,7 @@ export class FirestoreService {
       const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
       await updateDoc(docRef, {
         alignment,
+        alignmentSetAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
     } catch (error) {
