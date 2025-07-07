@@ -80,13 +80,16 @@ export default function JournalApp() {
     trackEntryUpdated(selectedEntryId, value.length);
   };
 
-  const createNewEntry = useCallback(async () => {
+  const createNewEntry = useCallback(async (initialContent?: string) => {
     const now = new Date();
+    
+    // Format initial content as h2 if provided
+    const content = initialContent ? `<h2>${initialContent}</h2><p></p>` : '';
     
     // Use the hook's addEntry method
     const newEntryId = await addEntry({
       timestamp: now,
-      content: '',
+      content,
       uid: 'local-user', // Will be set by hook when authenticated
       lastUpdated: now
     });
@@ -363,7 +366,7 @@ export default function JournalApp() {
         
         {/* Morning Guidance */}
         <div className="pt-36">
-          <MorningGuidanceCard onJournalNow={createNewEntry} />
+          <MorningGuidanceCard onJournalNow={(content) => createNewEntry(content)} />
         </div>
       </div>
     </div>

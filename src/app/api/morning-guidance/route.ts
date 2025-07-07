@@ -20,11 +20,14 @@ export async function POST(req: NextRequest) {
 
     // Check if user needs new morning guidance (unless forcing)
     if (!forceGenerate) {
-      const shouldGenerate = await FirestoreAdminService.shouldGenerateNewMorningGuidance(userId);
-      if (!shouldGenerate) {
+      const existingGuidance = await FirestoreAdminService.getCurrentMorningGuidance(userId);
+      if (existingGuidance) {
         return NextResponse.json({ 
-          message: 'Morning guidance already generated for today',
-          generated: false 
+          journalQuestion: existingGuidance.journalQuestion,
+          detailedMorningPrompt: existingGuidance.detailedMorningPrompt,
+          reasoning: existingGuidance.reasoning,
+          generated: false,
+          fromCache: true
         });
       }
     }
@@ -133,8 +136,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Update the last generated timestamp
-    await FirestoreAdminService.updateLastMorningGuidanceGenerated(userId);
+    // Save the guidance to the user account
+    await FirestoreAdminService.saveMorningGuidance(userId, {
+      journalQuestion,
+      detailedMorningPrompt,
+      reasoning
+    });
 
     return NextResponse.json({ 
       journalQuestion,

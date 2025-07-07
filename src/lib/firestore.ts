@@ -18,7 +18,7 @@ import {
   FieldValue
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { JournalEntry, UserAccount } from '@/types/journal';
+import { JournalEntry, UserAccount, MorningGuidance } from '@/types/journal';
 
 // Firestore document interface (includes Firestore metadata)
 export interface FirestoreJournalEntry {
@@ -35,6 +35,13 @@ export interface FirestoreJournalEntry {
 export interface FirestoreUserAccount {
   uid: string;
   lastMorningGuidanceGenerated?: Timestamp | FieldValue;
+  currentMorningGuidance?: {
+    journalQuestion: string;
+    detailedMorningPrompt: string;
+    reasoning: string;
+    generatedAt: Timestamp | FieldValue;
+  };
+  alignment?: string;
   createdAt: Timestamp | FieldValue;
   updatedAt: Timestamp | FieldValue;
 }
@@ -78,9 +85,22 @@ const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): User
   // Handle missing createdAt field (for documents created before this fix)
   const createdAt = data.createdAt ? (data.createdAt as Timestamp).toDate() : (data.updatedAt as Timestamp).toDate();
   
+  // Convert morning guidance if it exists
+  let currentMorningGuidance: MorningGuidance | undefined = undefined;
+  if (data.currentMorningGuidance) {
+    currentMorningGuidance = {
+      journalQuestion: data.currentMorningGuidance.journalQuestion,
+      detailedMorningPrompt: data.currentMorningGuidance.detailedMorningPrompt,
+      reasoning: data.currentMorningGuidance.reasoning,
+      generatedAt: (data.currentMorningGuidance.generatedAt as Timestamp).toDate()
+    };
+  }
+  
   return {
     uid: data.uid as string,
     lastMorningGuidanceGenerated: data.lastMorningGuidanceGenerated ? (data.lastMorningGuidanceGenerated as Timestamp).toDate() : undefined,
+    currentMorningGuidance,
+    alignment: data.alignment as string | undefined,
     createdAt,
     updatedAt: (data.updatedAt as Timestamp).toDate()
   };
@@ -98,6 +118,21 @@ const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): Partial<
   // Only include lastMorningGuidanceGenerated if it exists
   if (userAccount.lastMorningGuidanceGenerated) {
     data.lastMorningGuidanceGenerated = Timestamp.fromDate(userAccount.lastMorningGuidanceGenerated);
+  }
+
+  // Include morning guidance if it exists
+  if (userAccount.currentMorningGuidance) {
+    data.currentMorningGuidance = {
+      journalQuestion: userAccount.currentMorningGuidance.journalQuestion,
+      detailedMorningPrompt: userAccount.currentMorningGuidance.detailedMorningPrompt,
+      reasoning: userAccount.currentMorningGuidance.reasoning,
+      generatedAt: Timestamp.fromDate(userAccount.currentMorningGuidance.generatedAt)
+    };
+  }
+
+  // Include alignment if it exists
+  if (userAccount.alignment !== undefined) {
+    data.alignment = userAccount.alignment;
   }
 
   return data;
@@ -262,8 +297,8 @@ export class FirestoreService {
       console.error('🚨 [ERROR] Error getting user account:', error);
       console.error('🚨 [ERROR] Error details:', {
         userId,
-        errorCode: error?.code,
-        errorMessage: error?.message,
+        errorCode: (error as any)?.code,
+        errorMessage: (error as any)?.message,
         fullError: error
       });
       throw new Error('Failed to get user account from Firestore');
@@ -300,20 +335,81 @@ export class FirestoreService {
     try {
       const userAccount = await this.getUserAccount(userId);
 
-      if (!userAccount.lastMorningGuidanceGenerated) {
-        return true;
+      // Check if we have current guidance for today
+      if (userAccount.currentMorningGuidance) {
+        const today = new Date().toISOString().split('T')[0];
+        const guidanceDate = userAccount.currentMorningGuidance.generatedAt.toISOString().split('T')[0];
+        if (guidanceDate === today) {
+          return false; // Already have guidance for today
+        }
       }
 
-      const lastGenerated = userAccount.lastMorningGuidanceGenerated;
-      const today = new Date();
-      
-      // Check if it's a different day
-      const isDifferentDay = lastGenerated.toDateString() !== today.toDateString();
-      
-      return isDifferentDay;
+      // If no guidance or it's from a different day, generate new one
+      return true;
     } catch (error) {
       console.error('Error checking if should generate new morning guidance:', error);
       return false;
+    }
+  }
+
+  // Save morning guidance to user account
+  static async saveMorningGuidance(userId: string, guidance: Omit<MorningGuidance, 'generatedAt'>): Promise<void> {
+    try {
+      const now = new Date();
+      
+      const morningGuidance: MorningGuidance = {
+        ...guidance,
+        generatedAt: now
+      };
+
+      const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
+      await updateDoc(docRef, {
+        currentMorningGuidance: {
+          journalQuestion: morningGuidance.journalQuestion,
+          detailedMorningPrompt: morningGuidance.detailedMorningPrompt,
+          reasoning: morningGuidance.reasoning,
+          generatedAt: Timestamp.fromDate(morningGuidance.generatedAt)
+        },
+        lastMorningGuidanceGenerated: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error saving morning guidance:', error);
+      throw new Error('Failed to save morning guidance to Firestore');
+    }
+  }
+
+  // Get current morning guidance for today
+  static async getCurrentMorningGuidance(userId: string): Promise<MorningGuidance | null> {
+    try {
+      const userAccount = await this.getUserAccount(userId);
+      
+      if (userAccount.currentMorningGuidance) {
+        const today = new Date().toISOString().split('T')[0];
+        const guidanceDate = userAccount.currentMorningGuidance.generatedAt.toISOString().split('T')[0];
+        if (guidanceDate === today) {
+          return userAccount.currentMorningGuidance;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting current morning guidance:', error);
+      return null;
+    }
+  }
+
+  // Save user alignment
+  static async saveAlignment(userId: string, alignment: string): Promise<void> {
+    try {
+      const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
+      await updateDoc(docRef, {
+        alignment,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error saving alignment:', error);
+      throw new Error('Failed to save alignment to Firestore');
     }
   }
 }
