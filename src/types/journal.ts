@@ -15,12 +15,12 @@ export type MorningGuidance = {
   detailedMorningPrompt: string; // Extended/detailed version of the question
   reasoning: string; // Why this question was chosen
   generatedAt: Date; // When this guidance was generated
+  usedAt?: Date; // When the user journaled with this guidance
 };
 
 // collection name on firestore: "users"
 export type UserAccount = {
   uid: string;
-  lastMorningGuidanceGenerated?: Date;
   currentMorningGuidance?: MorningGuidance; // Today's morning guidance
   alignment?: string; // User's biggest priority in life right now
   createdAt: Date;

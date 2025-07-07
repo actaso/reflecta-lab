@@ -366,7 +366,10 @@ export default function JournalApp() {
         
         {/* Morning Guidance */}
         <div className="pt-36">
-          <MorningGuidanceCard onJournalNow={(content) => createNewEntry(content)} />
+          <MorningGuidanceCard 
+            onJournalNow={(content) => createNewEntry(content)} 
+            selectedEntryId={selectedEntryId}
+          />
         </div>
       </div>
     </div>

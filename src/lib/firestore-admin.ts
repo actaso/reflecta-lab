@@ -32,13 +32,13 @@ class FirestoreAdminService {
             journalQuestion: data.currentMorningGuidance.journalQuestion,
             detailedMorningPrompt: data.currentMorningGuidance.detailedMorningPrompt,
             reasoning: data.currentMorningGuidance.reasoning,
-            generatedAt: data.currentMorningGuidance.generatedAt.toDate()
+            generatedAt: data.currentMorningGuidance.generatedAt.toDate(),
+            usedAt: data.currentMorningGuidance.usedAt ? data.currentMorningGuidance.usedAt.toDate() : undefined
           };
         }
         
         return {
           uid: data.uid,
-          lastMorningGuidanceGenerated: data.lastMorningGuidanceGenerated ? data.lastMorningGuidanceGenerated.toDate() : undefined,
           currentMorningGuidance,
           alignment: data.alignment,
           createdAt: data.createdAt ? data.createdAt.toDate() : data.updatedAt.toDate(),
@@ -62,42 +62,7 @@ class FirestoreAdminService {
     }
   }
 
-  // Update last morning guidance generated using Admin SDK
-  static async updateLastMorningGuidanceGenerated(userId: string): Promise<void> {
-    try {
-      const adminDb = this.getAdminDb();
-      const docRef = adminDb.collection(this.USERS_COLLECTION_NAME).doc(userId);
-      await docRef.update({
-        lastMorningGuidanceGenerated: new Date(),
-        updatedAt: new Date()
-      });
-    } catch (error) {
-      console.error('Error updating last morning guidance generated (admin):', error);
-      throw new Error('Failed to update last morning guidance generated');
-    }
-  }
 
-  // Check if user needs new morning guidance using Admin SDK
-  static async shouldGenerateNewMorningGuidance(userId: string): Promise<boolean> {
-    try {
-      const userAccount = await this.getUserAccount(userId);
-
-      // Check if we have current guidance for today
-      if (userAccount.currentMorningGuidance) {
-        const today = new Date().toISOString().split('T')[0];
-        const guidanceDate = userAccount.currentMorningGuidance.generatedAt.toISOString().split('T')[0];
-        if (guidanceDate === today) {
-          return false; // Already have guidance for today
-        }
-      }
-
-      // If no guidance or it's from a different day, generate new one
-      return true;
-    } catch (error) {
-      console.error('Error checking if should generate new morning guidance (admin):', error);
-      return false;
-    }
-  }
 
   // Save morning guidance to user account using Admin SDK
   static async saveMorningGuidance(userId: string, guidance: Omit<MorningGuidance, 'generatedAt'>): Promise<void> {
@@ -113,7 +78,6 @@ class FirestoreAdminService {
           reasoning: guidance.reasoning,
           generatedAt: now
         },
-        lastMorningGuidanceGenerated: now,
         updatedAt: now
       });
     } catch (error) {
@@ -130,7 +94,7 @@ class FirestoreAdminService {
       if (userAccount.currentMorningGuidance) {
         const today = new Date().toISOString().split('T')[0];
         const guidanceDate = userAccount.currentMorningGuidance.generatedAt.toISOString().split('T')[0];
-        if (guidanceDate === today) {
+        if (guidanceDate === today && !userAccount.currentMorningGuidance.usedAt) {
           return userAccount.currentMorningGuidance;
         }
       }
@@ -154,6 +118,23 @@ class FirestoreAdminService {
     } catch (error) {
       console.error('Error saving alignment (admin):', error);
       throw new Error('Failed to save alignment to Firestore');
+    }
+  }
+
+  // Mark morning guidance as used when user journals with it
+  static async markGuidanceAsUsed(userId: string): Promise<void> {
+    try {
+      const adminDb = this.getAdminDb();
+      const docRef = adminDb.collection(this.USERS_COLLECTION_NAME).doc(userId);
+      const now = new Date();
+      
+      await docRef.update({
+        'currentMorningGuidance.usedAt': now,
+        updatedAt: now
+      });
+    } catch (error) {
+      console.error('Error marking guidance as used (admin):', error);
+      throw new Error('Failed to mark guidance as used');
     }
   }
 

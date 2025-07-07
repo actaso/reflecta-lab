@@ -19,7 +19,7 @@ function Dialog({ isOpen, onClose, children }: DialogProps) {
       />
       
       {/* Dialog */}
-      <div className="relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 w-full max-w-md mx-4 p-6">
+      <div className="relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto">
         {children}
       </div>
     </div>

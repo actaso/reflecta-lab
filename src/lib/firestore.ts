@@ -34,12 +34,12 @@ export interface FirestoreJournalEntry {
 // Firestore user account interface
 export interface FirestoreUserAccount {
   uid: string;
-  lastMorningGuidanceGenerated?: Timestamp | FieldValue;
   currentMorningGuidance?: {
     journalQuestion: string;
     detailedMorningPrompt: string;
     reasoning: string;
     generatedAt: Timestamp | FieldValue;
+    usedAt?: Timestamp | FieldValue;
   };
   alignment?: string;
   createdAt: Timestamp | FieldValue;
@@ -92,13 +92,13 @@ const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): User
       journalQuestion: data.currentMorningGuidance.journalQuestion,
       detailedMorningPrompt: data.currentMorningGuidance.detailedMorningPrompt,
       reasoning: data.currentMorningGuidance.reasoning,
-      generatedAt: (data.currentMorningGuidance.generatedAt as Timestamp).toDate()
+      generatedAt: (data.currentMorningGuidance.generatedAt as Timestamp).toDate(),
+      usedAt: data.currentMorningGuidance.usedAt ? (data.currentMorningGuidance.usedAt as Timestamp).toDate() : undefined
     };
   }
   
   return {
     uid: data.uid as string,
-    lastMorningGuidanceGenerated: data.lastMorningGuidanceGenerated ? (data.lastMorningGuidanceGenerated as Timestamp).toDate() : undefined,
     currentMorningGuidance,
     alignment: data.alignment as string | undefined,
     createdAt,
@@ -115,10 +115,6 @@ const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): Partial<
     ...(userAccount.createdAt ? { createdAt: Timestamp.fromDate(userAccount.createdAt) } : { createdAt: now })
   };
 
-  // Only include lastMorningGuidanceGenerated if it exists
-  if (userAccount.lastMorningGuidanceGenerated) {
-    data.lastMorningGuidanceGenerated = Timestamp.fromDate(userAccount.lastMorningGuidanceGenerated);
-  }
 
   // Include morning guidance if it exists
   if (userAccount.currentMorningGuidance) {
@@ -126,7 +122,10 @@ const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): Partial<
       journalQuestion: userAccount.currentMorningGuidance.journalQuestion,
       detailedMorningPrompt: userAccount.currentMorningGuidance.detailedMorningPrompt,
       reasoning: userAccount.currentMorningGuidance.reasoning,
-      generatedAt: Timestamp.fromDate(userAccount.currentMorningGuidance.generatedAt)
+      generatedAt: Timestamp.fromDate(userAccount.currentMorningGuidance.generatedAt),
+      ...(userAccount.currentMorningGuidance.usedAt && {
+        usedAt: Timestamp.fromDate(userAccount.currentMorningGuidance.usedAt)
+      })
     };
   }
 
@@ -316,41 +315,7 @@ export class FirestoreService {
     }
   }
 
-  // Update last morning guidance generated timestamp
-  static async updateLastMorningGuidanceGenerated(userId: string): Promise<void> {
-    try {
-      const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
-      await updateDoc(docRef, {
-        lastMorningGuidanceGenerated: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Error updating last morning guidance generated:', error);
-      throw new Error('Failed to update last morning guidance generated in Firestore');
-    }
-  }
 
-  // Check if user needs new morning guidance (daily check)
-  static async shouldGenerateNewMorningGuidance(userId: string): Promise<boolean> {
-    try {
-      const userAccount = await this.getUserAccount(userId);
-
-      // Check if we have current guidance for today
-      if (userAccount.currentMorningGuidance) {
-        const today = new Date().toISOString().split('T')[0];
-        const guidanceDate = userAccount.currentMorningGuidance.generatedAt.toISOString().split('T')[0];
-        if (guidanceDate === today) {
-          return false; // Already have guidance for today
-        }
-      }
-
-      // If no guidance or it's from a different day, generate new one
-      return true;
-    } catch (error) {
-      console.error('Error checking if should generate new morning guidance:', error);
-      return false;
-    }
-  }
 
   // Save morning guidance to user account
   static async saveMorningGuidance(userId: string, guidance: Omit<MorningGuidance, 'generatedAt'>): Promise<void> {
@@ -370,7 +335,6 @@ export class FirestoreService {
           reasoning: morningGuidance.reasoning,
           generatedAt: Timestamp.fromDate(morningGuidance.generatedAt)
         },
-        lastMorningGuidanceGenerated: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
     } catch (error) {

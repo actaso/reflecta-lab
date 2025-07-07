@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useJournal } from '@/hooks/useJournal';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogHeader, DialogTitle, DialogContent, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FirestoreService } from '@/lib/firestore';
 
 interface MorningGuidanceCardProps {
   onJournalNow?: (content?: string) => void;
+  selectedEntryId?: string | null;
 }
 
 interface GuidanceResponse {
@@ -21,22 +22,23 @@ interface GuidanceResponse {
   fromCache?: boolean;
 }
 
-export default function MorningGuidanceCard({ onJournalNow }: MorningGuidanceCardProps) {
+export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: MorningGuidanceCardProps) {
   const { user } = useUser();
   const { entries } = useJournal(); // Get journal entries from the hook
   const [journalQuestion, setJournalQuestion] = useState<string>('');
   const [detailedMorningPrompt, setDetailedMorningPrompt] = useState<string>('');
   const [reasoning, setReasoning] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [, setError] = useState<string | null>(null);
   const [showReasoning, setShowReasoning] = useState(false);
   const [hasGuidance, setHasGuidance] = useState(false);
   const [showAlignModal, setShowAlignModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [alignment, setAlignment] = useState('');
   const [isSubmittingAlignment, setIsSubmittingAlignment] = useState(false);
+  const [journaledEntryId, setJournaledEntryId] = useState<string | null>(null);
 
-  const generateMorningGuidance = async (forceGenerate = false) => {
+  const generateMorningGuidance = useCallback(async (forceGenerate = false) => {
     setLoading(true);
     setError(null);
     
@@ -78,7 +80,7 @@ export default function MorningGuidanceCard({ onJournalNow }: MorningGuidanceCar
     } finally {
       setLoading(false);
     }
-  };
+  }, [entries]);
 
   // Load guidance and alignment on component mount if user is authenticated
   useEffect(() => {
@@ -96,12 +98,11 @@ export default function MorningGuidanceCard({ onJournalNow }: MorningGuidanceCar
         });
     }
     // No card for non-authenticated users - only show when we have real guidance
-  }, [user]);
+  }, [user, generateMorningGuidance]);
 
   const handleManualGenerate = () => {
     setHasGuidance(false);
     generateMorningGuidance(true);
-    setIsExpanded(false); // Reset to collapsed state
     setShowReasoning(false); // Hide reasoning tooltip
   };
 
@@ -121,14 +122,40 @@ export default function MorningGuidanceCard({ onJournalNow }: MorningGuidanceCar
     }
   };
 
+  const handleJournalNow = async (content?: string) => {
+    try {
+      // Mark guidance as used
+      await fetch('/api/morning-guidance', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'markAsUsed' }),
+      });
+      
+      // Track that user journaled with this entry
+      setJournaledEntryId(selectedEntryId);
+      
+      // Call the parent handler
+      onJournalNow?.(content);
+    } catch (error) {
+      console.error('Failed to mark guidance as used:', error);
+      // Still call the parent handler even if marking fails
+      onJournalNow?.(content);
+    }
+  };
+
   // Only use actual guidance data - no defaults
   const currentJournalQuestion = journalQuestion;
   const currentDetailedPrompt = detailedMorningPrompt;
   const currentReasoning = reasoning;
 
+  // Hide guidance if user has journaled and then navigated to a different entry
+  const shouldShowGuidance = hasGuidance && (journaledEntryId === null || journaledEntryId === selectedEntryId);
+
   return (
     <AnimatePresence>
-      {hasGuidance && (
+      {shouldShowGuidance && (
         <motion.div
           key="morning-guidance-card"
           initial={{ opacity: 0, y: 20 }}
@@ -175,7 +202,7 @@ export default function MorningGuidanceCard({ onJournalNow }: MorningGuidanceCar
           <div className="relative">
             <div className="flex items-start gap-2">
               <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed flex-1">
-                {isExpanded ? currentDetailedPrompt : currentJournalQuestion}
+                {currentJournalQuestion}
               </p>
               
               {/* Help icon with tooltip */}
@@ -190,21 +217,21 @@ export default function MorningGuidanceCard({ onJournalNow }: MorningGuidanceCar
                 
                 {/* Reasoning tooltip */}
                 {showReasoning && (
-                  <div className="absolute top-6 right-0 w-64 p-3 bg-neutral-900 dark:bg-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg z-10 border border-neutral-700">
-                    <p className="leading-relaxed">{currentReasoning}</p>
+                  <div className="absolute top-6 right-0 w-72 p-3 bg-neutral-900 dark:bg-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg z-10 border border-neutral-700">
+                    <p className="leading-relaxed mb-2">This question is suggested by our AI coach and is backed by research on effective reflection practices for founders and entrepreneurs.</p>
                     <div className="absolute -top-1 right-2 w-2 h-2 bg-neutral-900 dark:bg-neutral-800 rotate-45 border-l border-t border-neutral-700"></div>
                   </div>
                 )}
               </div>
             </div>
             
-            {/* Expand/collapse button - only show if there's different content */}
+            {/* Expand button - only show if there's different content */}
             {currentJournalQuestion !== currentDetailedPrompt && (
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="mt-2 text-xs text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+                onClick={() => setShowDetailModal(true)}
+                className="mt-2 text-xs text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors flex items-center gap-1"
               >
-                {isExpanded ? '← Show shorter version' : 'Expand for more detail →'}
+                Expand for more details →
               </button>
             )}
           </div>
@@ -213,7 +240,7 @@ export default function MorningGuidanceCard({ onJournalNow }: MorningGuidanceCar
         {/* Buttons */}
         <div className="space-y-2">
           <button 
-            onClick={() => onJournalNow?.(currentJournalQuestion)}
+            onClick={() => handleJournalNow(currentJournalQuestion)}
             className="w-full py-2.5 px-4 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-colors duration-200"
           >
             Journal Now
@@ -231,6 +258,49 @@ export default function MorningGuidanceCard({ onJournalNow }: MorningGuidanceCar
           )}
         </div>
       </div>
+
+      {/* Detail Modal */}
+      <Dialog isOpen={showDetailModal} onClose={() => setShowDetailModal(false)}>
+        <DialogHeader>
+          <DialogTitle>Morning Guidance Details</DialogTitle>
+          <DialogDescription>
+            A deeper reflection prompt crafted by our AI coach based on your journal history and research-backed reflection practices.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogContent>
+          <div className="space-y-4">
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-700">
+              <p className="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
+                {currentDetailedPrompt}
+              </p>
+            </div>
+            {currentReasoning && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Why this question?</h4>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                  {currentReasoning}
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setShowDetailModal(false)}
+          >
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              setShowDetailModal(false);
+              handleJournalNow(currentDetailedPrompt);
+            }}
+          >
+            Journal with this prompt
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {/* Alignment Modal */}
       <Dialog isOpen={showAlignModal} onClose={() => setShowAlignModal(false)}>

@@ -32,20 +32,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Filter entries from the last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Get user alignment for context
+    const userAccount = await FirestoreAdminService.getUserAccount(userId);
+    const alignment = userAccount.alignment || "Not specified";
 
     // Convert journal entries to proper format (they come as plain objects from JSON)
-    const typedEntries: JournalEntry[] = journalEntries.map((entry: any) => ({
+    const typedEntries: JournalEntry[] = journalEntries.map((entry: Record<string, unknown>) => ({
       ...entry,
       timestamp: new Date(entry.timestamp),
       lastUpdated: new Date(entry.lastUpdated)
     }));
 
-    const recentEntries = typedEntries.filter(entry => 
-      entry.timestamp >= sevenDaysAgo
-    );
+    // Sort by timestamp (newest first) and take the last 10 entries
+    const recentEntries = typedEntries
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 10);
 
     // If no entries, return a default guidance
     if (recentEntries.length === 0) {
@@ -57,16 +58,34 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Convert entries to text format for OpenAI
+    // Helper function to calculate days ago
+    const getDaysAgo = (date: Date): string => {
+      const now = new Date();
+      const diffTime = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) return "Today";
+      if (diffDays === 1) return "1 day ago";
+      return `${diffDays} days ago`;
+    };
+
+    // Format entries for LLM consumption
     const entriesText = recentEntries
       .map(entry => {
         const date = entry.timestamp.toISOString().split('T')[0];
-        const timeString = entry.timestamp.toLocaleTimeString();
+        const daysAgo = getDaysAgo(entry.timestamp);
         // Strip HTML tags from content
-        const plainText = entry.content.replace(/<[^>]*>/g, '');
-        return `${date} ${timeString}:\n${plainText}\n`;
+        const plainText = entry.content.replace(/<[^>]*>/g, '').trim();
+        return `### ${daysAgo} (${date})\n${plainText}`;
       })
-      .join('\n---\n\n');
+      .join('\n\n');
+
+    // Create the formatted prompt
+    const formattedPrompt = `Client's current main objective: ${alignment}
+
+Client's last ${recentEntries.length} journaling entries:
+
+${entriesText}`;
 
     // Call OpenAI responses API with prompt ID
     const response = await openai.responses.create({
@@ -80,7 +99,7 @@ export async function POST(req: NextRequest) {
           "content": [
             {
               "type": "input_text", 
-              "text": entriesText
+              "text": formattedPrompt
             }
           ]
         }
@@ -152,6 +171,28 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Morning guidance API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    // Check authentication
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { action } = await req.json();
+
+    if (action === 'markAsUsed') {
+      await FirestoreAdminService.markGuidanceAsUsed(userId);
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+  } catch (error) {
+    console.error('Morning guidance PATCH error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
