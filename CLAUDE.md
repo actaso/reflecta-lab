@@ -70,6 +70,26 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **VS Code-style interface**: Resizable sidebar (300-600px) with professional design
 - **Auto-focus input**: Cursor automatically goes to chat input when sidebar opens
 
+### Morning Guidance System
+- **AI-Powered Prompts**: Daily reflection questions generated using OpenAI GPT-4.1 based on:
+  - User's current main objective (alignment setting)
+  - Last 10 journal entries with contextual formatting
+  - Research-backed reflection practices for entrepreneurs
+- **Alignment Onboarding**: 
+  - New users see compelling modal explaining personalization benefits
+  - Clear value proposition with examples and "Skip for now" option
+  - Improved design with benefits explanation and helpful placeholder text
+- **Smart Modal Interface**: 
+  - Expandable modal for detailed prompts and reasoning
+  - Scrollable, responsive design (max-w-lg, max-h-80vh)
+  - "Journal with this prompt" action for seamless workflow
+- **Intelligent Persistence**:
+  - Guidance stays visible while writing as reference
+  - Disappears only when user navigates to different entry
+  - Won't re-appear after being used (tracked in database)
+- **Usage Tracking**: Database field tracks when guidance is used to prevent re-showing
+- **Analytics Integration**: PostHog events track generation and usage patterns
+
 ### Authentication System
 - **Clerk + Firebase Bridge**: Seamless token exchange between Clerk and Firebase Auth
 - **Three states**: No config (disabled), not signed in (signin button), signed in (user avatar)
@@ -99,10 +119,19 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Import/Export**: CSV backup and restore functionality in help modal
 - **Delete functionality**: Remove entries with confirmation through hover UI
 
+### Analytics & Monitoring
+- **PostHog Integration**: Comprehensive user behavior tracking with events for:
+  - **Core Actions**: Page views, entry creation/updates, authentication flows
+  - **Morning Guidance**: Generation, usage, modal interactions, alignment setting
+  - **User Journey**: Sign up/in patterns with anonymous data migration tracking
+- **Privacy-First**: User identification only for authenticated users
+- **Debounced Events**: Content updates use 500ms debounce to prevent spam
+- **Rich Metadata**: Events include timestamps, content metrics, user context
+
 ### Additional Features
-- **Morning Guidance**: Daily reflection prompts with journal integration
+- **Morning Guidance**: AI-powered daily reflection prompts with smart persistence and modal details
 - **Full-text search**: Command palette with comprehensive entry search
-- **Analytics Dashboard**: User engagement tracking and insights
+- **Analytics Dashboard**: User engagement tracking and insights with PostHog integration
 - **Offline support**: Complete functionality without network connection
 - **Progressive sync**: Seamless online/offline transitions
 
@@ -156,6 +185,7 @@ src/
 │   └── formatters.ts       # Date/time/content formatting utilities
 └── docs/
     ├── AI_CHAT_SIDEBAR.md     # Comprehensive AI feature documentation
+    ├── ANALYTICS.md           # PostHog analytics implementation and events
     ├── AUTHENTICATION.md      # Authentication implementation guide
     ├── DEVELOPER_ONBOARDING.md # Developer setup and patterns guide
     └── SYNC_MECHANISM.md      # Sync implementation documentation
@@ -174,6 +204,19 @@ The sidebar implements scroll-hijacking by:
 - **Pattern**: `^([a-zA-Z0-9_-]+):` (word followed by colon at line start)
 - **Implementation**: Custom TipTap extension using ProseMirror decorations
 - **Styling**: Yellow background (`#fef3c7`) with brown text (`#92400e`)
+
+### Morning Guidance Implementation
+The Morning Guidance system provides personalized daily prompts through:
+1. **Contextual Prompt Generation**: 
+   - Fetches user alignment and last 10 journal entries
+   - Formats entries with "X days ago (YYYY-MM-DD)" headers for LLM consumption
+   - Sends structured prompt: "Client's current main objective: [alignment]\nClient's last [N] journaling entries: [formatted entries]"
+2. **Smart Persistence Logic**:
+   - Tracks journaled entry with special state management
+   - Shows guidance until user navigates to different entry
+   - Uses `usedAt` database field to prevent re-showing
+3. **Modal Interface**: Scrollable modal (max-w-lg, max-h-80vh) with detailed prompt and reasoning
+4. **Analytics Integration**: Tracks generation (cached vs. new), usage patterns, modal interactions
 
 ### AI Chat System
 The AI chat provides founder-focused assistance through:

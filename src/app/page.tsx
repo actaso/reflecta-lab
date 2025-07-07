@@ -1,16 +1,19 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useUser } from '@clerk/nextjs';
 import Editor from '../components/Editor';
 import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
 import CommandPalette from '../components/CommandPalette';
 import MorningGuidanceCard from '../components/MorningGuidanceCard';
+import AlignmentModal from '../components/AlignmentModal';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry } from '../types/journal';
 import { useJournal } from '../hooks/useJournal';
 import { useAnalytics } from '../hooks/useAnalytics';
+import { FirestoreService } from '../lib/firestore';
 
 export default function JournalApp() {
   // Use the sync-enabled journal hook
@@ -22,11 +25,14 @@ export default function JournalApp() {
     deleteEntry: deleteEntryFromHook 
   } = useJournal();
   
+  const { user } = useUser();
   const { trackPageView, trackEntryCreated, trackEntryUpdated } = useAnalytics();
   
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showInitialAlignmentModal, setShowInitialAlignmentModal] = useState(false);
+  const [userAlignment, setUserAlignment] = useState<string | null>(null);
   
   // Convert flat array to date-keyed format for UI compatibility
   const entries = useMemo(() => {
@@ -144,6 +150,26 @@ export default function JournalApp() {
       console.error('Failed to import entries:', error);
     }
   }, [addEntry]);
+
+  // Check for user alignment and show initial modal if needed
+  useEffect(() => {
+    if (user && !loading) {
+      FirestoreService.getUserAccount(user.id)
+        .then(userAccount => {
+          if (userAccount.alignment) {
+            setUserAlignment(userAccount.alignment);
+          } else {
+            // Show alignment modal for new users after a delay
+            setTimeout(() => {
+              setShowInitialAlignmentModal(true);
+            }, 3000); // 3 second delay to let user settle in
+          }
+        })
+        .catch(error => {
+          console.error('Failed to load user alignment:', error);
+        });
+    }
+  }, [user, loading]);
 
   // Initialize with the first entry and set initial scroll position
   useEffect(() => {
@@ -369,6 +395,7 @@ export default function JournalApp() {
           <MorningGuidanceCard 
             onJournalNow={(content) => createNewEntry(content)} 
             selectedEntryId={selectedEntryId}
+            userAlignment={userAlignment}
           />
         </div>
       </div>
@@ -417,6 +444,14 @@ export default function JournalApp() {
       >
         <span className="text-xl leading-none">?</span>
       </button>
+
+      {/* Initial Alignment Modal */}
+      <AlignmentModal
+        isOpen={showInitialAlignmentModal}
+        onClose={() => setShowInitialAlignmentModal(false)}
+        onSaved={(alignment) => setUserAlignment(alignment)}
+        isInitial={true}
+      />
     </div>
   );
 }

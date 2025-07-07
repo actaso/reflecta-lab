@@ -3,15 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useJournal } from '@/hooks/useJournal';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FirestoreService } from '@/lib/firestore';
+import AlignmentModal from '@/components/AlignmentModal';
 
 interface MorningGuidanceCardProps {
   onJournalNow?: (content?: string) => void;
   selectedEntryId?: string | null;
+  userAlignment?: string | null;
 }
 
 interface GuidanceResponse {
@@ -22,9 +23,15 @@ interface GuidanceResponse {
   fromCache?: boolean;
 }
 
-export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: MorningGuidanceCardProps) {
+export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, userAlignment }: MorningGuidanceCardProps) {
   const { user } = useUser();
   const { entries } = useJournal(); // Get journal entries from the hook
+  const {
+    trackMorningGuidanceGenerated,
+    trackMorningGuidanceUsed,
+    trackMorningGuidanceModalOpened,
+    trackAlignmentSet
+  } = useAnalytics();
   const [journalQuestion, setJournalQuestion] = useState<string>('');
   const [detailedMorningPrompt, setDetailedMorningPrompt] = useState<string>('');
   const [reasoning, setReasoning] = useState<string>('');
@@ -34,8 +41,6 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: M
   const [hasGuidance, setHasGuidance] = useState(false);
   const [showAlignModal, setShowAlignModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [alignment, setAlignment] = useState('');
-  const [isSubmittingAlignment, setIsSubmittingAlignment] = useState(false);
   const [journaledEntryId, setJournaledEntryId] = useState<string | null>(null);
 
   const generateMorningGuidance = useCallback(async (forceGenerate = false) => {
@@ -67,6 +72,13 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: M
         setReasoning(data.reasoning);
         setHasGuidance(true);
         
+        // Track analytics
+        trackMorningGuidanceGenerated({
+          fromCache: data.fromCache,
+          entryCount: entries.length,
+          hasAlignment: Boolean(userAlignment)
+        });
+        
         console.log('🔍 [DEBUG] Client updated state with:', { 
           journalQuestion: data.journalQuestion, 
           detailedMorningPrompt: data.detailedMorningPrompt, 
@@ -80,25 +92,30 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: M
     } finally {
       setLoading(false);
     }
-  }, [entries]);
+  }, [entries, trackMorningGuidanceGenerated, userAlignment]);
 
-  // Load guidance and alignment on component mount if user is authenticated
+  // Load guidance on component mount if user is authenticated
   useEffect(() => {
     if (user) {
       generateMorningGuidance();
-      // Load existing alignment
-      FirestoreService.getUserAccount(user.id)
-        .then(userAccount => {
-          if (userAccount.alignment) {
-            setAlignment(userAccount.alignment);
-          }
-        })
-        .catch(error => {
-          console.error('Failed to load user alignment:', error);
-        });
     }
     // No card for non-authenticated users - only show when we have real guidance
   }, [user, generateMorningGuidance]);
+
+  // Track the entry the user journaled in, and hide guidance when they navigate away
+  useEffect(() => {
+    if (journaledEntryId === 'journaled') {
+      // Allow one render cycle for the new entry to be selected, then start tracking navigation
+      const timer = setTimeout(() => {
+        setJournaledEntryId(selectedEntryId || null);
+      }, 100);
+      return () => clearTimeout(timer);
+    } else if (journaledEntryId && journaledEntryId !== selectedEntryId && journaledEntryId !== 'journaled') {
+      // User navigated away from the entry they journaled in - hide guidance
+      setHasGuidance(false);
+      setJournaledEntryId(null);
+    }
+  }, [selectedEntryId, journaledEntryId]);
 
   const handleManualGenerate = () => {
     setHasGuidance(false);
@@ -106,23 +123,8 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: M
     setShowReasoning(false); // Hide reasoning tooltip
   };
 
-  const handleSaveAlignment = async () => {
-    if (!user?.id || !alignment.trim()) return;
-    
-    setIsSubmittingAlignment(true);
-    try {
-      await FirestoreService.saveAlignment(user.id, alignment.trim());
-      setShowAlignModal(false);
-      setAlignment('');
-    } catch (error) {
-      console.error('Failed to save alignment:', error);
-      // Could add error state here if needed
-    } finally {
-      setIsSubmittingAlignment(false);
-    }
-  };
 
-  const handleJournalNow = async (content?: string) => {
+  const handleJournalNow = async (useDetailedPrompt = false) => {
     try {
       // Mark guidance as used
       await fetch('/api/morning-guidance', {
@@ -133,14 +135,42 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: M
         body: JSON.stringify({ action: 'markAsUsed' }),
       });
       
-      // Track that user journaled with this entry
-      setJournaledEntryId(selectedEntryId);
+      // Always use the short question as the heading, but include detailed explanation
+      const questionHeading = currentJournalQuestion;
+      let content = questionHeading;
+      
+      // If using detailed prompt or we have different detailed content, add explanation
+      if (useDetailedPrompt && currentDetailedPrompt !== currentJournalQuestion) {
+        content += `\n\n${currentDetailedPrompt}`;
+      }
+      
+      // Track analytics
+      trackMorningGuidanceUsed({
+        useDetailedPrompt,
+        entryCount: entries.length,
+        hasAlignment: Boolean(userAlignment)
+      });
+      
+      // Set journaled state to prevent hiding
+      setJournaledEntryId('journaled');
       
       // Call the parent handler
       onJournalNow?.(content);
     } catch (error) {
       console.error('Failed to mark guidance as used:', error);
       // Still call the parent handler even if marking fails
+      const questionHeading = currentJournalQuestion;
+      let content = questionHeading;
+      if (useDetailedPrompt && currentDetailedPrompt !== currentJournalQuestion) {
+        content += `\n\n${currentDetailedPrompt}`;
+      }
+      // Track analytics for error case too
+      trackMorningGuidanceUsed({
+        useDetailedPrompt,
+        entryCount: entries.length,
+        hasAlignment: Boolean(userAlignment)
+      });
+      setJournaledEntryId('journaled');
       onJournalNow?.(content);
     }
   };
@@ -151,114 +181,126 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: M
   const currentReasoning = reasoning;
 
   // Hide guidance if user has journaled and then navigated to a different entry
-  const shouldShowGuidance = hasGuidance && (journaledEntryId === null || journaledEntryId === selectedEntryId);
+  // Special case: if journaledEntryId is 'journaled', keep showing until navigation
+  const shouldShowGuidance = hasGuidance && (
+    journaledEntryId === null || 
+    journaledEntryId === 'journaled' ||
+    journaledEntryId === selectedEntryId
+  );
 
   return (
-    <AnimatePresence>
-      {shouldShowGuidance && (
-        <motion.div
-          key="morning-guidance-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ 
-            duration: 1,
-            ease: "easeOut",
-            delay: 2
-          }}
-          className="space-y-6"
-        >
-      {/* Header */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-medium text-neutral-900 dark:text-neutral-100">
-            Morning Guidance
-          </h3>
-          <button
-            onClick={() => setShowAlignModal(true)}
-            className="p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-            title="Align Reflecta"
+    <>
+      <AnimatePresence>
+        {shouldShowGuidance && (
+          <motion.div
+            key="morning-guidance-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ 
+              duration: 1,
+              ease: "easeOut",
+              delay: 2
+            }}
+            className="space-y-6"
           >
-            <svg 
-              className="w-4 h-4 text-neutral-500 dark:text-neutral-400" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <circle cx="12" cy="12" r="10"/>
-              <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88"/>
-            </svg>
-          </button>
-        </div>
-        <p className="text-xs text-neutral-400 dark:text-neutral-500">
-          Trusted by founders at Acta, Jamie, and more.
-        </p>
-      </div>
-
-      {/* Content */}
-      <div className="space-y-4">
-        <div className="space-y-3">
-          {/* Main question with expand/collapse and help icon */}
-          <div className="relative">
-            <div className="flex items-start gap-2">
-              <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed flex-1">
-                {currentJournalQuestion}
-              </p>
-              
-              {/* Help icon with tooltip */}
-              <div className="relative">
+            {/* Header */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-medium text-neutral-900 dark:text-neutral-100">
+                  Morning Guidance
+                </h3>
                 <button
-                  onMouseEnter={() => setShowReasoning(true)}
-                  onMouseLeave={() => setShowReasoning(false)}
-                  className="flex-shrink-0 w-4 h-4 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-300 dark:hover:bg-neutral-600 flex items-center justify-center text-xs font-medium transition-colors"
+                  onClick={() => setShowAlignModal(true)}
+                  className="p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                  title="Align Reflecta"
                 >
-                  ?
+                  <svg 
+                    className="w-4 h-4 text-neutral-500 dark:text-neutral-400" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <circle cx="12" cy="12" r="10"/>
+                    <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88"/>
+                  </svg>
+                </button>
+              </div>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                Trusted by founders at Acta, Jamie, and more.
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4">
+              <div className="space-y-3">
+                {/* Main question with expand/collapse and help icon */}
+                <div className="relative">
+                  <div className="flex items-start gap-2">
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed flex-1">
+                      {currentJournalQuestion}
+                    </p>
+                    
+                    {/* Help icon with tooltip */}
+                    <div className="relative">
+                      <button
+                        onMouseEnter={() => setShowReasoning(true)}
+                        onMouseLeave={() => setShowReasoning(false)}
+                        className="flex-shrink-0 w-4 h-4 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-300 dark:hover:bg-neutral-600 flex items-center justify-center text-xs font-medium transition-colors"
+                      >
+                        ?
+                      </button>
+                      
+                      {/* Reasoning tooltip */}
+                      {showReasoning && (
+                        <div className="absolute top-6 right-0 w-72 p-3 bg-neutral-900 dark:bg-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg z-10 border border-neutral-700">
+                          <p className="leading-relaxed mb-2">This question is suggested by our AI coach and is backed by research on effective reflection practices for founders and entrepreneurs.</p>
+                          <div className="absolute -top-1 right-2 w-2 h-2 bg-neutral-900 dark:bg-neutral-800 rotate-45 border-l border-t border-neutral-700"></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Expand button - only show if there's different content */}
+                  {currentJournalQuestion !== currentDetailedPrompt && (
+                    <button
+                      onClick={() => {
+                        trackMorningGuidanceModalOpened();
+                        setShowDetailModal(true);
+                      }}
+                      className="mt-2 text-xs text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors flex items-center gap-1"
+                    >
+                      Expand for more details →
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              {/* Buttons */}
+              <div className="space-y-2">
+                <button 
+                  onClick={() => handleJournalNow(false)}
+                  className="w-full py-2.5 px-4 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-colors duration-200"
+                >
+                  Journal Now
                 </button>
                 
-                {/* Reasoning tooltip */}
-                {showReasoning && (
-                  <div className="absolute top-6 right-0 w-72 p-3 bg-neutral-900 dark:bg-neutral-800 text-neutral-100 text-xs rounded-md shadow-lg z-10 border border-neutral-700">
-                    <p className="leading-relaxed mb-2">This question is suggested by our AI coach and is backed by research on effective reflection practices for founders and entrepreneurs.</p>
-                    <div className="absolute -top-1 right-2 w-2 h-2 bg-neutral-900 dark:bg-neutral-800 rotate-45 border-l border-t border-neutral-700"></div>
-                  </div>
+                {/* Manual generation button for dev environment */}
+                {process.env.NODE_ENV === 'development' && (
+                  <button 
+                    onClick={handleManualGenerate}
+                    disabled={loading}
+                    className="w-full py-2 px-4 text-xs font-medium text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-colors duration-200 disabled:opacity-50"
+                  >
+                    {loading ? 'Generating...' : 'Generate New Guidance (Dev)'}
+                  </button>
                 )}
               </div>
             </div>
-            
-            {/* Expand button - only show if there's different content */}
-            {currentJournalQuestion !== currentDetailedPrompt && (
-              <button
-                onClick={() => setShowDetailModal(true)}
-                className="mt-2 text-xs text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors flex items-center gap-1"
-              >
-                Expand for more details →
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {/* Buttons */}
-        <div className="space-y-2">
-          <button 
-            onClick={() => handleJournalNow(currentJournalQuestion)}
-            className="w-full py-2.5 px-4 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-colors duration-200"
-          >
-            Journal Now
-          </button>
-          
-          {/* Manual generation button for dev environment */}
-          {process.env.NODE_ENV === 'development' && (
-            <button 
-              onClick={handleManualGenerate}
-              disabled={loading}
-              className="w-full py-2 px-4 text-xs font-medium text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-colors duration-200 disabled:opacity-50"
-            >
-              {loading ? 'Generating...' : 'Generate New Guidance (Dev)'}
-            </button>
-          )}
-        </div>
-      </div>
-
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {/* Detail Modal */}
       <Dialog isOpen={showDetailModal} onClose={() => setShowDetailModal(false)}>
         <DialogHeader>
@@ -294,7 +336,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: M
           <Button
             onClick={() => {
               setShowDetailModal(false);
-              handleJournalNow(currentDetailedPrompt);
+              handleJournalNow(true);
             }}
           >
             Journal with this prompt
@@ -302,42 +344,12 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: M
         </DialogFooter>
       </Dialog>
 
-      {/* Alignment Modal */}
-      <Dialog isOpen={showAlignModal} onClose={() => setShowAlignModal(false)}>
-        <DialogHeader>
-          <DialogTitle>Align Reflecta</DialogTitle>
-        </DialogHeader>
-        <DialogContent>
-          <div className="space-y-4">
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              What is your biggest priority in life right now?
-            </p>
-            <Input
-              value={alignment}
-              onChange={(e) => setAlignment(e.target.value)}
-              placeholder="Enter your biggest priority..."
-              className="w-full"
-              autoFocus
-            />
-          </div>
-        </DialogContent>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => setShowAlignModal(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSaveAlignment}
-            disabled={!alignment.trim() || isSubmittingAlignment}
-          >
-            {isSubmittingAlignment ? 'Saving...' : 'Save'}
-          </Button>
-        </DialogFooter>
-      </Dialog>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      {/* Settings Alignment Modal - for updating */}
+      <AlignmentModal
+        isOpen={showAlignModal}
+        onClose={() => setShowAlignModal(false)}
+        isInitial={false}
+      />
+    </>
   );
 }
