@@ -1,0 +1,25 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 45%
+        threshold: 2%
+        if_not_found: success
+    patch:
+      default:
+        target: 50%
+        threshold: 5%
+        if_not_found: success
+
+comment:
+  layout: "diff, files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+ignore:
+  - "src/app/**"        # Next.js app directory
+  - "src/**/*.d.ts"     # Type definition files
+  - "src/setupTests.ts" # Test setup
+  - "src/components/TagExtension.ts" # Utility extension
