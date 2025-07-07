@@ -142,13 +142,16 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
         body: JSON.stringify({ action: 'markAsUsed' }),
       });
       
-      // Always use the short question as the heading, and include detailed explanation
+      // Format as proper HTML with heading and paragraph
       const questionHeading = currentJournalQuestion;
-      let content = questionHeading;
+      let content = `<h2>${questionHeading}</h2>`;
       
-      // Always add the detailed explanation if it exists and is different from the question
+      // Always add the detailed explanation as a separate paragraph if it exists and is different
       if (currentDetailedPrompt && currentDetailedPrompt !== currentJournalQuestion) {
-        content += `\n\n${currentDetailedPrompt}`;
+        content += `<p>${currentDetailedPrompt}</p>`;
+      } else {
+        // Add empty paragraph for cursor positioning
+        content += `<p></p>`;
       }
       
       // Track analytics (always using detailed content now)
@@ -165,12 +168,15 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
       onJournalNow?.(content);
     } catch (error) {
       console.error('Failed to mark guidance as used:', error);
-      // Still call the parent handler even if marking fails
+      // Still call the parent handler even if marking fails - format as proper HTML
       const questionHeading = currentJournalQuestion;
-      let content = questionHeading;
-      // Always add the detailed explanation if it exists and is different from the question
+      let content = `<h2>${questionHeading}</h2>`;
+      // Always add the detailed explanation as a separate paragraph if it exists and is different
       if (currentDetailedPrompt && currentDetailedPrompt !== currentJournalQuestion) {
-        content += `\n\n${currentDetailedPrompt}`;
+        content += `<p>${currentDetailedPrompt}</p>`;
+      } else {
+        // Add empty paragraph for cursor positioning
+        content += `<p></p>`;
       }
       // Track analytics for error case too (always using detailed content now)
       trackMorningGuidanceUsed({
