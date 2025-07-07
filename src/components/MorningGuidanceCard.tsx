@@ -92,7 +92,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
     } finally {
       setLoading(false);
     }
-  }, [trackMorningGuidanceGenerated, userAlignment]);
+  }, [entries, trackMorningGuidanceGenerated, userAlignment]);
 
   // Load guidance once when user becomes available
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
     if (!user) {
       hasInitializedRef.current = false;
     }
-  }, [user]); // Only depend on user, not the function or entries
+  }, [user, entries, generateMorningGuidance]); // Include all dependencies
 
   // Track the entry the user journaled in, and hide guidance when they navigate away
   useEffect(() => {
@@ -131,7 +131,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
   };
 
 
-  const handleJournalNow = async (useDetailedPrompt = false) => {
+  const handleJournalNow = async () => {
     try {
       // Mark guidance as used
       await fetch('/api/morning-guidance', {
@@ -293,7 +293,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
               {/* Buttons */}
               <div className="space-y-2">
                 <button 
-                  onClick={() => handleJournalNow(false)}
+                  onClick={() => handleJournalNow()}
                   className="w-full py-2.5 px-4 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 rounded-md transition-colors duration-200"
                 >
                   Journal Now
@@ -350,7 +350,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
           <Button
             onClick={() => {
               setShowDetailModal(false);
-              handleJournalNow(true);
+              handleJournalNow();
             }}
           >
             Journal with this prompt
