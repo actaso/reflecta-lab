@@ -142,18 +142,18 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
         body: JSON.stringify({ action: 'markAsUsed' }),
       });
       
-      // Always use the short question as the heading, but include detailed explanation
+      // Always use the short question as the heading, and include detailed explanation
       const questionHeading = currentJournalQuestion;
       let content = questionHeading;
       
-      // If using detailed prompt or we have different detailed content, add explanation
-      if (useDetailedPrompt && currentDetailedPrompt !== currentJournalQuestion) {
+      // Always add the detailed explanation if it exists and is different from the question
+      if (currentDetailedPrompt && currentDetailedPrompt !== currentJournalQuestion) {
         content += `\n\n${currentDetailedPrompt}`;
       }
       
-      // Track analytics
+      // Track analytics (always using detailed content now)
       trackMorningGuidanceUsed({
-        useDetailedPrompt,
+        useDetailedPrompt: true, // Always true since we always include detailed explanation
         entryCount: entries.length,
         hasAlignment: Boolean(userAlignment)
       });
@@ -168,12 +168,13 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
       // Still call the parent handler even if marking fails
       const questionHeading = currentJournalQuestion;
       let content = questionHeading;
-      if (useDetailedPrompt && currentDetailedPrompt !== currentJournalQuestion) {
+      // Always add the detailed explanation if it exists and is different from the question
+      if (currentDetailedPrompt && currentDetailedPrompt !== currentJournalQuestion) {
         content += `\n\n${currentDetailedPrompt}`;
       }
-      // Track analytics for error case too
+      // Track analytics for error case too (always using detailed content now)
       trackMorningGuidanceUsed({
-        useDetailedPrompt,
+        useDetailedPrompt: true, // Always true since we always include detailed explanation
         entryCount: entries.length,
         hasAlignment: Boolean(userAlignment)
       });
