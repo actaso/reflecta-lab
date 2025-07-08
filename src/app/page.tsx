@@ -411,7 +411,7 @@ export default function JournalApp() {
                     onChange={handleEntryChange}
                     placeholder="Start writing, press ? for help..."
                     autoFocus={true}
-                    entryId={selectedEntryId}
+                    entryId={selectedEntryId || undefined}
                     onImageUploaded={handleImageUploaded}
                   />
                 </div>
