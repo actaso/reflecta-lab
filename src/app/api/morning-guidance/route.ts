@@ -22,6 +22,19 @@ export async function POST(req: NextRequest) {
     if (!forceGenerate) {
       const existingGuidance = await FirestoreAdminService.getCurrentMorningGuidance(userId);
       if (existingGuidance) {
+        // Check if guidance was already used today - if so, don't generate new guidance
+        const guidanceWithUsed = existingGuidance as typeof existingGuidance & { isUsed?: boolean };
+        if (guidanceWithUsed.isUsed) {
+          return NextResponse.json({ 
+            journalQuestion: '',
+            detailedMorningPrompt: '',
+            reasoning: '',
+            generated: false,
+            fromCache: false,
+            alreadyUsed: true
+          });
+        }
+        
         return NextResponse.json({ 
           journalQuestion: existingGuidance.journalQuestion,
           detailedMorningPrompt: existingGuidance.detailedMorningPrompt,

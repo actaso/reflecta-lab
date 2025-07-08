@@ -94,8 +94,14 @@ class FirestoreAdminService {
       if (userAccount.currentMorningGuidance) {
         const today = new Date().toISOString().split('T')[0];
         const guidanceDate = userAccount.currentMorningGuidance.generatedAt.toISOString().split('T')[0];
-        if (guidanceDate === today && !userAccount.currentMorningGuidance.usedAt) {
-          return userAccount.currentMorningGuidance;
+        
+        if (guidanceDate === today) {
+          // If guidance was generated today and NOT used, return it
+          if (!userAccount.currentMorningGuidance.usedAt) {
+            return userAccount.currentMorningGuidance;
+          }
+          // If guidance was generated today and WAS used, return special marker to prevent new generation
+          return { ...userAccount.currentMorningGuidance, isUsed: true } as MorningGuidance & { isUsed: true };
         }
       }
       

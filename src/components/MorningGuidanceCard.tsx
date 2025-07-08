@@ -21,6 +21,7 @@ interface GuidanceResponse {
   reasoning: string;
   generated: boolean;
   fromCache?: boolean;
+  alreadyUsed?: boolean;
 }
 
 export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, userAlignment }: MorningGuidanceCardProps) {
@@ -65,6 +66,13 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
 
       const data: GuidanceResponse = await response.json();
       console.log('🔍 [DEBUG] Client received API response:', data);
+      
+      // If guidance was already used today, don't show it
+      if (data.alreadyUsed) {
+        setHasGuidance(false);
+        console.log('🔍 [DEBUG] Guidance already used today, hiding card');
+        return;
+      }
       
       if (data.generated || data.fromCache) {
         setJournalQuestion(data.journalQuestion);
@@ -213,8 +221,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
             exit={{ opacity: 0, y: -20 }}
             transition={{ 
               duration: 1,
-              ease: "easeOut",
-              delay: 2
+              ease: "easeOut"
             }}
             className="space-y-6"
           >
