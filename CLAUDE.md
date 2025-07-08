@@ -173,7 +173,6 @@ src/
 │   ├── AIDropdown.tsx      # Three-mode AI selector dropdown
 │   ├── AuthTestPanel.tsx   # Authentication testing interface
 │   ├── AutoTagExtension.ts # Custom TipTap extension for tag highlighting
-│   ├── ImageExtension.ts   # Custom TipTap image extension (legacy)
 │   ├── TagExtension.ts     # TipTap mark extension (utility)
 │   └── ui/
 │       ├── button.tsx      # Reusable button component
