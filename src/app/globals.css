@@ -153,7 +153,8 @@ html {
   font-size: 16px;
   line-height: 1.6;
   color: #000;
-  padding: 0 0 50vh 0;
+  padding: 0;
+  min-height: 100%;
 }
 
 .dark .ProseMirror {

@@ -95,10 +95,10 @@ export default function Editor({ content, onChange, placeholder = "Start writing
 
 
   return (
-    <div className="w-full relative" ref={editorRef}>
+    <div className="w-full h-full relative" ref={editorRef}>
       <EditorContent 
         editor={editor} 
-        className="w-full"
+        className="w-full h-full"
       />
     </div>
   );

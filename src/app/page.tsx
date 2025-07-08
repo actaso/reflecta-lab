@@ -365,14 +365,18 @@ export default function JournalApp() {
           />
           
           {/* Editor */}
-          <div className="flex-1 overflow-auto min-h-0 scrollbar-hide">
+          <div className="flex-1 min-h-0 relative">
             {currentEntry ? (
-              <Editor
-                content={currentEntry.entry.content}
-                onChange={handleEntryChange}
-                placeholder="Start writing, press ? for help..."
-                autoFocus={true}
-              />
+              <div className="absolute inset-0 overflow-y-auto overflow-x-hidden scrollbar-hide">
+                <div className="min-h-full pb-[50vh]">
+                  <Editor
+                    content={currentEntry.entry.content}
+                    onChange={handleEntryChange}
+                    placeholder="Start writing, press ? for help..."
+                    autoFocus={true}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-full text-neutral-400 dark:text-neutral-500">
                 <div className="text-center">
