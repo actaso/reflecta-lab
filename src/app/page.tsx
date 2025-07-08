@@ -10,7 +10,7 @@ import CommandPalette from '../components/CommandPalette';
 import MorningGuidanceCard from '../components/MorningGuidanceCard';
 import AlignmentModal from '../components/AlignmentModal';
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
-import { JournalEntry } from '../types/journal';
+import { JournalEntry, ImageMetadata } from '../types/journal';
 import { useJournal } from '../hooks/useJournal';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { FirestoreService } from '../lib/firestore';
@@ -22,7 +22,8 @@ export default function JournalApp() {
     loading, 
     addEntry, 
     updateEntry, 
-    deleteEntry: deleteEntryFromHook 
+    deleteEntry: deleteEntryFromHook,
+    updateImageMetadata
   } = useJournal();
   
   const { user } = useUser();
@@ -85,6 +86,42 @@ export default function JournalApp() {
     // Track content changes (debounced)
     trackEntryUpdated(selectedEntryId, value.length);
   };
+
+  const handleImageUploaded = useCallback((imageMetadata: ImageMetadata) => {
+    if (!selectedEntryId) return;
+    
+    // Find the current entry and update its image metadata
+    const currentEntry = flatEntries.find(entry => entry.id === selectedEntryId);
+    if (currentEntry) {
+      const updatedEntry = updateImageMetadata(currentEntry, imageMetadata);
+      updateEntry(selectedEntryId, { images: updatedEntry.images });
+    }
+  }, [selectedEntryId, flatEntries, updateImageMetadata, updateEntry]);
+
+  // Prevent default drag and drop behavior on the document to avoid navigation
+  useEffect(() => {
+    const preventDefault = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Let the editor handle the drop event
+    };
+
+    // Add document-level event listeners
+    document.addEventListener('dragenter', preventDefault);
+    document.addEventListener('dragover', preventDefault);
+    document.addEventListener('drop', handleDrop);
+
+    return () => {
+      document.removeEventListener('dragenter', preventDefault);
+      document.removeEventListener('dragover', preventDefault);
+      document.removeEventListener('drop', handleDrop);
+    };
+  }, []);
 
   const createNewEntry = useCallback(async (initialContent?: string) => {
     const now = new Date();
@@ -374,6 +411,8 @@ export default function JournalApp() {
                     onChange={handleEntryChange}
                     placeholder="Start writing, press ? for help..."
                     autoFocus={true}
+                    entryId={selectedEntryId || undefined}
+                    onImageUploaded={handleImageUploaded}
                   />
                 </div>
               </div>

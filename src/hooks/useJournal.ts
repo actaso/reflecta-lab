@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { JournalEntry } from '@/types/journal';
+import { JournalEntry, ImageMetadata } from '@/types/journal';
 import { FirestoreService } from '@/lib/firestore';
 import { SyncService, SyncState } from '@/services/syncService';
 import { useFirebaseAuth } from './useFirebaseAuth';
@@ -17,6 +17,54 @@ export const useJournal = () => {
   const lastSyncedContentRef = useRef<Map<string, string>>(new Map()); // Track last synced content per entry
   const previousAuthStateRef = useRef<boolean>(false); // Track previous auth state for transitions
   const SYNC_DEBOUNCE_MS = 1500; // Slightly longer debounce
+
+  // Helper function to extract image URLs from HTML content
+  const extractImageUrls = useCallback((content: string): string[] => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    const images = doc.querySelectorAll('img');
+    return Array.from(images).map(img => img.src).filter(src => src);
+  }, []);
+
+  // Helper function to update image metadata for an entry
+  const updateImageMetadata = useCallback((entry: JournalEntry, imageMetadata: ImageMetadata): JournalEntry => {
+    const currentImages = entry.images || [];
+    const existingIndex = currentImages.findIndex(img => img.filename === imageMetadata.filename);
+    
+    let updatedImages: ImageMetadata[];
+    if (existingIndex >= 0) {
+      // Update existing image metadata
+      updatedImages = [...currentImages];
+      updatedImages[existingIndex] = imageMetadata;
+    } else {
+      // Add new image metadata
+      updatedImages = [...currentImages, imageMetadata];
+    }
+    
+    return {
+      ...entry,
+      images: updatedImages,
+      lastUpdated: new Date()
+    };
+  }, []);
+
+  // Helper function to clean up unused image metadata
+  const cleanupImageMetadata = useCallback((entry: JournalEntry): JournalEntry => {
+    if (!entry.images || entry.images.length === 0) return entry;
+    
+    const contentImageUrls = extractImageUrls(entry.content);
+    const usedImages = entry.images.filter(img => contentImageUrls.includes(img.url));
+    
+    if (usedImages.length !== entry.images.length) {
+      return {
+        ...entry,
+        images: usedImages,
+        lastUpdated: new Date()
+      };
+    }
+    
+    return entry;
+  }, [extractImageUrls]);
 
   // Helper function to load entries from localStorage
   const loadLocalEntriesFromStorage = useCallback((): JournalEntry[] => {
@@ -39,7 +87,11 @@ export const useJournal = () => {
             timestamp: new Date((entry as JournalEntry).timestamp),
             content: (entry as JournalEntry).content,
             uid: (entry as JournalEntry).uid || 'local-user',
-            lastUpdated: (entry as JournalEntry).lastUpdated ? new Date((entry as JournalEntry).lastUpdated) : new Date((entry as JournalEntry).timestamp)
+            lastUpdated: (entry as JournalEntry).lastUpdated ? new Date((entry as JournalEntry).lastUpdated) : new Date((entry as JournalEntry).timestamp),
+            images: (entry as JournalEntry).images?.map(img => ({
+              ...img,
+              uploadedAt: new Date(img.uploadedAt)
+            })) || []
           });
         });
       });
@@ -461,6 +513,8 @@ export const useJournal = () => {
     updateEntry,
     deleteEntry,
     manualSync,
-    isAuthenticated
+    isAuthenticated,
+    updateImageMetadata,
+    cleanupImageMetadata
   };
 };
