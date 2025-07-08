@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 next dev --turbopack",
-    "dev:emulators": "firebase emulators:start --only auth,firestore,ui",
+    "dev:emulators": "firebase emulators:start --only auth,firestore,storage,ui",
     "dev:full": "concurrently \"npm run dev:emulators\" \"npm run dev\"",
     "env": "vercel env pull .env.local",
     "build": "next build",
@@ -26,6 +26,7 @@
     "@tiptap/extension-hard-break": "^2.22.3",
     "@tiptap/extension-heading": "^2.22.3",
     "@tiptap/extension-history": "^2.22.3",
+    "@tiptap/extension-image": "^2.25.0",
     "@tiptap/extension-italic": "^2.22.3",
     "@tiptap/extension-link": "^2.22.0",
     "@tiptap/extension-paragraph": "^2.22.3",

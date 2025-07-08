@@ -24,7 +24,7 @@ The project uses npm as the package manager. All commands should be run from the
 
 ## Project Overview
 
-**Reflecta Labs** is a minimalist journal interface designed for rapid reflection and note-taking. The application provides a seamless, Apple Notes-inspired experience with advanced features like scroll-hijacking navigation, tag highlighting, markdown support, Firebase sync, analytics, and comprehensive authentication.
+**Reflecta Labs** is a minimalist journal interface designed for rapid reflection and note-taking. The application provides a seamless, Apple Notes-inspired experience with advanced features like scroll-hijacking navigation, tag highlighting, markdown support, image uploading, Firebase sync, analytics, and comprehensive authentication.
 
 ## Architecture
 
@@ -35,7 +35,7 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Rich Text**: TipTap editor with markdown support and custom extensions
 - **AI Integration**: Vercel AI SDK with OpenAI GPT-4o-mini for founder-focused assistance
 - **Authentication**: Clerk + Firebase Auth bridge with token exchange
-- **Data Storage**: Hybrid localStorage + Firestore with offline-first sync
+- **Data Storage**: Hybrid localStorage + Firestore with offline-first sync + Firebase Storage for images
 - **Analytics**: PostHog integration for user tracking and event capture
 - **Backend**: Firebase Admin SDK for server-side operations
 - **Fonts**: Geist Sans and Geist Mono from next/font/google
@@ -59,6 +59,7 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Auto-focus**: Seamless entry creation with immediate cursor focus
 - **Minimal design**: Clean interface without visual clutter
 - **AI integration**: Shift key triggers AI mode selector for contextual assistance
+- **Image support**: Comprehensive image handling with Firebase Storage integration
 
 ### AI Chat Sidebar
 - **Three thinking modes** designed specifically for founders:
@@ -69,6 +70,17 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Streaming chat**: Real-time responses using OpenAI GPT-4o-mini via Vercel AI SDK
 - **VS Code-style interface**: Resizable sidebar (300-600px) with professional design
 - **Auto-focus input**: Cursor automatically goes to chat input when sidebar opens
+
+### Image Support System
+- **Direct Image Paste**: Copy images from anywhere and paste directly into the editor
+- **Image URL Conversion**: Paste image URLs and they automatically convert to embedded images  
+- **Drag & Drop**: Drag image files from file manager directly into the editor
+- **Firebase Storage**: Images uploaded to user-specific Firebase Storage buckets
+- **Automatic Processing**: Images are compressed, resized (max 1920x1080), and optimized
+- **Format Support**: JPEG, PNG, GIF, and WebP formats with 5MB size limit
+- **Metadata Tracking**: Image metadata synced with journal entries for data management
+- **URL Cleanup**: Pasted image URLs are removed after successful image embedding
+- **Offline Support**: Works with existing sync mechanism for offline-first experience
 
 ### Morning Guidance System
 - **AI-Powered Prompts**: Daily reflection questions generated using OpenAI GPT-4.1 based on:
@@ -148,7 +160,7 @@ src/
 │   ├── middleware.ts       # Clerk authentication middleware
 │   └── globals.css         # Global styles and TipTap customizations
 ├── components/
-│   ├── Editor.tsx          # TipTap editor wrapper with AI integration
+│   ├── Editor.tsx          # TipTap editor wrapper with AI & image integration
 │   ├── Sidebar.tsx         # Main sidebar with scroll-hijacking navigation
 │   ├── EntryHeader.tsx     # Header with auth UI and entry info
 │   ├── HelpModal.tsx       # Help modal with import/export functionality
@@ -161,6 +173,7 @@ src/
 │   ├── AIDropdown.tsx      # Three-mode AI selector dropdown
 │   ├── AuthTestPanel.tsx   # Authentication testing interface
 │   ├── AutoTagExtension.ts # Custom TipTap extension for tag highlighting
+│   ├── ImageExtension.ts   # Custom TipTap image extension (legacy)
 │   ├── TagExtension.ts     # TipTap mark extension (utility)
 │   └── ui/
 │       ├── button.tsx      # Reusable button component
@@ -178,7 +191,8 @@ src/
 │   ├── providers.tsx       # React context providers
 │   └── utils.ts            # General utility functions
 ├── services/
-│   └── syncService.ts      # Advanced localStorage-Firestore sync
+│   ├── syncService.ts      # Advanced localStorage-Firestore sync
+│   └── imageService.ts     # Firebase Storage image upload & processing
 ├── types/
 │   └── journal.ts          # TypeScript type definitions
 ├── utils/
@@ -189,6 +203,8 @@ src/
     ├── AUTHENTICATION.md      # Authentication implementation guide
     ├── DEVELOPER_ONBOARDING.md # Developer setup and patterns guide
     └── SYNC_MECHANISM.md      # Sync implementation documentation
+├── IMAGE_SUPPORT.md       # Image upload and processing documentation
+└── storage.rules          # Firebase Storage security rules
 ```
 
 ## Key Implementation Details
@@ -240,9 +256,10 @@ The application implements a sophisticated offline-first sync system:
 
 ### Firebase Integration
 - **Firestore**: Document-based storage for journal entries
+- **Firebase Storage**: Cloud storage for user images with automatic compression
 - **Authentication**: Firebase Auth with Clerk token exchange
-- **Security Rules**: User-based access control
-- **Emulator Suite**: Local development with firebase.json configuration
+- **Security Rules**: User-based access control for both Firestore and Storage
+- **Emulator Suite**: Local development with firebase.json configuration (includes Storage emulator)
 
 ### Data Structure
 ```typescript
@@ -252,6 +269,16 @@ type JournalEntry = {
   content: string; // HTML from TipTap editor
   uid: string; // user id from firebase auth & clerk (should be the same)
   lastUpdated: Date; // last time a change happened to this entry
+  images?: ImageMetadata[]; // metadata of images contained in this entry
+};
+
+// Image metadata stored with journal entries
+type ImageMetadata = {
+  filename: string; // filename in Firebase Storage
+  url: string; // Firebase Storage download URL
+  size: number; // file size in bytes
+  type: string; // MIME type
+  uploadedAt: Date; // when image was uploaded
 };
 
 // Organized by date keys (YYYY-MM-DD format)
@@ -273,6 +300,7 @@ entries: Record<string, JournalEntry[]>
 - **@tiptap/extension-task-list**: Task list functionality
 - **@tiptap/extension-task-item**: Task item functionality
 - **@tiptap/extension-link**: Link handling
+- **@tiptap/extension-image**: Official image support with Firebase Storage integration
 
 ### AI Integration
 - **ai**: Vercel AI SDK for streaming responses and chat hooks
@@ -281,7 +309,7 @@ entries: Record<string, JournalEntry[]>
 
 ### Authentication & Backend
 - **@clerk/nextjs**: Primary authentication provider
-- **firebase**: Firebase client SDK
+- **firebase**: Firebase client SDK with Storage support
 - **firebase-admin**: Firebase Admin SDK for server-side operations
 - **react-firebase-hooks**: Firebase React integration hooks
 

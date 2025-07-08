@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -29,6 +30,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 // Initialize Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 // Connect to emulators in development
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -54,6 +56,15 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     } catch {
       // Emulator connection might already be established
       console.log('   ⚠️ Firestore emulator connection skipped (likely already connected)');
+    }
+
+    try {
+      // Connect to Storage emulator
+      connectStorageEmulator(storage, 'localhost', 9199);
+      console.log('   ✅ Storage emulator connected: localhost:9199');
+    } catch {
+      // Emulator connection might already be established
+      console.log('   ⚠️ Storage emulator connection skipped (likely already connected)');
     }
     
     emulatorsConnected = true;
