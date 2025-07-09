@@ -203,6 +203,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'dismiss') {
+      await FirestoreAdminService.markGuidanceAsUsed(userId);
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Morning guidance PATCH error:', error);

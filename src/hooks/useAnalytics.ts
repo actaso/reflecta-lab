@@ -109,6 +109,17 @@ export function useAnalytics() {
     });
   }, [posthog]);
 
+  const trackMorningGuidanceDismissed = useCallback((properties?: {
+    entryCount?: number;
+    hasAlignment?: boolean;
+  }) => {
+    posthog?.capture('morning_guidance_dismissed', {
+      timestamp: new Date().toISOString(),
+      entry_count: properties?.entryCount || 0,
+      has_alignment: properties?.hasAlignment || false,
+    });
+  }, [posthog]);
+
   const trackAlignmentSet = useCallback((properties?: {
     alignmentLength?: number;
     isUpdate?: boolean;
@@ -130,6 +141,7 @@ export function useAnalytics() {
     trackMorningGuidanceGenerated,
     trackMorningGuidanceUsed,
     trackMorningGuidanceModalOpened,
+    trackMorningGuidanceDismissed,
     trackAlignmentSet,
   };
 }

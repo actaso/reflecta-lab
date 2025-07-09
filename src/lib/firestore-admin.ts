@@ -32,7 +32,7 @@ class FirestoreAdminService {
             journalQuestion: data.currentMorningGuidance.journalQuestion,
             detailedMorningPrompt: data.currentMorningGuidance.detailedMorningPrompt,
             reasoning: data.currentMorningGuidance.reasoning,
-            generatedAt: data.currentMorningGuidance.generatedAt.toDate(),
+            generatedAt: data.currentMorningGuidance.generatedAt ? data.currentMorningGuidance.generatedAt.toDate() : new Date(),
             usedAt: data.currentMorningGuidance.usedAt ? data.currentMorningGuidance.usedAt.toDate() : undefined
           };
         }

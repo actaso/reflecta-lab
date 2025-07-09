@@ -30,7 +30,8 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
   const {
     trackMorningGuidanceGenerated,
     trackMorningGuidanceUsed,
-    trackMorningGuidanceModalOpened
+    trackMorningGuidanceModalOpened,
+    trackMorningGuidanceDismissed
   } = useAnalytics();
   const [journalQuestion, setJournalQuestion] = useState<string>('');
   const [detailedMorningPrompt, setDetailedMorningPrompt] = useState<string>('');
@@ -138,6 +139,32 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
     setShowReasoning(false); // Hide reasoning tooltip
   };
 
+  const handleDismiss = async () => {
+    try {
+      // Mark guidance as dismissed (same as used)
+      await fetch('/api/morning-guidance', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'dismiss' }),
+      });
+      
+      // Track analytics
+      trackMorningGuidanceDismissed({
+        entryCount: entries.length,
+        hasAlignment: Boolean(userAlignment)
+      });
+      
+      // Hide guidance
+      setHasGuidance(false);
+    } catch (error) {
+      console.error('Failed to dismiss guidance:', error);
+      // Still hide guidance even if API call fails
+      setHasGuidance(false);
+    }
+  };
+
 
   const handleJournalNow = async () => {
     try {
@@ -227,14 +254,31 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
           >
             {/* Header */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-medium text-neutral-900 dark:text-neutral-100">
-                  Morning Guidance
-                </h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-medium text-neutral-900 dark:text-neutral-100">
+                    Morning Guidance
+                  </h3>
+                  <button
+                    onClick={() => setShowAlignModal(true)}
+                    className="p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                    title="Align Reflecta"
+                  >
+                    <svg 
+                      className="w-4 h-4 text-neutral-500 dark:text-neutral-400" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <circle cx="12" cy="12" r="10"/>
+                      <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88"/>
+                    </svg>
+                  </button>
+                </div>
                 <button
-                  onClick={() => setShowAlignModal(true)}
+                  onClick={handleDismiss}
                   className="p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                  title="Align Reflecta"
+                  title="Dismiss guidance"
                 >
                   <svg 
                     className="w-4 h-4 text-neutral-500 dark:text-neutral-400" 
@@ -242,8 +286,8 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
                   >
-                    <circle cx="12" cy="12" r="10"/>
-                    <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88"/>
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
                 </button>
               </div>
