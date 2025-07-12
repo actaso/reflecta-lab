@@ -3,6 +3,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react';
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -34,14 +35,62 @@ const CoachingBlockNodeView = ({ node }: ReactNodeViewProps) => {
 
   const renderTextVariant = () => (
     <div 
-      className="flex-1 text-black dark:text-[#ededed]" 
+      className="flex-1 text-black dark:text-[#ededed] prose prose-sm max-w-none" 
       style={{ 
         fontFamily: 'var(--font-geist-sans)', 
         fontSize: '16px', 
         lineHeight: '1.6' 
       }}
     >
-      {data.content}
+      <ReactMarkdown
+        components={{
+          // Override default styles to match editor
+          p: ({ children }) => (
+            <p className="mb-2 last:mb-0" style={{ 
+              fontFamily: 'var(--font-geist-sans)', 
+              fontSize: '16px', 
+              lineHeight: '1.6',
+              margin: 0,
+              marginBottom: '0.5rem'
+            }}>
+              {children}
+            </p>
+          ),
+          ul: ({ children }) => (
+            <ul className="ml-4 mb-2 last:mb-0" style={{ 
+              fontFamily: 'var(--font-geist-sans)', 
+              fontSize: '16px', 
+              lineHeight: '1.6',
+              margin: 0,
+              marginBottom: '0.5rem',
+              paddingLeft: '1rem'
+            }}>
+              {children}
+            </ul>
+          ),
+          li: ({ children }) => (
+            <li className="mb-1" style={{ 
+              fontFamily: 'var(--font-geist-sans)', 
+              fontSize: '16px', 
+              lineHeight: '1.6'
+            }}>
+              {children}
+            </li>
+          ),
+          strong: ({ children }) => (
+            <strong className="font-medium">
+              {children}
+            </strong>
+          ),
+          em: ({ children }) => (
+            <em className="italic">
+              {children}
+            </em>
+          ),
+        }}
+      >
+        {data.content}
+      </ReactMarkdown>
     </div>
   );
 

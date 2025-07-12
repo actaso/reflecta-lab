@@ -13,7 +13,11 @@ export default function CoachingBlockDemo() {
     "Reflect on a recent challenge you faced. What did it reveal about your problem-solving approach?",
     "Consider your biggest win this week. What underlying strategy made it possible?",
     "What assumption about your market have you held the longest? When did you last test it?",
-    "Think about your team dynamics. What energy are you bringing to collaboration?"
+    "Think about your team dynamics. What energy are you bringing to collaboration?",
+    // Markdown examples
+    "**Three key questions** to ask yourself today:\n\n- What's one assumption I haven't tested?\n- Who could give me honest feedback?\n- What would I do if I had unlimited resources?",
+    "Consider this framework for decision-making:\n\n1. **Gather** - What data do I need?\n2. **Analyze** - What patterns emerge?\n3. **Decide** - What's the simplest next step?\n4. **Act** - How will I measure progress?",
+    "*Sometimes the most important insights come from the questions we're afraid to ask.*\n\nWhat question have you been avoiding about your startup?"
   ];
 
   const insertRandomPrompt = () => {

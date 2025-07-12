@@ -194,7 +194,11 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
               "Reflect on a recent challenge you faced. What did it reveal about your problem-solving approach?",
               "Consider your biggest win this week. What underlying strategy made it possible?",
               "What assumption about your market have you held the longest? When did you last test it?",
-              "Think about your team dynamics. What energy are you bringing to collaboration?"
+              "Think about your team dynamics. What energy are you bringing to collaboration?",
+              // Markdown examples
+              "**Three key questions** to ask yourself today:\n\n- What's one assumption I haven't tested?\n- Who could give me honest feedback?\n- What would I do if I had unlimited resources?",
+              "Consider this framework:\n\n1. **Gather** data\n2. **Analyze** patterns\n3. **Decide** next step\n4. **Act** and measure",
+              "*What question have you been avoiding about your startup?*"
             ];
             
             const randomPrompt = mockPrompts[Math.floor(Math.random() * mockPrompts.length)];
