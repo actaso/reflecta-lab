@@ -37,7 +37,7 @@ interface EditorProps {
 }
 
 export interface EditorHandle {
-  insertCoachingBlock: (content: string) => void;
+  insertCoachingBlock: (content: string, variant?: 'text' | 'buttons', options?: string[]) => void;
   getEditor: () => ReturnType<typeof useEditor>;
 }
 
@@ -199,19 +199,56 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
             
             const randomPrompt = mockPrompts[Math.floor(Math.random() * mockPrompts.length)];
             
-            // Insert the coaching block followed by an empty paragraph
-            const coachingBlock = state.schema.nodes.coachingBlock.create({ content: randomPrompt });
-            const emptyParagraph = state.schema.nodes.paragraph.create();
+            // Randomly choose between text and button variants for demo
+            const useButtonVariant = Math.random() > 0.6; // 40% chance for buttons
             
-            const tr = state.tr.replaceSelectionWith(coachingBlock);
-            const insertPos = tr.selection.to;
-            tr.insert(insertPos, emptyParagraph);
-            
-            // Set selection at the start of the new paragraph
-            const newPos = insertPos + 1; // Position inside the new paragraph
-            tr.setSelection(TextSelection.create(tr.doc, newPos));
-            
-            view.dispatch(tr);
+            if (useButtonVariant) {
+              const buttonOptions = [
+                "Deep work",
+                "Find mentor",
+                "Research",
+                "Document"
+              ];
+              
+              // Insert button variant
+              const coachingBlock = state.schema.nodes.coachingBlock.create({ 
+                data: { 
+                  content: "What action would move your startup forward most right now?", 
+                  variant: 'buttons',
+                  options: buttonOptions
+                }
+              });
+              const emptyParagraph = state.schema.nodes.paragraph.create();
+              
+              const tr = state.tr.replaceSelectionWith(coachingBlock);
+              const insertPos = tr.selection.to;
+              tr.insert(insertPos, emptyParagraph);
+              
+              // Set selection at the start of the new paragraph
+              const newPos = insertPos + 1;
+              tr.setSelection(TextSelection.create(tr.doc, newPos));
+              
+              view.dispatch(tr);
+            } else {
+              // Insert text variant
+              const coachingBlock = state.schema.nodes.coachingBlock.create({ 
+                data: { 
+                  content: randomPrompt, 
+                  variant: 'text' 
+                }
+              });
+              const emptyParagraph = state.schema.nodes.paragraph.create();
+              
+              const tr = state.tr.replaceSelectionWith(coachingBlock);
+              const insertPos = tr.selection.to;
+              tr.insert(insertPos, emptyParagraph);
+              
+              // Set selection at the start of the new paragraph
+              const newPos = insertPos + 1;
+              tr.setSelection(TextSelection.create(tr.doc, newPos));
+              
+              view.dispatch(tr);
+            }
             
             return true;
           }
@@ -415,11 +452,11 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
-    insertCoachingBlock: (content: string) => {
+    insertCoachingBlock: (content: string, variant: 'text' | 'buttons' = 'text', options?: string[]) => {
       if (editor) {
         editor.chain()
           .focus()
-          .insertCoachingBlock(content)
+          .insertCoachingBlock(content, variant, options)
           .insertContent('<p></p>')
           .focus('end')
           .run();

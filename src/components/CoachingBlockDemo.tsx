@@ -21,15 +21,33 @@ export default function CoachingBlockDemo() {
     editorRef.current?.insertCoachingBlock(randomPrompt);
   };
 
+  const insertButtonPrompt = () => {
+    const buttonOptions = [
+      "Deep work",
+      "Find mentor", 
+      "Research",
+      "Document",
+      "Strategize"
+    ];
+    editorRef.current?.insertCoachingBlock(
+      "What action would move your startup forward most right now?", 
+      'buttons', 
+      buttonOptions
+    );
+  };
+
   return (
     <div className="w-full h-full flex flex-col">
       <div className="mb-4 p-4 bg-gray-50 border-b">
         <h2 className="text-lg font-semibold mb-2">AI Coaching Block Demo</h2>
         <Button onClick={insertRandomPrompt} className="mr-2">
-          Insert Coaching Prompt
+          Insert Text Prompt
+        </Button>
+        <Button onClick={insertButtonPrompt} variant="outline" className="mr-2">
+          Insert Button Options
         </Button>
         <p className="text-sm text-gray-600 mt-2">
-          Click the button above to insert a sample coaching block into the editor. You can dismiss blocks by hovering and clicking the X.
+          Try both variants: text prompts for reflection and button options for actionable choices. Press space at the beginning of a line for random coaching blocks!
         </p>
       </div>
       
