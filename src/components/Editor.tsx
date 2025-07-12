@@ -18,8 +18,10 @@ import TaskItem from '@tiptap/extension-task-item';
 import BulletList from '@tiptap/extension-bullet-list';
 import ListItem from '@tiptap/extension-list-item';
 import Image from '@tiptap/extension-image';
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { TextSelection } from '@tiptap/pm/state';
 import { AutoTagExtension } from './AutoTagExtension';
+import { CoachingBlockExtension } from './CoachingBlockExtension';
 import { ImageMetadata } from '@/types/journal';
 import { imageService } from '@/services/imageService';
 import { auth } from '@/lib/firebase';
@@ -34,7 +36,12 @@ interface EditorProps {
   onCreateNewEntry?: () => void;
 }
 
-export default function Editor({ content, onChange, placeholder = "Start writing...", autoFocus = false, onImageUploaded, onCreateNewEntry }: EditorProps) {
+export interface EditorHandle {
+  insertCoachingBlock: (content: string) => void;
+  getEditor: () => ReturnType<typeof useEditor>;
+}
+
+const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, placeholder = "Start writing...", autoFocus = false, onImageUploaded, onCreateNewEntry }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
 
   // Handle image upload
@@ -142,6 +149,7 @@ export default function Editor({ content, onChange, placeholder = "Start writing
       BulletList,
       ListItem,
       AutoTagExtension,
+      CoachingBlockExtension,
       Image.configure({
         inline: false,
         allowBase64: false,
@@ -169,6 +177,46 @@ export default function Editor({ content, onChange, placeholder = "Start writing
           }
           return true; // Prevent further processing
         }
+
+        // Handle space at beginning of line for AI coaching trigger
+        if (event.key === ' ') {
+          const { state } = view;
+          const { selection } = state;
+          const { $from } = selection;
+          
+          // Check if we're at the beginning of a paragraph
+          if ($from.parent.type.name === 'paragraph' && $from.parentOffset === 0) {
+            event.preventDefault();
+            
+            // Insert a mock coaching block
+            const mockPrompts = [
+              "What patterns do you notice in your recent decisions? How might they be shaping your startup's direction?",
+              "Reflect on a recent challenge you faced. What did it reveal about your problem-solving approach?",
+              "Consider your biggest win this week. What underlying strategy made it possible?",
+              "What assumption about your market have you held the longest? When did you last test it?",
+              "Think about your team dynamics. What energy are you bringing to collaboration?"
+            ];
+            
+            const randomPrompt = mockPrompts[Math.floor(Math.random() * mockPrompts.length)];
+            
+            // Insert the coaching block followed by an empty paragraph
+            const coachingBlock = state.schema.nodes.coachingBlock.create({ content: randomPrompt });
+            const emptyParagraph = state.schema.nodes.paragraph.create();
+            
+            const tr = state.tr.replaceSelectionWith(coachingBlock);
+            const insertPos = tr.selection.to;
+            tr.insert(insertPos, emptyParagraph);
+            
+            // Set selection at the start of the new paragraph
+            const newPos = insertPos + 1; // Position inside the new paragraph
+            tr.setSelection(TextSelection.create(tr.doc, newPos));
+            
+            view.dispatch(tr);
+            
+            return true;
+          }
+        }
+        
         return false; // Allow other keys to be handled normally
       },
     },
@@ -331,13 +379,76 @@ export default function Editor({ content, onChange, placeholder = "Start writing
     }
   }, [editor, handleImageUpload, handleImageFromUrl]);
 
+  // Handle clicks in empty space below content to add new paragraph
+  const handleEditorClick = useCallback((event: React.MouseEvent) => {
+    if (!editor) return;
+
+    const editorElement = editorRef.current;
+    if (!editorElement) return;
+
+    // Get the ProseMirror editor view element
+    const proseMirrorElement = editorElement.querySelector('.ProseMirror');
+    if (!proseMirrorElement) return;
+
+    // Check if click was below the ProseMirror content
+    const proseMirrorRect = proseMirrorElement.getBoundingClientRect();
+    const clickY = event.clientY;
+    
+    if (clickY > proseMirrorRect.bottom) {
+      // Get the last node in the document
+      const { doc } = editor.state;
+      const lastNode = doc.lastChild;
+      
+      // Always ensure there's an empty paragraph at the end for continued writing
+      if (!lastNode || lastNode.type.name !== 'paragraph' || lastNode.textContent.trim() !== '') {
+        editor.chain()
+          .focus('end')
+          .insertContent('<p></p>')
+          .focus('end')
+          .run();
+      } else {
+        // If last node is already an empty paragraph, just focus it
+        editor.commands.focus('end');
+      }
+    }
+  }, [editor]);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    insertCoachingBlock: (content: string) => {
+      if (editor) {
+        editor.chain()
+          .focus()
+          .insertCoachingBlock(content)
+          .insertContent('<p></p>')
+          .focus('end')
+          .run();
+      }
+    },
+    getEditor: () => editor,
+  }), [editor]);
 
   return (
-    <div className="w-full h-full relative" ref={editorRef}>
+    <div 
+      className="w-full h-full relative" 
+      ref={editorRef}
+      onClick={handleEditorClick}
+      style={{ minHeight: '100%' }}
+    >
       <EditorContent 
         editor={editor} 
-        className="w-full h-full"
+        className="w-full min-h-full"
+      />
+      {/* Add invisible clickable area to capture clicks below content */}
+      <div 
+        className="w-full flex-1 min-h-[200px]" 
+        onClick={handleEditorClick}
+        style={{ minHeight: '200px' }}
       />
     </div>
   );
-}
+});
+
+Editor.displayName = 'Editor';
+
+export default Editor;
