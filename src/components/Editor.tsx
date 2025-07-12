@@ -31,9 +31,10 @@ interface EditorProps {
   autoFocus?: boolean;
   entryId?: string;
   onImageUploaded?: (imageMetadata: ImageMetadata) => void;
+  onCreateNewEntry?: () => void;
 }
 
-export default function Editor({ content, onChange, placeholder = "Start writing...", autoFocus = false, onImageUploaded }: EditorProps) {
+export default function Editor({ content, onChange, placeholder = "Start writing...", autoFocus = false, onImageUploaded, onCreateNewEntry }: EditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
 
   // Handle image upload
@@ -158,6 +159,17 @@ export default function Editor({ content, onChange, placeholder = "Start writing
     editorProps: {
       attributes: {
         class: 'max-w-none focus:outline-none',
+      },
+      handleKeyDown: (view, event) => {
+        // Handle CMD+Enter at TipTap level to prevent linebreak
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+          event.preventDefault();
+          if (onCreateNewEntry) {
+            onCreateNewEntry();
+          }
+          return true; // Prevent further processing
+        }
+        return false; // Allow other keys to be handled normally
       },
     },
   });

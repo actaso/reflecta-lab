@@ -296,12 +296,7 @@ export default function JournalApp() {
         return;
       }
 
-      // CMD+Enter to create new entry
-      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-        event.preventDefault();
-        createNewEntry();
-        return;
-      }
+      // Note: CMD+Enter is handled at the TipTap editor level to prevent line breaks
 
       // CMD+Up/Down to navigate through entries
       if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
@@ -413,6 +408,7 @@ export default function JournalApp() {
                     autoFocus={true}
                     entryId={selectedEntryId || undefined}
                     onImageUploaded={handleImageUploaded}
+                    onCreateNewEntry={createNewEntry}
                   />
                 </div>
               </div>
