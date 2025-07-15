@@ -266,7 +266,12 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
   // Update editor content when prop changes
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+      // Schedule setContent outside of render cycle to avoid flushSync error
+      setTimeout(() => {
+        if (editor && content !== editor.getHTML()) {
+          editor.commands.setContent(content);
+        }
+      }, 0);
     }
   }, [content, editor]);
 
@@ -354,7 +359,9 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
             console.log('🖼️ [PASTE] Content after URL removal:', currentContent);
             
             // Set the clean content, then add the image
-            editor.commands.setContent(currentContent);
+            setTimeout(() => {
+              editor.commands.setContent(currentContent);
+            }, 0);
             editor.chain().focus().setImage({ src: url }).run();
               
             console.log('🖼️ [PASTE] Image inserted successfully, URL removed');
@@ -364,7 +371,9 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
             // Replace placeholder with the original URL text on failure
             const currentContent = editor.getHTML();
             const contentWithUrl = currentContent.replace(placeholderText, text);
-            editor.commands.setContent(contentWithUrl);
+            setTimeout(() => {
+              editor.commands.setContent(contentWithUrl);
+            }, 0);
           }
         } else {
           console.log('🖼️ [PASTE] Not recognized as image URL, allowing default paste');
