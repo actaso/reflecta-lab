@@ -18,7 +18,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import BulletList from '@tiptap/extension-bullet-list';
 import ListItem from '@tiptap/extension-list-item';
 import Image from '@tiptap/extension-image';
-import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { TextSelection } from '@tiptap/pm/state';
 import { EditorView } from '@tiptap/pm/view';
 import { AutoTagExtension } from './AutoTagExtension';
@@ -45,7 +45,6 @@ export interface EditorHandle {
 
 const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, placeholder = "Start writing...", autoFocus = false, entryId, onImageUploaded, onCreateNewEntry }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [isLoadingCoaching, setIsLoadingCoaching] = useState(false);
 
   // Legacy function - commented out to avoid linting errors
   // const generateCoachingBlock = useCallback(async (currentContent: string, currentEntryId?: string) => {
@@ -59,8 +58,6 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
       return;
     }
 
-    setIsLoadingCoaching(true);
-    
     try {
       const request: CoachingInteractionRequest = {
         entryId: currentEntryId,
@@ -231,8 +228,6 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
         
         view.dispatch(newTr);
       }
-    } finally {
-      setIsLoadingCoaching(false);
     }
   }, []);
 
