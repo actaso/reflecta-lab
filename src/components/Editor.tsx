@@ -46,9 +46,6 @@ export interface EditorHandle {
 const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, placeholder = "Start writing...", autoFocus = false, entryId, onImageUploaded, onCreateNewEntry }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isLoadingCoaching, setIsLoadingCoaching] = useState(false);
-  
-  // Suppress unused variable warning - this will be used for UI feedback later
-  console.log('Coaching loading state:', isLoadingCoaching);
 
   // Legacy function - commented out to avoid linting errors
   // const generateCoachingBlock = useCallback(async (currentContent: string, currentEntryId?: string) => {
