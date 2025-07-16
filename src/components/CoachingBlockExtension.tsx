@@ -8,14 +8,14 @@ import ReactMarkdown from 'react-markdown';
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     coachingBlock: {
-      insertCoachingBlock: (content: string, variant?: 'text' | 'buttons', options?: string[]) => ReturnType;
+      insertCoachingBlock: (content: string, variant?: 'text' | 'buttons' | 'multi-select', options?: string[]) => ReturnType;
     };
   }
 }
 
 interface CoachingBlockData {
   content: string;
-  variant: 'text' | 'buttons';
+  variant: 'text' | 'buttons' | 'multi-select';
   options?: string[];
 }
 
@@ -26,11 +26,20 @@ const CoachingBlockNodeView = ({ node }: ReactNodeViewProps) => {
   };
   
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
   const handleOptionSelect = (option: string) => {
     setSelectedOption(option);
     // TODO: Here you could trigger additional actions like inserting text
     // or calling an API based on the selected option
+  };
+
+  const handleMultiOptionToggle = (option: string) => {
+    setSelectedOptions(prev => 
+      prev.includes(option) 
+        ? prev.filter(o => o !== option)
+        : [...prev, option]
+    );
   };
 
   const renderTextVariant = () => (
@@ -141,11 +150,64 @@ const CoachingBlockNodeView = ({ node }: ReactNodeViewProps) => {
     </div>
   );
 
+  const renderMultiSelectVariant = () => (
+    <div className="flex-1">
+      {/* Question/prompt text */}
+      <div 
+        className="text-black dark:text-[#ededed] mb-4" 
+        style={{ 
+          fontFamily: 'var(--font-geist-sans)', 
+          fontSize: '16px', 
+          lineHeight: '1.6' 
+        }}
+      >
+        {data.content}
+      </div>
+      
+      {/* Multi-select options - vertical layout */}
+      <div className="flex flex-col gap-2">
+        {data.options?.map((option, index) => (
+          <button
+            key={index}
+            onClick={() => handleMultiOptionToggle(option)}
+            className={`
+              group relative px-3 py-2 text-left rounded-md border transition-all duration-300 ease-out
+              ${selectedOptions.includes(option)
+                ? 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300' 
+                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300 dark:bg-gray-800/50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700/50'
+              }
+              transform hover:scale-[1.01] hover:shadow-sm
+              animate-in slide-in-from-left-1 fade-in
+            `}
+            style={{ 
+              fontFamily: 'var(--font-geist-sans)', 
+              fontSize: '14px',
+              animationDelay: `${index * 50}ms`,
+              animationFillMode: 'backwards'
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <div className={`w-4 h-4 rounded border ${selectedOptions.includes(option) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                {selectedOptions.includes(option) && (
+                  <svg className="w-3 h-3 text-white ml-0.5 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <span className="text-sm">{option}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <NodeViewWrapper className="coaching-block-wrapper">
       <div className="flex items-start gap-3 py-3">
         {/* Sage icon with subtle animation */}
         <div className="flex-shrink-0 mt-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img 
             src="/icon-sage.png" 
             alt="Coaching prompt" 
@@ -159,7 +221,9 @@ const CoachingBlockNodeView = ({ node }: ReactNodeViewProps) => {
         </div>
         
         {/* Content based on variant */}
-        {data.variant === 'text' ? renderTextVariant() : renderButtonVariant()}
+        {data.variant === 'text' ? renderTextVariant() : 
+         data.variant === 'buttons' ? renderButtonVariant() : 
+         renderMultiSelectVariant()}
       </div>
     </NodeViewWrapper>
   );
@@ -221,7 +285,7 @@ export const CoachingBlockExtension = Node.create({
   addCommands() {
     return {
       insertCoachingBlock:
-        (content: string, variant: 'text' | 'buttons' = 'text', options?: string[]) =>
+        (content: string, variant: 'text' | 'buttons' | 'multi-select' = 'text', options?: string[]) =>
         ({ commands }) => {
           return commands.insertContent({
             type: this.name,
@@ -229,7 +293,7 @@ export const CoachingBlockExtension = Node.create({
               data: { 
                 content, 
                 variant, 
-                options: variant === 'buttons' ? options : undefined 
+                options: (variant === 'buttons' || variant === 'multi-select') ? options : undefined 
               } 
             },
           });

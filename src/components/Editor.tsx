@@ -18,13 +18,15 @@ import TaskItem from '@tiptap/extension-task-item';
 import BulletList from '@tiptap/extension-bullet-list';
 import ListItem from '@tiptap/extension-list-item';
 import Image from '@tiptap/extension-image';
-import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
 import { TextSelection } from '@tiptap/pm/state';
+import { EditorView } from '@tiptap/pm/view';
 import { AutoTagExtension } from './AutoTagExtension';
 import { CoachingBlockExtension } from './CoachingBlockExtension';
 import { ImageMetadata } from '@/types/journal';
 import { imageService } from '@/services/imageService';
 import { auth } from '@/lib/firebase';
+import { CoachingInteractionRequest } from '@/types/coaching';
 
 interface EditorProps {
   content: string;
@@ -41,8 +43,201 @@ export interface EditorHandle {
   getEditor: () => ReturnType<typeof useEditor>;
 }
 
-const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, placeholder = "Start writing...", autoFocus = false, onImageUploaded, onCreateNewEntry }, ref) => {
+const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, placeholder = "Start writing...", autoFocus = false, entryId, onImageUploaded, onCreateNewEntry }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [isLoadingCoaching, setIsLoadingCoaching] = useState(false);
+  
+  // Suppress unused variable warning - this will be used for UI feedback later
+  console.log('Coaching loading state:', isLoadingCoaching);
+
+  // Legacy function - commented out to avoid linting errors
+  // const generateCoachingBlock = useCallback(async (currentContent: string, currentEntryId?: string) => {
+  //   // Implementation moved to generateStreamingCoachingBlock
+  // }, []);
+
+  // Generate streaming coaching block with real-time TipTap updates
+  const generateStreamingCoachingBlock = useCallback(async (currentContent: string, view: EditorView, currentEntryId?: string) => {
+    if (!currentEntryId) {
+      console.warn('No entry ID provided for coaching block generation');
+      return;
+    }
+
+    setIsLoadingCoaching(true);
+    
+    try {
+      const request: CoachingInteractionRequest = {
+        entryId: currentEntryId,
+        entryContent: currentContent.replace(/<[^>]*>/g, '') // Strip HTML tags
+      };
+
+      const response = await fetch('/api/coaching-interaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Handle Server-Sent Events stream
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+
+      // Streaming state
+      let variant = 'text';
+      let options: string[] = [];
+      let streamedContent = '';
+      let isComplete = false;
+      
+      /**
+       * Finds and updates the coaching block in the editor
+       */
+      const updateCoachingBlock = (newContent: string, newVariant: string, newOptions?: string[]) => {
+        const currentState = view.state;
+        const currentDoc = currentState.doc;
+        
+        // Find the coaching block node we need to update
+        let coachingBlockPos = -1;
+        currentDoc.descendants((node, pos) => {
+          if (node.type.name === 'coachingBlock' && 
+              (node.attrs.data.content === "Generating coaching prompt..." || 
+               node.attrs.data.streaming === true)) {
+            coachingBlockPos = pos;
+            return false; // Stop iteration
+          }
+        });
+        
+        if (coachingBlockPos !== -1) {
+          const newCoachingBlock = currentState.schema.nodes.coachingBlock.create({ 
+            data: { 
+              content: newContent, 
+              variant: newVariant,
+              options: newOptions,
+              streaming: !isComplete // Mark as streaming until complete
+            }
+          });
+          
+          const newTr = currentState.tr.replaceWith(
+            coachingBlockPos, 
+            coachingBlockPos + 1, 
+            newCoachingBlock
+          );
+          
+          view.dispatch(newTr);
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = new TextDecoder().decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              
+              switch (data.type) {
+                case 'metadata':
+                  // Update UI structure immediately
+                  variant = data.variant;
+                  options = data.options || [];
+                  console.log('🎯 Metadata received:', { variant, options });
+                  
+                  // Update block with proper variant structure
+                  updateCoachingBlock(streamedContent || "Generating coaching prompt...", variant, options);
+                  break;
+                  
+                case 'content':
+                  // Stream content in real-time
+                  streamedContent += data.text;
+                  console.log('📝 Content chunk:', data.text);
+                  
+                  // Update block with streaming content
+                  updateCoachingBlock(streamedContent, variant, options);
+                  break;
+                  
+                case 'done':
+                  // Stream complete
+                  isComplete = true;
+                  console.log('✅ Stream complete');
+                  
+                  // Final update to mark as complete
+                  updateCoachingBlock(streamedContent, variant, options);
+                  break;
+                  
+                case 'fallback':
+                  // Use full response as fallback
+                  console.log('🔄 Fallback response:', data.fullResponse);
+                  streamedContent = data.fullResponse;
+                  isComplete = true;
+                  
+                  updateCoachingBlock(streamedContent, variant, options);
+                  break;
+                  
+                case 'error':
+                  throw new Error(data.error);
+              }
+            } catch (parseError) {
+              console.error('Error parsing SSE data:', parseError);
+            }
+          }
+        }
+
+        if (isComplete) break;
+      }
+      
+    } catch (error) {
+      console.error('Error generating coaching block:', error);
+      
+      // Handle different error types with appropriate messages
+      let errorMessage = "Unable to generate coaching prompt. Please try again.";
+      
+      if (error instanceof Error && error.message.includes('401')) {
+        errorMessage = "Please sign in to get personalized coaching prompts tailored to your journey.";
+      }
+      
+      // Update block with error message
+      const currentState = view.state;
+      const currentDoc = currentState.doc;
+      
+      let coachingBlockPos = -1;
+      currentDoc.descendants((node, pos) => {
+        if (node.type.name === 'coachingBlock' && 
+            (node.attrs.data.content === "Generating coaching prompt..." || 
+             node.attrs.data.streaming === true)) {
+          coachingBlockPos = pos;
+          return false;
+        }
+      });
+      
+      if (coachingBlockPos !== -1) {
+        const errorBlock = currentState.schema.nodes.coachingBlock.create({ 
+          data: { 
+            content: errorMessage, 
+            variant: 'text' 
+          }
+        });
+        
+        const newTr = currentState.tr.replaceWith(
+          coachingBlockPos, 
+          coachingBlockPos + 1, 
+          errorBlock
+        );
+        
+        view.dispatch(newTr);
+      }
+    } finally {
+      setIsLoadingCoaching(false);
+    }
+  }, []);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (file: File): Promise<string> => {
@@ -188,71 +383,57 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
           if ($from.parent.type.name === 'paragraph' && $from.parentOffset === 0) {
             event.preventDefault();
             
-            // Insert a mock coaching block
-            const mockPrompts = [
-              "What patterns do you notice in your recent decisions? How might they be shaping your startup's direction?",
-              "Reflect on a recent challenge you faced. What did it reveal about your problem-solving approach?",
-              "Consider your biggest win this week. What underlying strategy made it possible?",
-              "What assumption about your market have you held the longest? When did you last test it?",
-              "Think about your team dynamics. What energy are you bringing to collaboration?",
-              // Markdown examples
-              "**Three key questions** to ask yourself today:\n\n- What's one assumption I haven't tested?\n- Who could give me honest feedback?\n- What would I do if I had unlimited resources?",
-              "Consider this framework:\n\n1. **Gather** data\n2. **Analyze** patterns\n3. **Decide** next step\n4. **Act** and measure",
-              "*What question have you been avoiding about your startup?*"
-            ];
+            // Insert loading coaching block first
+            const loadingBlock = state.schema.nodes.coachingBlock.create({ 
+              data: { 
+                content: "Generating coaching prompt...", 
+                variant: 'text' 
+              }
+            });
+            const emptyParagraph = state.schema.nodes.paragraph.create();
             
-            const randomPrompt = mockPrompts[Math.floor(Math.random() * mockPrompts.length)];
+            const tr = state.tr.replaceSelectionWith(loadingBlock);
+            const insertPos = tr.selection.to;
+            tr.insert(insertPos, emptyParagraph);
             
-            // Randomly choose between text and button variants for demo
-            const useButtonVariant = Math.random() > 0.6; // 40% chance for buttons
+            // Set selection at the start of the new paragraph
+            const newPos = insertPos + 1;
+            tr.setSelection(TextSelection.create(tr.doc, newPos));
             
-            if (useButtonVariant) {
-              const buttonOptions = [
-                "Deep work",
-                "Find mentor",
-                "Research",
-                "Document"
-              ];
+            view.dispatch(tr);
+            
+            // Generate streaming coaching block from API
+            generateStreamingCoachingBlock(content, view, entryId).catch(error => {
+              console.error('Error in coaching block generation:', error);
+              // Replace with fallback error message
+              const currentState = view.state;
+              const currentDoc = currentState.doc;
               
-              // Insert button variant
-              const coachingBlock = state.schema.nodes.coachingBlock.create({ 
-                data: { 
-                  content: "What action would move your startup forward most right now?", 
-                  variant: 'buttons',
-                  options: buttonOptions
+              let coachingBlockPos = -1;
+              currentDoc.descendants((node, pos) => {
+                if (node.type.name === 'coachingBlock' && node.attrs.data.content === "Generating coaching prompt...") {
+                  coachingBlockPos = pos;
+                  return false;
                 }
               });
-              const emptyParagraph = state.schema.nodes.paragraph.create();
               
-              const tr = state.tr.replaceSelectionWith(coachingBlock);
-              const insertPos = tr.selection.to;
-              tr.insert(insertPos, emptyParagraph);
-              
-              // Set selection at the start of the new paragraph
-              const newPos = insertPos + 1;
-              tr.setSelection(TextSelection.create(tr.doc, newPos));
-              
-              view.dispatch(tr);
-            } else {
-              // Insert text variant
-              const coachingBlock = state.schema.nodes.coachingBlock.create({ 
-                data: { 
-                  content: randomPrompt, 
-                  variant: 'text' 
-                }
-              });
-              const emptyParagraph = state.schema.nodes.paragraph.create();
-              
-              const tr = state.tr.replaceSelectionWith(coachingBlock);
-              const insertPos = tr.selection.to;
-              tr.insert(insertPos, emptyParagraph);
-              
-              // Set selection at the start of the new paragraph
-              const newPos = insertPos + 1;
-              tr.setSelection(TextSelection.create(tr.doc, newPos));
-              
-              view.dispatch(tr);
-            }
+              if (coachingBlockPos !== -1) {
+                const errorBlock = currentState.schema.nodes.coachingBlock.create({ 
+                  data: { 
+                    content: "Unable to generate coaching prompt. Please try again.", 
+                    variant: 'text' 
+                  }
+                });
+                
+                const newTr = currentState.tr.replaceWith(
+                  coachingBlockPos, 
+                  coachingBlockPos + 1, 
+                  errorBlock
+                );
+                
+                view.dispatch(newTr);
+              }
+            });
             
             return true;
           }
