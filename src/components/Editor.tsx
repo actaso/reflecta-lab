@@ -39,7 +39,7 @@ interface EditorProps {
 }
 
 export interface EditorHandle {
-  insertCoachingBlock: (content: string, variant?: 'text' | 'buttons', options?: string[]) => void;
+  insertCoachingBlock: (content: string, variant?: 'text' | 'buttons', options?: string[], thinking?: string) => void;
   getEditor: () => ReturnType<typeof useEditor>;
 }
 
@@ -86,12 +86,13 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
       let variant = 'text';
       let options: string[] = [];
       let streamedContent = '';
+      let streamedThinking = '';
       let isComplete = false;
       
       /**
        * Finds and updates the coaching block in the editor
        */
-      const updateCoachingBlock = (newContent: string, newVariant: string, newOptions?: string[]) => {
+      const updateCoachingBlock = (newContent: string, newVariant: string, newOptions?: string[], thinking?: string) => {
         const currentState = view.state;
         const currentDoc = currentState.doc;
         
@@ -112,6 +113,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
               content: newContent, 
               variant: newVariant,
               options: newOptions,
+              thinking: thinking,
               streaming: !isComplete // Mark as streaming until complete
             }
           });
@@ -145,10 +147,11 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
                   break;
                   
                 case 'thinking':
-                  // Handle thinking stream (could be logged or shown as "AI is thinking...")
+                  // Handle thinking stream - accumulate thinking content
+                  streamedThinking += data.text;
                   console.log('🤔 Thinking:', data.text);
-                  // For now, just update block to show thinking is happening
-                  updateCoachingBlock("AI is analyzing your context...", variant, options);
+                  // Update block to show thinking is happening
+                  updateCoachingBlock("AI is analyzing your context...", variant, options, streamedThinking);
                   break;
                   
                 case 'metadata':
@@ -158,7 +161,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
                   console.log('🎯 Metadata received:', { variant, options });
                   
                   // Update block with proper variant structure
-                  updateCoachingBlock(streamedContent || "Generating coaching prompt...", variant, options);
+                  updateCoachingBlock(streamedContent || "Generating coaching prompt...", variant, options, streamedThinking);
                   break;
                   
                 case 'content':
@@ -167,7 +170,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
                   console.log('📝 Content chunk:', data.text);
                   
                   // Update block with streaming content
-                  updateCoachingBlock(streamedContent, variant, options);
+                  updateCoachingBlock(streamedContent, variant, options, streamedThinking);
                   break;
                   
                 case 'full_response':
@@ -181,7 +184,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
                   console.log('✅ Stream complete');
                   
                   // Final update to mark as complete
-                  updateCoachingBlock(streamedContent, variant, options);
+                  updateCoachingBlock(streamedContent, variant, options, streamedThinking);
                   break;
                   
                 case 'fallback':
@@ -190,7 +193,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
                   streamedContent = data.fullResponse;
                   isComplete = true;
                   
-                  updateCoachingBlock(streamedContent, variant, options);
+                  updateCoachingBlock(streamedContent, variant, options, streamedThinking);
                   break;
                   
                 case 'error':
@@ -655,11 +658,11 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
-    insertCoachingBlock: (content: string, variant: 'text' | 'buttons' = 'text', options?: string[]) => {
+    insertCoachingBlock: (content: string, variant: 'text' | 'buttons' = 'text', options?: string[], thinking?: string) => {
       if (editor) {
         editor.chain()
           .focus()
-          .insertCoachingBlock(content, variant, options)
+          .insertCoachingBlock(content, variant, options, thinking)
           .insertContent('<p></p>')
           .focus('end')
           .run();

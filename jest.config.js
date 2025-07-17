@@ -33,6 +33,9 @@ const customJestConfig = {
     '<rootDir>/src/**/__tests__/**/*.{ts,tsx}',
     '<rootDir>/src/**/*.{test,spec}.{ts,tsx}',
   ],
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-markdown|remark-|rehype-|unified|bail|is-plain-obj|trough|vfile|unist-util-|mdast-util-|micromark|decode-named-character-reference|character-entities|property-information|hast-util-|space-separated-tokens|comma-separated-tokens|zwitch|html-void-elements|ccount|escape-string-regexp|markdown-table)/)',
+  ],
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

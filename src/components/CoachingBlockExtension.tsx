@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     coachingBlock: {
-      insertCoachingBlock: (content: string, variant?: 'text' | 'buttons' | 'multi-select', options?: string[]) => ReturnType;
+      insertCoachingBlock: (content: string, variant?: 'text' | 'buttons' | 'multi-select', options?: string[], thinking?: string) => ReturnType;
     };
   }
 }
@@ -17,6 +17,7 @@ interface CoachingBlockData {
   content: string;
   variant: 'text' | 'buttons' | 'multi-select';
   options?: string[];
+  thinking?: string;
 }
 
 const CoachingBlockNodeView = ({ node }: ReactNodeViewProps) => {
@@ -27,6 +28,7 @@ const CoachingBlockNodeView = ({ node }: ReactNodeViewProps) => {
   
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [showThinking, setShowThinking] = useState(false);
 
   const handleOptionSelect = (option: string) => {
     setSelectedOption(option);
@@ -224,7 +226,41 @@ const CoachingBlockNodeView = ({ node }: ReactNodeViewProps) => {
         {data.variant === 'text' ? renderTextVariant() : 
          data.variant === 'buttons' ? renderButtonVariant() : 
          renderMultiSelectVariant()}
+        
+        {/* Thinking toggle button */}
+        {data.thinking && (
+          <div className="flex-shrink-0 mt-1">
+            <button
+              onClick={() => setShowThinking(!showThinking)}
+              className="w-5 h-5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center transition-colors duration-200"
+              title="Show AI thinking"
+            >
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">?</span>
+            </button>
+          </div>
+        )}
       </div>
+      
+      {/* Thinking content */}
+      {showThinking && data.thinking && (
+        <div className="ml-8 mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">AI Thinking</span>
+          </div>
+          <div 
+            className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap"
+            style={{ 
+              fontFamily: 'var(--font-geist-mono)', 
+              lineHeight: '1.5' 
+            }}
+          >
+            {data.thinking}
+          </div>
+        </div>
+      )}
     </NodeViewWrapper>
   );
 };
@@ -285,7 +321,7 @@ export const CoachingBlockExtension = Node.create({
   addCommands() {
     return {
       insertCoachingBlock:
-        (content: string, variant: 'text' | 'buttons' | 'multi-select' = 'text', options?: string[]) =>
+        (content: string, variant: 'text' | 'buttons' | 'multi-select' = 'text', options?: string[], thinking?: string) =>
         ({ commands }) => {
           return commands.insertContent({
             type: this.name,
@@ -293,7 +329,8 @@ export const CoachingBlockExtension = Node.create({
               data: { 
                 content, 
                 variant, 
-                options: (variant === 'buttons' || variant === 'multi-select') ? options : undefined 
+                options: (variant === 'buttons' || variant === 'multi-select') ? options : undefined,
+                thinking
               } 
             },
           });
