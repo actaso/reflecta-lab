@@ -3,26 +3,25 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 /**
- * Life Trajectory Exercise Model
+ * Biggest Struggle Model
  * Specialized coaching model for new journalers (users with <2 entries)
- * Guides users through understanding where their current actions are leading them
- * and presents 3 potential life paths based on their current patterns
+ * Guides users through exploring and working with their biggest struggles
  */
-export class LifeTrajectoryModel implements CoachingModel {
-  private static readonly PROMPTS_DIR = join(process.cwd(), 'src/lib/coaching/models/lifeTrajectoryModel/prompts');
+export class BiggestStruggleModel implements CoachingModel {
+  private static readonly PROMPTS_DIR = join(process.cwd(), 'src/lib/coaching/models/biggestStruggle/prompts');
 
   getInfo(): ModelInfo {
     return {
-      id: 'life-trajectory',
-      name: 'Life Trajectory Exercise',
-      description: 'Interactive exercise for new journalers to explore potential life paths based on current actions',
+      id: 'biggest-struggle',
+      name: 'Biggest Struggle',
+      description: 'Specialized coaching for exploring and working through biggest life struggles',
       version: '1.0.0'
     };
   }
 
   canHandle(context: CoachingContext): boolean {
-    // This model is designed for new users with limited journaling history
-    return context.entryCount < 2;
+    // This model is designed for users on their very first journal entry
+    return context.entryCount === 1;
   }
 
   /**
@@ -30,11 +29,11 @@ export class LifeTrajectoryModel implements CoachingModel {
    */
   private readPromptFile(filename: string): string {
     try {
-      const filePath = join(LifeTrajectoryModel.PROMPTS_DIR, filename);
+      const filePath = join(BiggestStruggleModel.PROMPTS_DIR, filename);
       return readFileSync(filePath, 'utf-8').trim();
     } catch (error) {
-      console.error(`Error reading Life Trajectory prompt file ${filename}:`, error);
-      throw new Error(`Failed to load Life Trajectory prompt file: ${filename}`);
+      console.error(`Error reading Biggest Struggle prompt file ${filename}:`, error);
+      throw new Error(`Failed to load Biggest Struggle prompt file: ${filename}`);
     }
   }
 
@@ -57,7 +56,7 @@ export class LifeTrajectoryModel implements CoachingModel {
 
   generateContextMessage(context: CoachingContext): string {
     // For new users, we want to focus on their current entry and basic context
-    const entryCountText = context.entryCount === 0 ? 'This is their first journal entry' : `They have ${context.entryCount} previous entry`;
+    const entryCountText = context.entryCount === 1 ? 'This is their first journal entry' : `They have ${context.entryCount} total entries`;
     
     let contextMessage = `You're working with someone new to journaling. ${entryCountText}.
 
@@ -74,7 +73,7 @@ Current Entry: ${context.entryContent}`;
 ${context.formattedRecentEntries}`;
     }
 
-    contextMessage += `\n\nGuide them through the Life Trajectory Exercise. Start by asking about current actions in life areas that relate to what they've written about, then progressively build understanding of their patterns before presenting the three trajectory scenarios.`;
+    contextMessage += `\n\nGuide them through exploring their biggest struggle. Help them understand what they're facing, why it matters, and how to begin working with it constructively.`;
 
     return contextMessage;
   }

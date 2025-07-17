@@ -4,7 +4,7 @@ export { CoachingContextBuilder } from './contextBuilder';
 // Multi-model coaching system
 export { ModelRegistry } from './modelRegistry';
 export { GeneralCoachingModel } from './models/generalCoachingModel/generalCoachingModel';
-export { LifeTrajectoryModel } from './models/lifeTrajectoryModel/lifeTrajectoryModel';
+export { BiggestStruggleModel } from './models/biggestStruggle/biggestStruggle';
 
 /**
  * Initialize all coaching models
@@ -13,10 +13,10 @@ export { LifeTrajectoryModel } from './models/lifeTrajectoryModel/lifeTrajectory
 export async function initializeCoachingModels() {
   const { ModelRegistry } = await import('./modelRegistry');
   const { GeneralCoachingModel } = await import('./models/generalCoachingModel/generalCoachingModel');
-  const { LifeTrajectoryModel } = await import('./models/lifeTrajectoryModel/lifeTrajectoryModel');
+  const { BiggestStruggleModel } = await import('./models/biggestStruggle/biggestStruggle');
 
   ModelRegistry.register(new GeneralCoachingModel());
-  ModelRegistry.register(new LifeTrajectoryModel());
+  ModelRegistry.register(new BiggestStruggleModel());
   
   console.log('🎯 Coaching models initialized');
 }

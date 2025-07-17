@@ -20,7 +20,7 @@ export class GeneralCoachingModel implements CoachingModel {
   }
 
   canHandle(context: CoachingContext): boolean {
-    // This model is suitable for users with journaling experience
+    // This model is suitable for users with journaling experience (after first entry)
     return context.entryCount >= 2;
   }
 

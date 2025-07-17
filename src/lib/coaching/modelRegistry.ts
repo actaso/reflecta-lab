@@ -46,9 +46,9 @@ export class ModelRegistry {
         let reason = `Model ${info.name} can handle this context`;
 
         // Entry count based routing
-        if (info.id === 'life-trajectory' && context.entryCount < 2) {
+        if (info.id === 'biggest-struggle' && context.entryCount === 1) {
           confidence = 0.9;
-          reason = `New user with ${context.entryCount} entries - using Life Trajectory Exercise`;
+          reason = `Very first entry (${context.entryCount} entries) - using Biggest Struggle`;
         } else if (info.id === 'general-coaching' && context.entryCount >= 2) {
           confidence = 0.8;
           reason = `Experienced user with ${context.entryCount} entries - using General Coaching`;
