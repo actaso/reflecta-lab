@@ -18,11 +18,16 @@ import TaskItem from '@tiptap/extension-task-item';
 import BulletList from '@tiptap/extension-bullet-list';
 import ListItem from '@tiptap/extension-list-item';
 import Image from '@tiptap/extension-image';
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { TextSelection } from '@tiptap/pm/state';
+import { EditorView } from '@tiptap/pm/view';
 import { AutoTagExtension } from './AutoTagExtension';
+import { CoachingBlockExtension } from './CoachingBlockExtension';
 import { ImageMetadata } from '@/types/journal';
 import { imageService } from '@/services/imageService';
 import { auth } from '@/lib/firebase';
+import { CoachingInteractionRequest } from '@/types/coaching';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 interface EditorProps {
   content: string;
@@ -34,8 +39,239 @@ interface EditorProps {
   onCreateNewEntry?: () => void;
 }
 
-export default function Editor({ content, onChange, placeholder = "Start writing...", autoFocus = false, onImageUploaded, onCreateNewEntry }: EditorProps) {
+export interface EditorHandle {
+  insertCoachingBlock: (content: string, variant?: 'text' | 'buttons', options?: string[], thinking?: string) => void;
+  getEditor: () => ReturnType<typeof useEditor>;
+}
+
+const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, placeholder = "Start writing...", autoFocus = false, entryId, onImageUploaded, onCreateNewEntry }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const { trackCoachingCompletion } = useAnalytics();
+
+  // Legacy function - commented out to avoid linting errors
+  // const generateCoachingBlock = useCallback(async (currentContent: string, currentEntryId?: string) => {
+  //   // Implementation moved to generateStreamingCoachingBlock
+  // }, []);
+
+  // Generate streaming coaching block with real-time TipTap updates
+  const generateStreamingCoachingBlock = useCallback(async (currentContent: string, view: EditorView, currentEntryId?: string) => {
+    if (!currentEntryId) {
+      console.warn('No entry ID provided for coaching block generation');
+      return;
+    }
+
+    try {
+      const request: CoachingInteractionRequest = {
+        entryId: currentEntryId,
+        entryContent: currentContent.replace(/<[^>]*>/g, '') // Strip HTML tags
+      };
+
+      const response = await fetch('/api/coaching-interaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Handle Server-Sent Events stream
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+
+      // Streaming state
+      let variant = 'text';
+      let options: string[] = [];
+      let streamedContent = '';
+      let streamedThinking = '';
+      let isComplete = false;
+      
+      /**
+       * Finds and updates the coaching block in the editor
+       */
+      const updateCoachingBlock = (newContent: string, newVariant: string, newOptions?: string[], thinking?: string) => {
+        const currentState = view.state;
+        const currentDoc = currentState.doc;
+        
+        // Find the coaching block node we need to update
+        let coachingBlockPos = -1;
+        currentDoc.descendants((node, pos) => {
+          if (node.type.name === 'coachingBlock' && 
+              (node.attrs.data.content === "Generating coaching prompt..." || 
+               node.attrs.data.streaming === true)) {
+            coachingBlockPos = pos;
+            return false; // Stop iteration
+          }
+        });
+        
+        if (coachingBlockPos !== -1) {
+          const newCoachingBlock = currentState.schema.nodes.coachingBlock.create({ 
+            data: { 
+              content: newContent, 
+              variant: newVariant,
+              options: newOptions,
+              thinking: thinking,
+              streaming: !isComplete // Mark as streaming until complete
+            }
+          });
+          
+          const newTr = currentState.tr.replaceWith(
+            coachingBlockPos, 
+            coachingBlockPos + 1, 
+            newCoachingBlock
+          );
+          
+          view.dispatch(newTr);
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = new TextDecoder().decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              
+              switch (data.type) {
+                case 'raw':
+                  // Log raw model response chunks for debugging
+                  console.log('🔍 Raw model chunk:', data.content);
+                  break;
+                  
+                case 'thinking':
+                  // Handle thinking stream - accumulate thinking content
+                  streamedThinking += data.text;
+                  console.log('🤔 Thinking:', data.text);
+                  // Update block to show thinking is happening
+                  updateCoachingBlock("AI is analyzing your context...", variant, options, streamedThinking);
+                  break;
+                  
+                case 'metadata':
+                  // Update UI structure immediately
+                  variant = data.variant;
+                  options = data.options || [];
+                  console.log('🎯 Metadata received:', { variant, options });
+                  
+                  // Update block with proper variant structure
+                  updateCoachingBlock(streamedContent || "Generating coaching prompt...", variant, options, streamedThinking);
+                  break;
+                  
+                case 'content':
+                  // Stream content in real-time
+                  streamedContent += data.text;
+                  console.log('📝 Content chunk:', data.text);
+                  
+                  // Update block with streaming content
+                  updateCoachingBlock(streamedContent, variant, options, streamedThinking);
+                  break;
+                  
+                case 'full_response':
+                  // Log complete model response for debugging
+                  console.log('📄 Full model response:', data.content);
+                  break;
+                  
+                case 'done':
+                  // Stream complete
+                  isComplete = true;
+                  console.log('✅ Stream complete');
+                  
+                  // Final update to mark as complete
+                  updateCoachingBlock(streamedContent, variant, options, streamedThinking);
+                  
+                  // Track coaching completion analytics
+                  trackCoachingCompletion({
+                    modelId: data.model,
+                    variant: variant,
+                    entryId: currentEntryId,
+                    contentLength: streamedContent.length,
+                    hasOptions: Boolean(options && options.length > 0),
+                    optionCount: options?.length || 0,
+                  });
+                  break;
+                  
+                case 'fallback':
+                  // Use full response as fallback
+                  console.log('🔄 Fallback response:', data.fullResponse);
+                  streamedContent = data.fullResponse;
+                  isComplete = true;
+                  
+                  updateCoachingBlock(streamedContent, variant, options, streamedThinking);
+                  
+                  // Track coaching completion analytics for fallback
+                  trackCoachingCompletion({
+                    modelId: data.model,
+                    variant: variant,
+                    entryId: currentEntryId,
+                    contentLength: streamedContent.length,
+                    hasOptions: Boolean(options && options.length > 0),
+                    optionCount: options?.length || 0,
+                  });
+                  break;
+                  
+                case 'error':
+                  throw new Error(data.error);
+              }
+            } catch (parseError) {
+              console.error('Error parsing SSE data:', parseError);
+            }
+          }
+        }
+
+        if (isComplete) break;
+      }
+      
+    } catch (error) {
+      console.error('Error generating coaching block:', error);
+      
+      // Handle different error types with appropriate messages
+      let errorMessage = "Unable to generate coaching prompt. Please try again.";
+      
+      if (error instanceof Error && error.message.includes('401')) {
+        errorMessage = "Please sign in to get personalized coaching prompts tailored to your journey.";
+      }
+      
+      // Update block with error message
+      const currentState = view.state;
+      const currentDoc = currentState.doc;
+      
+      let coachingBlockPos = -1;
+      currentDoc.descendants((node, pos) => {
+        if (node.type.name === 'coachingBlock' && 
+            (node.attrs.data.content === "Generating coaching prompt..." || 
+             node.attrs.data.streaming === true)) {
+          coachingBlockPos = pos;
+          return false;
+        }
+      });
+      
+      if (coachingBlockPos !== -1) {
+        const errorBlock = currentState.schema.nodes.coachingBlock.create({ 
+          data: { 
+            content: errorMessage, 
+            variant: 'text' 
+          }
+        });
+        
+        const newTr = currentState.tr.replaceWith(
+          coachingBlockPos, 
+          coachingBlockPos + 1, 
+          errorBlock
+        );
+        
+        view.dispatch(newTr);
+      }
+    }
+  }, []);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (file: File): Promise<string> => {
@@ -142,6 +378,7 @@ export default function Editor({ content, onChange, placeholder = "Start writing
       BulletList,
       ListItem,
       AutoTagExtension,
+      CoachingBlockExtension,
       Image.configure({
         inline: false,
         allowBase64: false,
@@ -169,6 +406,73 @@ export default function Editor({ content, onChange, placeholder = "Start writing
           }
           return true; // Prevent further processing
         }
+
+        // Handle space at beginning of line for AI coaching trigger
+        if (event.key === ' ') {
+          const { state } = view;
+          const { selection } = state;
+          const { $from } = selection;
+          
+          // Check if we're at the beginning of a paragraph
+          if ($from.parent.type.name === 'paragraph' && $from.parentOffset === 0) {
+            event.preventDefault();
+            
+            // Insert loading coaching block first
+            const loadingBlock = state.schema.nodes.coachingBlock.create({ 
+              data: { 
+                content: "Generating coaching prompt...", 
+                variant: 'text' 
+              }
+            });
+            const emptyParagraph = state.schema.nodes.paragraph.create();
+            
+            const tr = state.tr.replaceSelectionWith(loadingBlock);
+            const insertPos = tr.selection.to;
+            tr.insert(insertPos, emptyParagraph);
+            
+            // Set selection at the start of the new paragraph
+            const newPos = insertPos + 1;
+            tr.setSelection(TextSelection.create(tr.doc, newPos));
+            
+            view.dispatch(tr);
+            
+            // Generate streaming coaching block from API
+            generateStreamingCoachingBlock(content, view, entryId).catch(error => {
+              console.error('Error in coaching block generation:', error);
+              // Replace with fallback error message
+              const currentState = view.state;
+              const currentDoc = currentState.doc;
+              
+              let coachingBlockPos = -1;
+              currentDoc.descendants((node, pos) => {
+                if (node.type.name === 'coachingBlock' && node.attrs.data.content === "Generating coaching prompt...") {
+                  coachingBlockPos = pos;
+                  return false;
+                }
+              });
+              
+              if (coachingBlockPos !== -1) {
+                const errorBlock = currentState.schema.nodes.coachingBlock.create({ 
+                  data: { 
+                    content: "Unable to generate coaching prompt. Please try again.", 
+                    variant: 'text' 
+                  }
+                });
+                
+                const newTr = currentState.tr.replaceWith(
+                  coachingBlockPos, 
+                  coachingBlockPos + 1, 
+                  errorBlock
+                );
+                
+                view.dispatch(newTr);
+              }
+            });
+            
+            return true;
+          }
+        }
+        
         return false; // Allow other keys to be handled normally
       },
     },
@@ -177,7 +481,12 @@ export default function Editor({ content, onChange, placeholder = "Start writing
   // Update editor content when prop changes
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+      // Schedule setContent outside of render cycle to avoid flushSync error
+      setTimeout(() => {
+        if (editor && content !== editor.getHTML()) {
+          editor.commands.setContent(content);
+        }
+      }, 0);
     }
   }, [content, editor]);
 
@@ -265,7 +574,9 @@ export default function Editor({ content, onChange, placeholder = "Start writing
             console.log('🖼️ [PASTE] Content after URL removal:', currentContent);
             
             // Set the clean content, then add the image
-            editor.commands.setContent(currentContent);
+            setTimeout(() => {
+              editor.commands.setContent(currentContent);
+            }, 0);
             editor.chain().focus().setImage({ src: url }).run();
               
             console.log('🖼️ [PASTE] Image inserted successfully, URL removed');
@@ -275,7 +586,9 @@ export default function Editor({ content, onChange, placeholder = "Start writing
             // Replace placeholder with the original URL text on failure
             const currentContent = editor.getHTML();
             const contentWithUrl = currentContent.replace(placeholderText, text);
-            editor.commands.setContent(contentWithUrl);
+            setTimeout(() => {
+              editor.commands.setContent(contentWithUrl);
+            }, 0);
           }
         } else {
           console.log('🖼️ [PASTE] Not recognized as image URL, allowing default paste');
@@ -331,13 +644,76 @@ export default function Editor({ content, onChange, placeholder = "Start writing
     }
   }, [editor, handleImageUpload, handleImageFromUrl]);
 
+  // Handle clicks in empty space below content to add new paragraph
+  const handleEditorClick = useCallback((event: React.MouseEvent) => {
+    if (!editor) return;
+
+    const editorElement = editorRef.current;
+    if (!editorElement) return;
+
+    // Get the ProseMirror editor view element
+    const proseMirrorElement = editorElement.querySelector('.ProseMirror');
+    if (!proseMirrorElement) return;
+
+    // Check if click was below the ProseMirror content
+    const proseMirrorRect = proseMirrorElement.getBoundingClientRect();
+    const clickY = event.clientY;
+    
+    if (clickY > proseMirrorRect.bottom) {
+      // Get the last node in the document
+      const { doc } = editor.state;
+      const lastNode = doc.lastChild;
+      
+      // Always ensure there's an empty paragraph at the end for continued writing
+      if (!lastNode || lastNode.type.name !== 'paragraph' || lastNode.textContent.trim() !== '') {
+        editor.chain()
+          .focus('end')
+          .insertContent('<p></p>')
+          .focus('end')
+          .run();
+      } else {
+        // If last node is already an empty paragraph, just focus it
+        editor.commands.focus('end');
+      }
+    }
+  }, [editor]);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    insertCoachingBlock: (content: string, variant: 'text' | 'buttons' = 'text', options?: string[], thinking?: string) => {
+      if (editor) {
+        editor.chain()
+          .focus()
+          .insertCoachingBlock(content, variant, options, thinking)
+          .insertContent('<p></p>')
+          .focus('end')
+          .run();
+      }
+    },
+    getEditor: () => editor,
+  }), [editor]);
 
   return (
-    <div className="w-full h-full relative" ref={editorRef}>
+    <div 
+      className="w-full h-full relative" 
+      ref={editorRef}
+      onClick={handleEditorClick}
+      style={{ minHeight: '100%' }}
+    >
       <EditorContent 
         editor={editor} 
-        className="w-full h-full"
+        className="w-full min-h-full"
+      />
+      {/* Add invisible clickable area to capture clicks below content */}
+      <div 
+        className="w-full flex-1 min-h-[200px]" 
+        onClick={handleEditorClick}
+        style={{ minHeight: '200px' }}
       />
     </div>
   );
-}
+});
+
+Editor.displayName = 'Editor';
+
+export default Editor;

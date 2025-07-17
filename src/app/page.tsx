@@ -296,7 +296,20 @@ export default function JournalApp() {
         return;
       }
 
-      // Note: CMD+Enter is handled at the TipTap editor level to prevent line breaks
+      // CMD+Enter to create new entry (global fallback when no editor is present)
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        // Only handle globally if no editor is focused (when no entries exist)
+        const activeElement = document.activeElement;
+        const isEditorFocused = activeElement?.closest('.ProseMirror');
+        
+        if (!isEditorFocused) {
+          event.preventDefault();
+          createNewEntry();
+          return;
+        }
+      }
+
+      // Note: CMD+Enter is also handled at the TipTap editor level to prevent line breaks
 
       // CMD+Up/Down to navigate through entries
       if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {

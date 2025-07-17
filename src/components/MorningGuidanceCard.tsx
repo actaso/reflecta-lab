@@ -66,12 +66,10 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
       }
 
       const data: GuidanceResponse = await response.json();
-      console.log('🔍 [DEBUG] Client received API response:', data);
       
       // If guidance was already used today, don't show it
       if (data.alreadyUsed) {
         setHasGuidance(false);
-        console.log('🔍 [DEBUG] Guidance already used today, hiding card');
         return;
       }
       
@@ -86,13 +84,6 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
           fromCache: data.fromCache,
           entryCount: journalEntries.length,
           hasAlignment: Boolean(userAlignment)
-        });
-        
-        console.log('🔍 [DEBUG] Client updated state with:', { 
-          journalQuestion: data.journalQuestion, 
-          detailedMorningPrompt: data.detailedMorningPrompt, 
-          reasoning: data.reasoning,
-          fromCache: data.fromCache
         });
       }
     } catch (err) {

@@ -132,8 +132,6 @@ ${entriesText}`;
               const responseText = contentItem.text;
               
               // Parse the response as JSON (handle markdown code blocks)
-              console.log('🔍 [DEBUG] Full OpenAI response text:', responseText);
-              
               try {
                 // Strip markdown code block formatting if present
                 let cleanedText = responseText.trim();
@@ -141,10 +139,7 @@ ${entriesText}`;
                   cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
                 }
                 
-                console.log('🔍 [DEBUG] Cleaned JSON text:', cleanedText);
-                
                 const jsonData = JSON.parse(cleanedText);
-                console.log('🔍 [DEBUG] Parsed JSON data:', jsonData);
                 
                 if (jsonData.journalQuestion) {
                   journalQuestion = jsonData.journalQuestion;
@@ -155,7 +150,6 @@ ${entriesText}`;
                 if (jsonData.reasoning) {
                   reasoning = jsonData.reasoning;
                 }
-                console.log('🔍 [DEBUG] Final extracted values:', { journalQuestion, detailedMorningPrompt, reasoning });
               } catch (parseError) {
                 console.error('Failed to parse JSON from OpenAI response:', parseError);
                 console.error('Raw response text that failed to parse:', responseText);

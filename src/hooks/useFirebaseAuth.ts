@@ -42,7 +42,7 @@ export const useFirebaseAuth = () => {
     };
 
     handleTokenExchange();
-  }, [clerkUser?.id, firebaseUser?.uid, clerkLoaded, clerkUser, firebaseUser]); // Use stable IDs instead of full objects
+  }, [clerkUser, firebaseUser, clerkLoaded]);
 
   // Initialize user document in Firestore when authentication is established
   useEffect(() => {

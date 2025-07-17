@@ -60,6 +60,7 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Minimal design**: Clean interface without visual clutter
 - **AI integration**: Shift key triggers AI mode selector for contextual assistance
 - **Image support**: Comprehensive image handling with Firebase Storage integration
+- **Coaching Blocks**: AI-powered inline coaching prompts with text and interactive button variants
 
 ### AI Chat Sidebar
 - **Three thinking modes** designed specifically for founders:
@@ -102,6 +103,17 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
 - **Usage Tracking**: Database field tracks when guidance is used to prevent re-showing
 - **Analytics Integration**: PostHog events track generation and usage patterns
 
+### Coaching Blocks System
+- **AI-Powered Inline Prompts**: Contextual coaching questions embedded directly in journal entries
+- **Two Display Variants**: 
+  - **Text Variant**: Markdown-rendered reflection questions with Sage icon
+  - **Button Variant**: Interactive actionable choices with horizontal button layout
+- **Keyboard Trigger**: Press Space at beginning of line to insert random coaching block
+- **Programmatic API**: `insertCoachingBlock` method for dynamic insertion
+- **Founder-Focused Content**: Prompts designed specifically for entrepreneurial reflection
+- **Visual Integration**: Consistent styling with editor design and dark mode support
+- **Extensible Architecture**: Built as TipTap node extension for future enhancements
+
 ### Authentication System
 - **Clerk + Firebase Bridge**: Seamless token exchange between Clerk and Firebase Auth
 - **Three states**: No config (disabled), not signed in (signin button), signed in (user avatar)
@@ -116,6 +128,7 @@ This is a Next.js 15 application using the App Router with TypeScript and Tailwi
   - `Cmd+Enter`: Create new entry
   - `Cmd+Up/Down`: Navigate between entries
   - `Shift+Cmd`: Open AI mode selector (while in editor)
+  - `Space`: Insert coaching block (at beginning of line)
   - `ESC`: Close AI sidebar or command palette
   - `Enter`: Send chat message / Select dropdown option
   - `Shift+Enter`: New line in chat input
@@ -154,6 +167,10 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── chat/route.ts                # OpenAI streaming API with 3 AI modes
+│   │   ├── coaching-interaction/        # Coaching blocks API
+│   │   │   ├── route.ts                # Coaching prompt generation endpoint
+│   │   │   └── validation.ts           # Request validation schemas
+│   │   ├── morning-guidance/route.ts   # Morning guidance generation API
 │   │   └── auth/firebase-token/route.ts # Clerk-to-Firebase token exchange
 │   ├── layout.tsx          # Root layout with ClerkProvider and PostHog
 │   ├── page.tsx            # Main journal app with command palette and sync
@@ -174,6 +191,8 @@ src/
 │   ├── AuthTestPanel.tsx   # Authentication testing interface
 │   ├── AutoTagExtension.ts # Custom TipTap extension for tag highlighting
 │   ├── TagExtension.ts     # TipTap mark extension (utility)
+│   ├── CoachingBlockExtension.tsx # AI coaching block TipTap extension
+│   ├── CoachingBlockDemo.tsx # Demo interface for coaching blocks
 │   └── ui/
 │       ├── button.tsx      # Reusable button component
 │       └── card.tsx        # Reusable card component
@@ -188,18 +207,36 @@ src/
 │   ├── firestore.ts        # Firestore service layer
 │   ├── clerk-firebase-auth.ts # Clerk-Firebase integration
 │   ├── providers.tsx       # React context providers
-│   └── utils.ts            # General utility functions
+│   ├── utils.ts            # General utility functions
+│   └── coaching/           # Multi-model coaching system
+│       ├── index.ts        # Coaching module exports & model initialization
+│       ├── contextBuilder.ts # Context building for coaching prompts
+│       ├── modelRegistry.ts # Central model registry & routing
+│       └── models/         # Individual coaching models
+│           ├── generalCoachingModel/   # Standard coaching for experienced users
+│           │   ├── generalCoachingModel.ts
+│           │   └── prompts/    # General coaching prompts
+│           └── lifeTrajectoryModel/    # Life exploration for new users
+│               ├── lifeTrajectoryModel.ts
+│               └── prompts/    # Life trajectory prompts
 ├── services/
 │   ├── syncService.ts      # Advanced localStorage-Firestore sync
-│   └── imageService.ts     # Firebase Storage image upload & processing
+│   ├── imageService.ts     # Firebase Storage image upload & processing
+│   ├── multiModelCoachingService.ts # Multi-model coaching service layer
+│   ├── firestoreAdminService.ts # Firestore admin operations
+│   └── index.ts            # Service exports
 ├── types/
-│   └── journal.ts          # TypeScript type definitions
+│   ├── journal.ts          # TypeScript type definitions
+│   └── coaching.ts         # Coaching system type definitions
 ├── utils/
-│   └── formatters.ts       # Date/time/content formatting utilities
+│   ├── formatters.ts       # Date/time/content formatting utilities
+│   ├── xmlStreamingParser.ts # XML streaming parser for AI responses
+│   └── index.ts            # Utility exports
 └── docs/
     ├── AI_CHAT_SIDEBAR.md     # Comprehensive AI feature documentation
     ├── ANALYTICS.md           # PostHog analytics implementation and events
     ├── AUTHENTICATION.md      # Authentication implementation guide
+    ├── COACHING_BLOCKS.md     # Coaching blocks system documentation
     ├── DEVELOPER_ONBOARDING.md # Developer setup and patterns guide
     └── SYNC_MECHANISM.md      # Sync implementation documentation
 ├── IMAGE_SUPPORT.md       # Image upload and processing documentation
@@ -219,6 +256,16 @@ The sidebar implements scroll-hijacking by:
 - **Pattern**: `^([a-zA-Z0-9_-]+):` (word followed by colon at line start)
 - **Implementation**: Custom TipTap extension using ProseMirror decorations
 - **Styling**: Yellow background (`#fef3c7`) with brown text (`#92400e`)
+
+### Coaching Blocks Implementation
+The Coaching Blocks system provides AI-powered inline coaching prompts through:
+1. **TipTap Node Extension**: Custom atomic node with ReactNodeViewRenderer
+2. **Two Display Variants**:
+   - **Text Variant**: Markdown-rendered prompts with Sage icon
+   - **Button Variant**: Interactive horizontal button layout for actionable choices
+3. **Keyboard Integration**: Space key at line start triggers random coaching block insertion
+4. **Programmatic API**: `insertCoachingBlock` command for dynamic content insertion
+5. **Visual Design**: Consistent styling with editor, dark mode support, and subtle animations
 
 ### Morning Guidance Implementation
 The Morning Guidance system provides personalized daily prompts through:
@@ -300,6 +347,7 @@ entries: Record<string, JournalEntry[]>
 - **@tiptap/extension-task-item**: Task item functionality
 - **@tiptap/extension-link**: Link handling
 - **@tiptap/extension-image**: Official image support with Firebase Storage integration
+- **react-markdown**: Markdown rendering for coaching block text variants
 
 ### AI Integration
 - **ai**: Vercel AI SDK for streaming responses and chat hooks

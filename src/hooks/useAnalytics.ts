@@ -131,6 +131,25 @@ export function useAnalytics() {
     });
   }, [posthog]);
 
+  const trackCoachingCompletion = useCallback((properties?: {
+    modelId?: string;
+    variant?: string;
+    entryId?: string;
+    contentLength?: number;
+    hasOptions?: boolean;
+    optionCount?: number;
+  }) => {
+    posthog?.capture('coaching_completion', {
+      timestamp: new Date().toISOString(),
+      model_id: properties?.modelId || 'unknown',
+      variant: properties?.variant || 'text',
+      entry_id: properties?.entryId,
+      content_length: properties?.contentLength || 0,
+      has_options: properties?.hasOptions || false,
+      option_count: properties?.optionCount || 0,
+    });
+  }, [posthog]);
+
   return {
     trackPageView,
     trackEntryCreated,
@@ -143,5 +162,6 @@ export function useAnalytics() {
     trackMorningGuidanceModalOpened,
     trackMorningGuidanceDismissed,
     trackAlignmentSet,
+    trackCoachingCompletion,
   };
 }

@@ -72,7 +72,6 @@ const convertToFirestoreData = (entry: Partial<JournalEntry>, userId: string): P
 // Convert Firestore document to UserAccount
 const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): UserAccount => { // eslint-disable-line @typescript-eslint/no-explicit-any
   const data = doc.data();
-  console.log('🔍 [DEBUG] Converting Firestore user data:', data);
   
   // Validate required fields
   if (!data.uid) {
@@ -262,15 +261,10 @@ export class FirestoreService {
   // Get or create user account
   static async getUserAccount(userId: string): Promise<UserAccount> {
     try {
-      console.log('🔍 [DEBUG] Getting user account for userId:', userId);
       const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
-      console.log('🔍 [DEBUG] Document reference created for path:', `${this.USERS_COLLECTION_NAME}/${userId}`);
-      
       const docSnap = await getDoc(docRef);
-      console.log('🔍 [DEBUG] Document snapshot exists:', docSnap.exists());
       
       if (docSnap.exists()) {
-        console.log('🔍 [DEBUG] Document data exists, converting...');
         const userData = docSnap.data();
         
         // Fix missing createdAt field for existing documents
@@ -283,7 +277,6 @@ export class FirestoreService {
         
         return convertFirestoreUserAccount({ id: docSnap.id, data: () => docSnap.data() });
       } else {
-        console.log('🔍 [DEBUG] Document does not exist, creating new user account...');
         // Create new user account
         const newUserAccount: UserAccount = {
           uid: userId,
@@ -291,12 +284,8 @@ export class FirestoreService {
           updatedAt: new Date()
         };
         
-        console.log('🔍 [DEBUG] New user account object:', newUserAccount);
         const firestoreData = convertToFirestoreUserData(newUserAccount);
-        console.log('🔍 [DEBUG] Converted Firestore data:', firestoreData);
-        
         await setDoc(docRef, firestoreData);
-        console.log('🔍 [DEBUG] User document created successfully');
         return newUserAccount;
       }
     } catch (error) {
