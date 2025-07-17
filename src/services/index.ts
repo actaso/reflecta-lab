@@ -1,3 +1,3 @@
 // Service layer exports
-export { CoachingService } from './coachingService';
+export { MultiModelCoachingService } from './multiModelCoachingService';
 export { FirestoreAdminService } from './firestoreAdminService';

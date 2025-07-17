@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import app from '@/lib/firebase-admin';
-import { CoachingService } from '@/services';
+import { MultiModelCoachingService } from '@/services/multiModelCoachingService';
 import { CoachingContextBuilder } from '@/lib/coaching';
 import { CoachingInteractionValidator } from './validation';
 
@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
     // Build coaching context
     const context = await CoachingContextBuilder.buildContext(validatedRequest, userId);
 
-    // Generate streaming response
-    const coachingService = new CoachingService();
+    // Generate streaming response using multi-model routing
+    const coachingService = new MultiModelCoachingService();
     return await coachingService.generateStreamingResponse(context);
 
   } catch (error) {

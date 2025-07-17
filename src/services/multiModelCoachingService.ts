@@ -1,17 +1,21 @@
 import OpenAI from 'openai';
 import { CoachingContext } from '@/types/coaching';
-import { CoachingPromptGenerator } from '@/lib/coaching';
+import { ModelRegistry, initializeCoachingModels } from '@/lib/coaching';
 import { XMLStreamingParser } from '@/utils/xmlStreamingParser';
 
 /**
- * Coaching Service
+ * Multi-Model Coaching Service
+ * Routes coaching requests to appropriate models based on context
  * Handles AI coaching interactions with streaming responses
- * Following Next.js 15 best practices for streaming
  */
-export class CoachingService {
+export class MultiModelCoachingService {
   private openrouter: OpenAI;
+  private modelsInitialized: Promise<void>;
 
   constructor() {
+    // Initialize coaching models asynchronously
+    this.modelsInitialized = initializeCoachingModels();
+    
     this.openrouter = new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: process.env.OPENROUTER_API_KEY,
@@ -22,12 +26,27 @@ export class CoachingService {
   }
 
   /**
-   * Generate streaming coaching response using Next.js 15 patterns
+   * Generate streaming coaching response using model routing
    */
   async generateStreamingResponse(context: CoachingContext): Promise<Response> {
-    const systemPrompt = CoachingPromptGenerator.generateSystemPrompt();
-    const userMessage = CoachingPromptGenerator.generateContextMessage(context);
+    // Ensure models are initialized
+    await this.modelsInitialized;
+    
+    // Route to appropriate model based on context
+    const routingDecision = ModelRegistry.routeToModel(context);
+    const model = ModelRegistry.getModel(routingDecision.modelId);
+ 
+    if (!model) {
+      throw new Error(`Model ${routingDecision.modelId} not found in registry`);
+    }
 
+    console.log(`🎯 Routing to model: ${routingDecision.modelId} - ${routingDecision.reason}`);
+
+    // Generate prompts using the selected model
+    const systemPrompt = model.generateSystemPrompt();
+    const userMessage = model.generateContextMessage(context);
+
+    console.log(`📝 Using model: ${model.getInfo().name}`);
     console.log('System prompt:', systemPrompt);
     console.log('User message:', userMessage);
     
@@ -43,7 +62,7 @@ export class CoachingService {
     });
 
     // Create async iterator for streaming data (Next.js 15 pattern)
-    const streamIterator = this.createStreamIterator(stream);
+    const streamIterator = this.createStreamIterator(stream, model.getInfo().name);
     
     // Convert iterator to ReadableStream following Next.js 15 best practices
     const readableStream = new ReadableStream({
@@ -67,35 +86,40 @@ export class CoachingService {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
+        'X-Coaching-Model': routingDecision.modelId, // Add model info to headers
+        'X-Routing-Reason': encodeURIComponent(routingDecision.reason),
       },
     });
   }
 
   /**
-   * Create async iterator for streaming data (Next.js 15 pattern)
+   * Create async iterator for streaming data with model context
    */
-  private async* createStreamIterator(stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>) {
+  private async* createStreamIterator(
+    stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>,
+    modelName: string
+  ) {
     const buffer: string[] = [];
     let fullResponse = ''; // Collect full response for logging
 
     const parser = new XMLStreamingParser({
       thinking: (data) => {
-        buffer.push(`data: ${JSON.stringify({ type: 'thinking', ...data })}\n\n`);
+        buffer.push(`data: ${JSON.stringify({ type: 'thinking', model: modelName, ...data })}\n\n`);
       },
       metadata: (data) => {
-        buffer.push(`data: ${JSON.stringify({ type: 'metadata', ...data })}\n\n`);
+        buffer.push(`data: ${JSON.stringify({ type: 'metadata', model: modelName, ...data })}\n\n`);
       },
       content: (data) => {
-        buffer.push(`data: ${JSON.stringify({ type: 'content', ...data })}\n\n`);
+        buffer.push(`data: ${JSON.stringify({ type: 'content', model: modelName, ...data })}\n\n`);
       },
       done: () => {
-        buffer.push(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        buffer.push(`data: ${JSON.stringify({ type: 'done', model: modelName })}\n\n`);
       },
       fallback: (data) => {
-        buffer.push(`data: ${JSON.stringify({ type: 'fallback', ...data })}\n\n`);
+        buffer.push(`data: ${JSON.stringify({ type: 'fallback', model: modelName, ...data })}\n\n`);
       },
       error: (data) => {
-        buffer.push(`data: ${JSON.stringify({ type: 'error', ...data })}\n\n`);
+        buffer.push(`data: ${JSON.stringify({ type: 'error', model: modelName, ...data })}\n\n`);
       }
     });
 
@@ -108,7 +132,7 @@ export class CoachingService {
           fullResponse += content;
           
           // Send raw content for client logging
-          buffer.push(`data: ${JSON.stringify({ type: 'raw', content })}\n\n`);
+          buffer.push(`data: ${JSON.stringify({ type: 'raw', model: modelName, content })}\n\n`);
           
           // Parse content for structured events
           parser.processChunk(content);
@@ -121,7 +145,7 @@ export class CoachingService {
       }
       
       // Send complete response for logging
-      buffer.push(`data: ${JSON.stringify({ type: 'full_response', content: fullResponse })}\n\n`);
+      buffer.push(`data: ${JSON.stringify({ type: 'full_response', model: modelName, content: fullResponse })}\n\n`);
       
       // Handle end of stream
       parser.endStream();
@@ -140,4 +164,4 @@ export class CoachingService {
       }
     }
   }
-}
+} 

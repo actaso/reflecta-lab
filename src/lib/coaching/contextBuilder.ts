@@ -20,13 +20,17 @@ export class CoachingContextBuilder {
     const recentEntries = await FirestoreAdminService.getRecentJournalEntries(userId, 10);
     const formattedRecentEntries = this.formatRecentEntries(recentEntries);
     
+    // Get total entry count for routing logic
+    const entryCount = await FirestoreAdminService.getUserEntryCount(userId);
+    
     return {
       entryId: request.entryId,
       entryContent: request.entryContent,
       userAlignment: alignment,
       recentEntries,
       formattedRecentEntries,
-      userId
+      userId,
+      entryCount
     };
   }
 

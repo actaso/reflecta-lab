@@ -73,4 +73,22 @@ export class FirestoreAdminService {
       return [];
     }
   }
+
+  /**
+   * Get the total count of journal entries for a user
+   */
+  static async getUserEntryCount(userId: string): Promise<number> {
+    if (!this.db) return 0;
+    
+    try {
+      const query = this.db.collection('journal_entries')
+        .where('uid', '==', userId);
+      
+      const snapshot = await query.get();
+      return snapshot.size;
+    } catch (error) {
+      console.error('Error fetching user entry count:', error);
+      return 0;
+    }
+  }
 }

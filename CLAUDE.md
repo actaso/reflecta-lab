@@ -208,14 +208,21 @@ src/
 │   ├── clerk-firebase-auth.ts # Clerk-Firebase integration
 │   ├── providers.tsx       # React context providers
 │   ├── utils.ts            # General utility functions
-│   └── coaching/           # Coaching system utilities
-│       ├── index.ts        # Coaching module exports
+│   └── coaching/           # Multi-model coaching system
+│       ├── index.ts        # Coaching module exports & model initialization
 │       ├── contextBuilder.ts # Context building for coaching prompts
-│       └── promptGenerator.ts # Coaching prompt generation
+│       ├── modelRegistry.ts # Central model registry & routing
+│       └── models/         # Individual coaching models
+│           ├── generalCoachingModel/   # Standard coaching for experienced users
+│           │   ├── generalCoachingModel.ts
+│           │   └── prompts/    # General coaching prompts
+│           └── lifeTrajectoryModel/    # Life exploration for new users
+│               ├── lifeTrajectoryModel.ts
+│               └── prompts/    # Life trajectory prompts
 ├── services/
 │   ├── syncService.ts      # Advanced localStorage-Firestore sync
 │   ├── imageService.ts     # Firebase Storage image upload & processing
-│   ├── coachingService.ts  # Coaching blocks service layer
+│   ├── multiModelCoachingService.ts # Multi-model coaching service layer
 │   ├── firestoreAdminService.ts # Firestore admin operations
 │   └── index.ts            # Service exports
 ├── types/
