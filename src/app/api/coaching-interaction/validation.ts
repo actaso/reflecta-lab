@@ -21,7 +21,7 @@ export class CoachingInteractionValidator {
       throw new Error('Invalid or missing entryId');
     }
 
-    if (!bodyObj.entryContent || typeof bodyObj.entryContent !== 'string') {
+    if (bodyObj.entryContent === undefined || bodyObj.entryContent === null || typeof bodyObj.entryContent !== 'string') {
       throw new Error('Invalid or missing entryContent');
     }
 
