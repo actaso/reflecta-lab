@@ -1,4 +1,6 @@
 import { CoachingContext } from '@/types/coaching';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
  * Coaching Prompt Generator
@@ -8,59 +10,75 @@ import { CoachingContext } from '@/types/coaching';
  * specifically for founder coaching scenarios.
  */
 export class CoachingPromptGenerator {
+  private static readonly PROMPTS_DIR = join(process.cwd(), 'src/lib/coaching/prompts');
+
   /**
-   * Generate a coaching prompt based on user context
+   * Read prompt file content
    */
-  static generatePrompt(context: CoachingContext): string {
-    const recentEntriesText = context.recentEntries
-      .map(entry => `"${entry.content.replace(/<[^>]*>/g, '')}"`)
-      .join(', ');
+  private static readPromptFile(filename: string): string {
+    try {
+      const filePath = join(this.PROMPTS_DIR, filename);
+      return readFileSync(filePath, 'utf-8').trim();
+    } catch (error) {
+      console.error(`Error reading prompt file ${filename}:`, error);
+      throw new Error(`Failed to load prompt file: ${filename}`);
+    }
+  }
 
-    return `You are an experienced startup coach and mentor for founders. You provide thoughtful, actionable guidance to help entrepreneurs reflect on their journey and make better decisions.
+  /**
+   * Role definition for the AI coach
+   */
+  static getRole(): string {
+    return this.readPromptFile('role.md');
+  }
 
-Context:
-- Current Entry: ${context.entryContent}
-- User Alignment: ${context.userAlignment}
-- Recent Entries: ${recentEntriesText || 'N/A'}
+  /**
+   * Task definition for what the AI should do
+   */
+  static getTask(): string {
+    return this.readPromptFile('task.md');
+  }
 
-Your task is to analyze this context and create the most helpful coaching intervention. You must respond in this EXACT XML format:
+  /**
+   * Output format specification
+   */
+  static getOutput(): string {
+    return this.readPromptFile('output.md');
+  }
 
-<coaching>
-  <variant>text</variant>
-  <content>
-    Your coaching prompt/question goes here...
-  </content>
-</coaching>
+  /**
+   * Behavior guidelines for the AI
+   */
+  static getBehavior(): string {
+    return this.readPromptFile('behavior.md');
+  }
 
-OR for interactive choices:
+  /**
+   * Generate the complete system prompt by combining all parts
+   */
+  static generateSystemPrompt(): string {
+    return [
+      this.getRole(),
+      '',
+      this.getTask(),
+      '',
+      this.getOutput(),
+      '',
+      this.getBehavior()
+    ].join('\n');
+  }
 
-<coaching>
-  <variant>buttons</variant>
-  <options>
-    <option>Action choice 1</option>
-    <option>Action choice 2</option>
-    <option>Action choice 3</option>
-  </options>
-  <content>
-    Your coaching question goes here...
-  </content>
-</coaching>
+  /**
+   * Generate user context message
+   */
+  static generateContextMessage(context: CoachingContext): string {
+    return `Please analyze the following context and provide coaching guidance:
 
-Guidelines:
-- Use variant "text" for deep reflection questions
-- Use variant "buttons" for 2-5 actionable choices  
-- Use variant "multi-select" for multiple applicable options
-- Keep prompts concise but meaningful (1-2 sentences)
-- Focus on founder-specific challenges and opportunities
-- Only include <options> for buttons/multi-select variants
-- The content will be streamed to the user for better UX
+Current Entry: ${context.entryContent}
 
-IMPORTANT: 
-- Start immediately with <coaching>
-- Use exact tag names: variant, options, option, content
-- Keep content conversational and actionable
-- No extra text outside the XML structure
+User Alignment: ${context.userAlignment}
 
-Respond only with the XML structure as specified.`;
+Recent Entries: 
+${context.formattedRecentEntries}`;
   }
 }

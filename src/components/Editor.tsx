@@ -139,6 +139,18 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
               const data = JSON.parse(line.substring(6));
               
               switch (data.type) {
+                case 'raw':
+                  // Log raw model response chunks for debugging
+                  console.log('🔍 Raw model chunk:', data.content);
+                  break;
+                  
+                case 'thinking':
+                  // Handle thinking stream (could be logged or shown as "AI is thinking...")
+                  console.log('🤔 Thinking:', data.text);
+                  // For now, just update block to show thinking is happening
+                  updateCoachingBlock("AI is analyzing your context...", variant, options);
+                  break;
+                  
                 case 'metadata':
                   // Update UI structure immediately
                   variant = data.variant;
@@ -156,6 +168,11 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
                   
                   // Update block with streaming content
                   updateCoachingBlock(streamedContent, variant, options);
+                  break;
+                  
+                case 'full_response':
+                  // Log complete model response for debugging
+                  console.log('📄 Full model response:', data.content);
                   break;
                   
                 case 'done':

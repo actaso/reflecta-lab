@@ -7,6 +7,7 @@
  */
 
 export interface XMLStreamingParserEvents {
+  thinking: (data: { text: string }) => void;
   metadata: (data: Record<string, unknown>) => void;
   content: (data: { text: string }) => void;
   done: () => void;
@@ -20,6 +21,7 @@ export class XMLStreamingParser {
   private inTag = false;
   private parsedData: Record<string, unknown> = {};
   private contentBuffer = '';
+  private thinkingBuffer = '';
   private metadataSent = false;
   private fullResponse = '';
   private streamEnded = false;
@@ -44,6 +46,8 @@ export class XMLStreamingParser {
       }
     } else if (tagName === 'content') {
       // Content is streamed in real-time, no processing needed here
+    } else if (tagName === 'thinking') {
+      // Thinking is streamed in real-time, no processing needed here
     } else {
       // Generic tag storage
       this.parsedData[tagName] = trimmedContent;
@@ -69,6 +73,18 @@ export class XMLStreamingParser {
   }
 
   /**
+   * Processes streaming content within <thinking> tags
+   */
+  private processThinkingChunk(chunk: string) {
+    // Remove closing tag if present
+    const cleanChunk = chunk.replace('</thinking>', '');
+    if (cleanChunk) {
+      this.thinkingBuffer += cleanChunk;
+      this.events.thinking({ text: cleanChunk });
+    }
+  }
+
+  /**
    * Process a chunk of streaming content
    */
   processChunk(content: string) {
@@ -82,11 +98,15 @@ export class XMLStreamingParser {
       
       if (char === '<') {
         // Start of a tag
-        if (this.inTag && this.currentTag === 'content') {
-          // We're in content and hit a new tag (likely </content>)
+        if (this.inTag && (this.currentTag === 'content' || this.currentTag === 'thinking')) {
+          // We're in content/thinking and hit a new tag (likely closing tag)
           // Process any remaining content
           if (this.tagContent) {
-            this.processContentChunk(this.tagContent);
+            if (this.currentTag === 'content') {
+              this.processContentChunk(this.tagContent);
+            } else if (this.currentTag === 'thinking') {
+              this.processThinkingChunk(this.tagContent);
+            }
           }
         }
         
@@ -109,8 +129,8 @@ export class XMLStreamingParser {
           }
         } else {
           // Opening tag
-          if (this.currentTag === 'content') {
-            // Start streaming content
+          if (this.currentTag === 'content' || this.currentTag === 'thinking') {
+            // Start streaming content or thinking
             this.tagContent = '';
           }
         }
@@ -121,9 +141,11 @@ export class XMLStreamingParser {
         // Content inside tag
         this.tagContent += char;
         
-        // If we're in content tag, stream it immediately
+        // If we're in content or thinking tag, stream it immediately
         if (this.currentTag === 'content') {
           this.processContentChunk(char);
+        } else if (this.currentTag === 'thinking') {
+          this.processThinkingChunk(char);
         }
       }
     }
@@ -145,7 +167,7 @@ export class XMLStreamingParser {
     if (this.streamEnded) return;
     
     // Stream ended - send whatever we have
-    if (this.contentBuffer || this.parsedData.variant) {
+    if (this.contentBuffer || this.thinkingBuffer || this.parsedData.variant) {
       if (!this.metadataSent && this.parsedData.variant) {
         this.events.metadata(this.parsedData);
       }

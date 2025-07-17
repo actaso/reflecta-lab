@@ -24,5 +24,6 @@ export type CoachingContext = {
   entryContent: string;
   userAlignment: string;
   recentEntries: JournalEntry[];
+  formattedRecentEntries: string;
   userId: string;
 };

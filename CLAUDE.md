@@ -167,6 +167,10 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── chat/route.ts                # OpenAI streaming API with 3 AI modes
+│   │   ├── coaching-interaction/        # Coaching blocks API
+│   │   │   ├── route.ts                # Coaching prompt generation endpoint
+│   │   │   └── validation.ts           # Request validation schemas
+│   │   ├── morning-guidance/route.ts   # Morning guidance generation API
 │   │   └── auth/firebase-token/route.ts # Clerk-to-Firebase token exchange
 │   ├── layout.tsx          # Root layout with ClerkProvider and PostHog
 │   ├── page.tsx            # Main journal app with command palette and sync
@@ -203,14 +207,24 @@ src/
 │   ├── firestore.ts        # Firestore service layer
 │   ├── clerk-firebase-auth.ts # Clerk-Firebase integration
 │   ├── providers.tsx       # React context providers
-│   └── utils.ts            # General utility functions
+│   ├── utils.ts            # General utility functions
+│   └── coaching/           # Coaching system utilities
+│       ├── index.ts        # Coaching module exports
+│       ├── contextBuilder.ts # Context building for coaching prompts
+│       └── promptGenerator.ts # Coaching prompt generation
 ├── services/
 │   ├── syncService.ts      # Advanced localStorage-Firestore sync
-│   └── imageService.ts     # Firebase Storage image upload & processing
+│   ├── imageService.ts     # Firebase Storage image upload & processing
+│   ├── coachingService.ts  # Coaching blocks service layer
+│   ├── firestoreAdminService.ts # Firestore admin operations
+│   └── index.ts            # Service exports
 ├── types/
-│   └── journal.ts          # TypeScript type definitions
+│   ├── journal.ts          # TypeScript type definitions
+│   └── coaching.ts         # Coaching system type definitions
 ├── utils/
-│   └── formatters.ts       # Date/time/content formatting utilities
+│   ├── formatters.ts       # Date/time/content formatting utilities
+│   ├── xmlStreamingParser.ts # XML streaming parser for AI responses
+│   └── index.ts            # Utility exports
 └── docs/
     ├── AI_CHAT_SIDEBAR.md     # Comprehensive AI feature documentation
     ├── ANALYTICS.md           # PostHog analytics implementation and events

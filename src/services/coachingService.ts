@@ -25,15 +25,20 @@ export class CoachingService {
    * Generate streaming coaching response using Next.js 15 patterns
    */
   async generateStreamingResponse(context: CoachingContext): Promise<Response> {
-    const prompt = CoachingPromptGenerator.generatePrompt(context);
+    const systemPrompt = CoachingPromptGenerator.generateSystemPrompt();
+    const userMessage = CoachingPromptGenerator.generateContextMessage(context);
+
+    console.log('System prompt:', systemPrompt);
+    console.log('User message:', userMessage);
     
     const stream = await this.openrouter.chat.completions.create({
       model: 'openai/gpt-4.1',
       messages: [
-        { role: 'system', content: prompt }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
       ],
       temperature: 0.7,
-      max_tokens: 500,
+      max_tokens: 1500,
       stream: true,
     });
 
@@ -71,8 +76,12 @@ export class CoachingService {
    */
   private async* createStreamIterator(stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>) {
     const buffer: string[] = [];
+    let fullResponse = ''; // Collect full response for logging
 
     const parser = new XMLStreamingParser({
+      thinking: (data) => {
+        buffer.push(`data: ${JSON.stringify({ type: 'thinking', ...data })}\n\n`);
+      },
       metadata: (data) => {
         buffer.push(`data: ${JSON.stringify({ type: 'metadata', ...data })}\n\n`);
       },
@@ -95,6 +104,13 @@ export class CoachingService {
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || '';
         if (content) {
+          // Accumulate full response
+          fullResponse += content;
+          
+          // Send raw content for client logging
+          buffer.push(`data: ${JSON.stringify({ type: 'raw', content })}\n\n`);
+          
+          // Parse content for structured events
           parser.processChunk(content);
         }
 
@@ -103,6 +119,9 @@ export class CoachingService {
           yield buffer.shift()!;
         }
       }
+      
+      // Send complete response for logging
+      buffer.push(`data: ${JSON.stringify({ type: 'full_response', content: fullResponse })}\n\n`);
       
       // Handle end of stream
       parser.endStream();
