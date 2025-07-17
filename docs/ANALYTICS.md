@@ -44,7 +44,10 @@ if (user && posthog) {
 - `morning_guidance_modal_opened` - User expands detailed view
 - `alignment_set` - User sets/updates their main objective
 
-### 3. Event Properties
+### 3. Coaching Analytics
+- `coaching_completion` - AI coaching block generation completed
+
+### 4. Event Properties
 
 #### Morning Guidance Events
 ```typescript
@@ -69,6 +72,20 @@ if (user && posthog) {
   timestamp: string,
   alignment_length: number,   // Character count
   is_update: boolean         // Whether updating existing
+}
+```
+
+#### Coaching Events
+```typescript
+// Coaching completion tracking
+{
+  timestamp: string,
+  model_id: string,          // Which AI model was used
+  variant: string,           // Display variant (text, buttons)
+  entry_id: string,          // Associated journal entry
+  content_length: number,    // Length of generated content
+  has_options: boolean,      // Whether coaching block has options
+  option_count: number       // Number of options provided
 }
 ```
 

@@ -27,6 +27,7 @@ import { ImageMetadata } from '@/types/journal';
 import { imageService } from '@/services/imageService';
 import { auth } from '@/lib/firebase';
 import { CoachingInteractionRequest } from '@/types/coaching';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 interface EditorProps {
   content: string;
@@ -45,6 +46,7 @@ export interface EditorHandle {
 
 const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, placeholder = "Start writing...", autoFocus = false, entryId, onImageUploaded, onCreateNewEntry }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const { trackCoachingCompletion } = useAnalytics();
 
   // Legacy function - commented out to avoid linting errors
   // const generateCoachingBlock = useCallback(async (currentContent: string, currentEntryId?: string) => {
@@ -185,6 +187,16 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
                   
                   // Final update to mark as complete
                   updateCoachingBlock(streamedContent, variant, options, streamedThinking);
+                  
+                  // Track coaching completion analytics
+                  trackCoachingCompletion({
+                    modelId: data.model,
+                    variant: variant,
+                    entryId: currentEntryId,
+                    contentLength: streamedContent.length,
+                    hasOptions: Boolean(options && options.length > 0),
+                    optionCount: options?.length || 0,
+                  });
                   break;
                   
                 case 'fallback':
@@ -194,6 +206,16 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
                   isComplete = true;
                   
                   updateCoachingBlock(streamedContent, variant, options, streamedThinking);
+                  
+                  // Track coaching completion analytics for fallback
+                  trackCoachingCompletion({
+                    modelId: data.model,
+                    variant: variant,
+                    entryId: currentEntryId,
+                    contentLength: streamedContent.length,
+                    hasOptions: Boolean(options && options.length > 0),
+                    optionCount: options?.length || 0,
+                  });
                   break;
                   
                 case 'error':

@@ -47,8 +47,6 @@ export class MultiModelCoachingService {
     const userMessage = model.generateContextMessage(context);
 
     console.log(`📝 Using model: ${model.getInfo().name}`);
-    console.log('System prompt:', systemPrompt);
-    console.log('User message:', userMessage);
     
     const stream = await this.openrouter.chat.completions.create({
       model: 'openai/gpt-4.1',
