@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import CoachingHeader from './CoachingHeader';
 import CoachingInput from './CoachingInput';
 import CoachingMessage from './CoachingMessage';
+import MeditationIntro from './MeditationIntro';
+import MeditationSession from './MeditationSession';
+import MeditationTransition from './MeditationTransition';
 import confetti from 'canvas-confetti';
 
 interface CoachingMessage {
@@ -20,6 +23,7 @@ interface CoachingSessionData {
 }
 
 export default function CoachingSession() {
+  const [meditationPhase, setMeditationPhase] = useState<'intro' | 'active' | 'transitioning' | 'complete'>('intro');
   const [sessionData, setSessionData] = useState<CoachingSessionData>({
     objective: "Life Deep Dive Session",
     progress: 0,
@@ -27,7 +31,7 @@ export default function CoachingSession() {
       {
         id: '1',
         role: 'assistant',
-        content: "Before we dive in—take a breath.\n\nLet's start with a short breathing exercise to center ourselves:\n\n[meditation:title=\"5-Minute Centering\",duration=\"300\",description=\"A gentle breathing exercise to help you connect with what's present right now\",type=\"breathing\"]\n\nOnce you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
+        content: "Once you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
         timestamp: new Date()
       }
     ]
@@ -35,7 +39,6 @@ export default function CoachingSession() {
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isEvaluatingProgress, setIsEvaluatingProgress] = useState(false);
   const [confettiTriggered, setConfettiTriggered] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -57,13 +60,6 @@ export default function CoachingSession() {
       setTimeout(triggerCompletionCelebration, 300);
     }
   }, [sessionData.progress, confettiTriggered]);
-
-  // Format time as MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const triggerCompletionCelebration = () => {
     // Burst from the progress bar area (top center)
@@ -102,7 +98,6 @@ export default function CoachingSession() {
 
   const evaluateProgress = async () => {
     try {
-      setIsEvaluatingProgress(true);
       console.log('🎯 Evaluating coaching progress...', 'Current progress:', sessionData.progress);
       
       const response = await fetch('/api/prototype/progress-evaluation', {
@@ -147,8 +142,6 @@ export default function CoachingSession() {
         ...prev,
         progress: Math.min(prev.progress + 5, 100)
       }));
-    } finally {
-      setIsEvaluatingProgress(false);
     }
   };
 
@@ -312,11 +305,40 @@ export default function CoachingSession() {
     }
   };
 
+  const handleMeditationComplete = () => {
+    setMeditationPhase('transitioning');
+    // Give a moment for the transition, then show the coaching interface
+    setTimeout(() => {
+      setMeditationPhase('complete');
+    }, 1000);
+  };
+
+  const startMeditation = () => {
+    setMeditationPhase('active');
+  };
+
+  // Render meditation introduction screen
+  if (meditationPhase === 'intro') {
+    return <MeditationIntro onStartMeditation={startMeditation} />;
+  }
+
+  // Render full-screen meditation experience
+  if (meditationPhase === 'active') {
+    return <MeditationSession onComplete={handleMeditationComplete} />;
+  }
+
+  // Transition phase
+  if (meditationPhase === 'transitioning') {
+    return <MeditationTransition />;
+  }
+
+  // Full coaching interface (meditationPhase === 'complete')
   return (
     <div className="h-screen bg-white flex flex-col relative">
       <CoachingHeader 
         objective={sessionData.objective}
         progress={sessionData.progress}
+        estimatedTime="25m"
       />
 
       <div className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />

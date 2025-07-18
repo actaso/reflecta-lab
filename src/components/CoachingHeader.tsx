@@ -3,17 +3,24 @@
 interface CoachingHeaderProps {
   objective: string;
   progress: number; // 0-100
+  estimatedTime?: string; // Optional estimated time (e.g. "25m")
 }
 
-export default function CoachingHeader({ objective, progress }: CoachingHeaderProps) {
+export default function CoachingHeader({ objective, progress, estimatedTime }: CoachingHeaderProps) {
   return (
     <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-10">
       <div className="bg-white/95 backdrop-blur-sm border border-neutral-200 rounded-2xl px-6 py-4 shadow-lg max-w-2xl">
         <div className="flex items-center justify-between gap-4">
-          {/* Objective */}
+          {/* Objective and Time */}
           <div className="flex-1">
             <h2 className="text-sm font-medium text-neutral-900 leading-tight">
               {objective}
+              {estimatedTime && (
+                <span className="text-neutral-500">
+                  <span className="mx-2">·</span>
+                  {estimatedTime}
+                </span>
+              )}
             </h2>
           </div>
           
