@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
 import { signInWithClerkToken, signOutFromFirebase } from '@/lib/clerk-firebase-auth';
 import { FirestoreService } from '@/lib/firestore';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
 export interface AuthUser {
   uid: string;
@@ -17,6 +18,12 @@ export const useFirebaseAuth = () => {
   const [firebaseUser, firebaseLoading, firebaseError] = useAuthState(auth);
   const [isExchangingToken, setIsExchangingToken] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { trackSignIn, trackSignUp, trackSignOut } = useAnalytics();
+  
+  // Track if we've already processed this user to avoid duplicate events
+  const processedUserRef = useRef<string | null>(null);
+  // Track previous authentication state to detect sign-outs
+  const wasAuthenticatedRef = useRef<boolean>(false);
 
   // Exchange Clerk token for Firebase token when Clerk user changes
   useEffect(() => {
@@ -61,6 +68,73 @@ export const useFirebaseAuth = () => {
 
     initializeUserDocument();
   }, [firebaseUser?.uid]); // Only run when firebaseUser.uid changes
+
+  // Track authentication events when user completes authentication
+  useEffect(() => {
+    const trackAuthenticationEvent = async () => {
+      // Only track if we have both Clerk and Firebase users, and haven't processed this user yet
+      if (!clerkUser || !firebaseUser || processedUserRef.current === clerkUser.id) return;
+
+      try {
+        // Mark this user as processed to avoid duplicate events
+        processedUserRef.current = clerkUser.id;
+
+        // Check if this is a new user by looking at account creation time
+        const userAccount = await FirestoreService.getUserAccount(firebaseUser.uid);
+        const isNewUser = userAccount && userAccount.createdAt && 
+          (Date.now() - userAccount.createdAt.getTime()) < 60000; // Created within last minute
+
+        // Load anonymous entries to check if user had existing data
+        const localEntries = JSON.parse(localStorage.getItem('journal-entries') || '{}');
+        const anonymousEntryCount = Object.values(localEntries).flat().filter((entry: any) => 
+          entry.uid === 'local-user'
+        ).length;
+
+        const trackingProperties = {
+          method: 'clerk',
+          hasExistingData: anonymousEntryCount > 0,
+          anonymousEntryCount
+        };
+
+        if (isNewUser) {
+          console.log('📊 [ANALYTICS] Tracking new user sign up');
+          trackSignUp(trackingProperties);
+        } else {
+          console.log('📊 [ANALYTICS] Tracking existing user sign in');
+          trackSignIn(trackingProperties);
+        }
+      } catch (error) {
+        console.error('Failed to track authentication event:', error);
+        // Fallback to tracking as sign-in if we can't determine
+        trackSignIn({
+          method: 'clerk',
+          hasExistingData: false,
+          anonymousEntryCount: 0
+        });
+      }
+    };
+
+    trackAuthenticationEvent();
+  }, [clerkUser, firebaseUser, trackSignIn, trackSignUp]);
+
+  // Track sign-out events and reset processed user when user logs out
+  useEffect(() => {
+    const isCurrentlyAuthenticated = !!(clerkUser && firebaseUser);
+    
+    // If user was authenticated but is no longer, track sign out
+    if (wasAuthenticatedRef.current && !isCurrentlyAuthenticated) {
+      console.log('📊 [ANALYTICS] Tracking user sign out');
+      trackSignOut();
+    }
+    
+    // Update the authentication state tracking
+    wasAuthenticatedRef.current = isCurrentlyAuthenticated;
+    
+    // Reset processed user when user logs out
+    if (!clerkUser) {
+      processedUserRef.current = null;
+    }
+  }, [clerkUser, firebaseUser, trackSignOut]);
 
   // Memoize the authUser object to prevent unnecessary re-renders
   const authUser: AuthUser | null = useMemo(() => {
