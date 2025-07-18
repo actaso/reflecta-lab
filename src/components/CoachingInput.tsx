@@ -89,7 +89,7 @@ export default function CoachingInput({
     <div className="fixed bottom-0 left-0 right-0 max-w-[720px] mx-auto bg-white/95 backdrop-blur-sm border border-neutral-200 rounded-t-2xl shadow-lg">
       <div className="flex justify-center p-4">
         <div className="w-full max-w-[720px]">
-          <form onSubmit={handleSubmit} className="flex items-end gap-2">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
             {/* Text Input */}
             <div className="flex-1 relative">
               <textarea
@@ -98,7 +98,7 @@ export default function CoachingInput({
                 onChange={(e) => onInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={isListening ? "Listening..." : "What's on your mind?"}
-                className="w-full resize-none rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm placeholder-neutral-400 focus:outline-none disabled:opacity-50 transition-all"
+                className="w-full resize-none rounded-2xl border border-neutral-200 bg-white px-4 py-2.5 text-sm placeholder-neutral-400 focus:outline-none disabled:opacity-50 transition-all"
                 rows={1}
                 disabled={isLoading || isListening}
               />
