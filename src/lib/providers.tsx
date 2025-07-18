@@ -16,28 +16,26 @@ export function PHProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Only initialize if not already initialized
-    if (!posthog.__loaded) {
-      try {
-        posthog.init(posthogKey, {
-          api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com',
-          capture_pageview: false, // We'll manually capture pageviews
-          capture_pageleave: true,
-          loaded: () => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('✅ PostHog loaded successfully');
-            }
-          },
-          on_request_error: (error) => {
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('PostHog request error:', error);
-            }
+    // Initialize PostHog only once per session
+    try {
+      posthog.init(posthogKey, {
+        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com',
+        capture_pageview: false, // We'll manually capture pageviews
+        capture_pageleave: true,
+        loaded: () => {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ PostHog loaded successfully');
           }
-        });
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('❌ Failed to initialize PostHog:', error);
+        },
+        on_request_error: (error) => {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('PostHog request error:', error);
+          }
         }
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to initialize PostHog:', error);
       }
     }
   }, []);
