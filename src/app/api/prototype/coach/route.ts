@@ -176,7 +176,7 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
       throw new Error('Invalid conversation history format');
     }
     
-    conversationHistory = bodyObj.conversationHistory.map((msg: any) => ({
+    conversationHistory = bodyObj.conversationHistory.map((msg: { id: string; role: 'user' | 'assistant'; content: string; timestamp: string }) => ({
       id: msg.id,
       role: msg.role,
       content: msg.content,

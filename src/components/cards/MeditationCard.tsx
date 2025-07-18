@@ -14,7 +14,6 @@ interface MeditationCardProps {
 export default function MeditationCard({ 
   title, 
   duration, 
-  description,
   type = 'breathing' 
 }: MeditationCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);

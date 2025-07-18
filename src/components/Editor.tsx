@@ -271,7 +271,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
         view.dispatch(newTr);
       }
     }
-  }, []);
+  }, [trackCoachingCompletion]);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (file: File): Promise<string> => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 export type VoiceRecordingState = 'idle' | 'recording' | 'paused' | 'processing' | 'reviewing';
 
@@ -74,7 +74,7 @@ export function useVoiceRecorder(): VoiceRecorderHook {
 
       streamRef.current = stream;
 
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
 
@@ -110,7 +110,7 @@ export function useVoiceRecorder(): VoiceRecorderHook {
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && voiceRecording.state !== 'processing') {
       setVoiceRecording(prev => ({ ...prev, state: 'processing' }));
       mediaRecorderRef.current.stop();
@@ -130,9 +130,9 @@ export function useVoiceRecorder(): VoiceRecorderHook {
       
       console.log('Recording stopped and resources cleaned up.');
     }
-  };
+  }, [voiceRecording.state]);
 
-  const transcribeAudio = async (audioBlob: Blob) => {
+  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
     try {
       console.log('Starting transcription...');
       
@@ -175,7 +175,7 @@ export function useVoiceRecorder(): VoiceRecorderHook {
         error: 'Transcription failed, but you can still send your voice message'
       }));
     }
-  };
+  }, [voiceRecording.duration]);
 
   const pauseRecording = () => {
     if (mediaRecorderRef.current) {
@@ -231,19 +231,23 @@ export function useVoiceRecorder(): VoiceRecorderHook {
     if (voiceRecording.state === 'processing' && voiceRecording.audioBlob) {
       transcribeAudio(voiceRecording.audioBlob);
     }
-  }, [voiceRecording.state, voiceRecording.audioBlob]);
+  }, [voiceRecording.state, voiceRecording.audioBlob, transcribeAudio]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (voiceRecording.state === 'recording' || voiceRecording.state === 'paused') {
-        if (mediaRecorderRef.current) {
-          mediaRecorderRef.current.stop();
-        }
+      // Only cleanup when component unmounts
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
       }
-      resetRecording();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
     };
-  }, []);
+  }, []); // Empty dependency array - only run on unmount
 
   return {
     voiceRecording,

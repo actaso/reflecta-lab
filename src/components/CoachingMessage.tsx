@@ -20,7 +20,7 @@ interface CoachingMessageProps {
 
 // Function to parse component markers in content
 function parseUIComponents(content: string) {
-  const components: Array<{ type: 'text' | 'component'; content: string; props?: any }> = [];
+  const components: Array<{ type: 'text' | 'component'; content: string; props?: Record<string, string | number> }> = [];
   
   // Regex to match component markers like [meditation:title="...",duration="...",description="..."]
   const componentRegex = /\[(\w+):([^\]]+)\]/g;
@@ -42,7 +42,7 @@ function parseUIComponents(content: string) {
     const propsString = match[2];
     
     // Parse props from the string (simple key="value" parser)
-    const props: any = {};
+    const props: Record<string, string | number> = {};
     const propRegex = /(\w+)="([^"]+)"/g;
     let propMatch;
     
@@ -77,46 +77,46 @@ function parseUIComponents(content: string) {
 }
 
 // Function to render a UI component based on type and props
-function renderUIComponent(type: string, props: any) {
+function renderUIComponent(type: string, props: Record<string, string | number>) {
   switch (type) {
     case 'meditation':
       return (
         <MeditationCard
-          title={props.title || 'Guided Meditation'}
-          duration={props.duration || 300}
-          description={props.description}
-          type={props.type || 'breathing'}
+          title={String(props.title || 'Guided Meditation')}
+          duration={Number(props.duration || 300)}
+          description={props.description ? String(props.description) : undefined}
+          type={(props.type as 'breathing' | 'mindfulness' | 'body-scan') || 'breathing'}
         />
       );
     case 'focus':
       return (
         <FocusCard
-          focus={props.focus || 'Main focus not specified'}
-          context={props.context}
+          focus={String(props.focus || 'Main focus not specified')}
+          context={props.context ? String(props.context) : undefined}
         />
       );
     case 'blockers':
-      const blockers = props.items ? props.items.split('|').map((item: string) => item.trim()) : [];
+      const blockers = props.items ? String(props.items).split('|').map((item: string) => item.trim()) : [];
       return (
         <BlockersCard
           blockers={blockers}
-          title={props.title}
+          title={props.title ? String(props.title) : undefined}
         />
       );
     case 'actions':
-      const actions = props.items ? props.items.split('|').map((item: string) => item.trim()) : [];
+      const actions = props.items ? String(props.items).split('|').map((item: string) => item.trim()) : [];
       return (
         <ActionPlanCard
           actions={actions}
-          title={props.title}
+          title={props.title ? String(props.title) : undefined}
         />
       );
     case 'checkin':
       return (
         <CheckInCard
-          frequency={props.frequency || 'once a day'}
-          what={props.what}
-          notes={props.notes}
+          frequency={String(props.frequency || 'once a day')}
+          what={props.what ? String(props.what) : undefined}
+          notes={props.notes ? String(props.notes) : undefined}
         />
       );
     default:
@@ -172,7 +172,7 @@ export default function CoachingMessage({ message }: CoachingMessageProps) {
                   {component.content}
                 </ReactMarkdown>
               ) : (
-                renderUIComponent(component.content, component.props)
+                renderUIComponent(component.content, component.props || {})
               )}
             </div>
           ))}

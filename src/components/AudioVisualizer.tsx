@@ -11,7 +11,7 @@ interface AudioVisualizerProps {
 
 export default function AudioVisualizer({ 
   isRecording, 
-  audioContext, 
+  audioContext, // eslint-disable-line @typescript-eslint/no-unused-vars
   analyser, 
   className = "" 
 }: AudioVisualizerProps) {

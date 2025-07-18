@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { Mic, X, Send, Pause, Play, RotateCcw } from 'lucide-react';
@@ -43,6 +43,14 @@ export default function CoachingInput({
       textarea.style.height = newHeight + 'px';
     }
   }, [input]);
+
+  // Handle transcription completion
+  useEffect(() => {
+    if (voiceRecording.state === 'reviewing' && voiceRecording.transcription) {
+      // Auto-populate the input with the transcribed text
+      onInputChange(voiceRecording.transcription);
+    }
+  }, [voiceRecording.state, voiceRecording.transcription, onInputChange]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -210,6 +218,29 @@ export default function CoachingInput({
                 variant="outline"
                 size="icon"
                 className="rounded-full w-10 h-10 flex-shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          )}
+
+          {voiceRecording.state === 'reviewing' && voiceRecording.transcription && (
+            <div className="flex items-center gap-4 bg-green-50 rounded-lg p-4 mb-4">
+              <div className="flex-1 flex items-center gap-3">
+                <div className="text-green-600 text-sm">
+                  ✓ Transcription completed. Text added to input.
+                </div>
+              </div>
+              <Button
+                onClick={() => {
+                  resetRecording();
+                  // Focus back on the text input
+                  textareaRef.current?.focus();
+                }}
+                variant="outline"
+                size="icon"
+                className="rounded-full w-10 h-10 flex-shrink-0"
+                title="Close transcription"
               >
                 <X className="w-5 h-5" />
               </Button>

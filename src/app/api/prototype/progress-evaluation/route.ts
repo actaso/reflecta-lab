@@ -157,7 +157,7 @@ function validateRequest(body: unknown): ProgressEvaluationRequest {
   }
 
   // Validate conversation history structure
-  const conversationHistory = bodyObj.conversationHistory.map((msg: any) => ({
+  const conversationHistory = bodyObj.conversationHistory.map((msg: { id: string; role: 'user' | 'assistant'; content: string; timestamp: string }) => ({
     id: msg.id,
     role: msg.role,
     content: msg.content,

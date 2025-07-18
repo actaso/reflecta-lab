@@ -54,10 +54,10 @@ Remember, start small and be consistent. You've got this! 🌟
         <div className="p-4 bg-blue-50 rounded-lg">
           <h3 className="font-semibold text-blue-800 mb-2">🤖 AI Usage Examples:</h3>
           <div className="text-sm text-blue-700 space-y-1 font-mono">
-            <div>[focus:focus="Your main goal",context="Optional context"]</div>
-            <div>[blockers:items="Blocker 1|Blocker 2|Blocker 3",title="Optional title"]</div>
-            <div>[actions:items="Action 1|Action 2|Action 3"]</div>
-            <div>[checkin:frequency="once a day",what="habit progress",notes="Keep it simple"]</div>
+            <div>[focus:focus=&quot;Your main goal&quot;,context=&quot;Optional context&quot;]</div>
+            <div>[blockers:items=&quot;Blocker 1|Blocker 2|Blocker 3&quot;,title=&quot;Optional title&quot;]</div>
+            <div>[actions:items=&quot;Action 1|Action 2|Action 3&quot;]</div>
+            <div>[checkin:frequency=&quot;once a day&quot;,what=&quot;habit progress&quot;,notes=&quot;Keep it simple&quot;]</div>
           </div>
         </div>
       </div>
