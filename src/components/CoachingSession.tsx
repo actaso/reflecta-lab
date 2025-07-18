@@ -21,7 +21,7 @@ interface CoachingSessionData {
 
 export default function CoachingSession() {
   const [sessionData, setSessionData] = useState<CoachingSessionData>({
-    objective: "Reflect on your biggest challenge this week",
+    objective: "Life Deep Dive Session",
     progress: 0,
     messages: [
       {

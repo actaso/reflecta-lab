@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         { role: 'user', content: evaluationPrompt }
       ],
       temperature: 0.3, // Lower temperature for more consistent evaluation
-      max_tokens: 200, // Small response for just progress + rationale
+      max_tokens: 400, // Small response for just progress + rationale
     });
 
     const aiResponse = response.choices[0]?.message?.content;
@@ -191,10 +191,12 @@ Scoring rules:
 - Compute the average of those five sub-scores to get a raw current_progress.
 - **Monotonicity**: If current_progress < previous_progress, set current_progress = previous_progress.
 
+Be critical and honest in your evaluation
+
 Return **only** valid JSON with two keys:
 {
+  "rationale": "<one-sentence summary of why you chose that number>",
   "progress": <current_progress>,
-  "rationale": "<one-sentence summary of why you chose that number>"
 }
 
 Ensure "progress" is an integer between 0 and 100, and ≥ previous_progress.`;
