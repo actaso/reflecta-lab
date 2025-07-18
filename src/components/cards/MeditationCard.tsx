@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Wind, Brain, Sparkles } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 
 interface MeditationCardProps {
   title: string;

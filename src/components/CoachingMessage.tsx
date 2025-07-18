@@ -1,7 +1,11 @@
 'use client';
 
 import ReactMarkdown from 'react-markdown';
-import MeditationCard from './MeditationCard';
+import MeditationCard from './cards/MeditationCard';
+import FocusCard from './cards/FocusCard';
+import BlockersCard from './cards/BlockersCard';
+import ActionPlanCard from './cards/ActionPlanCard';
+import CheckInCard from './cards/CheckInCard';
 
 interface CoachingMessageData {
   id: string;
@@ -82,6 +86,37 @@ function renderUIComponent(type: string, props: any) {
           duration={props.duration || 300}
           description={props.description}
           type={props.type || 'breathing'}
+        />
+      );
+    case 'focus':
+      return (
+        <FocusCard
+          focus={props.focus || 'Main focus not specified'}
+          context={props.context}
+        />
+      );
+    case 'blockers':
+      const blockers = props.items ? props.items.split('|').map((item: string) => item.trim()) : [];
+      return (
+        <BlockersCard
+          blockers={blockers}
+          title={props.title}
+        />
+      );
+    case 'actions':
+      const actions = props.items ? props.items.split('|').map((item: string) => item.trim()) : [];
+      return (
+        <ActionPlanCard
+          actions={actions}
+          title={props.title}
+        />
+      );
+    case 'checkin':
+      return (
+        <CheckInCard
+          frequency={props.frequency || 'once a day'}
+          what={props.what}
+          notes={props.notes}
         />
       );
     default:
