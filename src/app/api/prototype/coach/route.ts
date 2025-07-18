@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
 
+interface CoachingMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
 interface PrototypeCoachRequest {
   message: string;
   sessionId?: string;
+  conversationHistory?: CoachingMessage[];
 }
 
 /**
@@ -46,13 +54,30 @@ export async function POST(request: NextRequest) {
     // Generate coaching system prompt
     const systemPrompt = generateCoachingSystemPrompt();
 
+    // Build conversation context with history
+    const messages: { role: 'system' | 'user' | 'assistant', content: string }[] = [
+      { role: 'system', content: systemPrompt }
+    ];
+
+    // Add conversation history if available (excluding the current message which we'll add separately)
+    if (validatedRequest.conversationHistory && validatedRequest.conversationHistory.length > 0) {
+      for (const historyMessage of validatedRequest.conversationHistory) {
+        messages.push({
+          role: historyMessage.role,
+          content: historyMessage.content
+        });
+      }
+    }
+
+    // Add the current message
+    messages.push({ role: 'user', content: validatedRequest.message });
+
+    console.log(`🧠 Coaching context: ${messages.length} messages (including system prompt)`);
+
     // Create streaming response
     const stream = await openrouter.chat.completions.create({
       model: 'anthropic/claude-3.5-sonnet',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: validatedRequest.message }
-      ],
+      messages,
       temperature: 0.7,
       max_tokens: 1000,
       stream: true,
@@ -144,9 +169,25 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
     throw new Error('Invalid or missing message');
   }
 
+  // Validate conversation history if provided
+  let conversationHistory: CoachingMessage[] | undefined;
+  if (bodyObj.conversationHistory) {
+    if (!Array.isArray(bodyObj.conversationHistory)) {
+      throw new Error('Invalid conversation history format');
+    }
+    
+    conversationHistory = bodyObj.conversationHistory.map((msg: any) => ({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      timestamp: new Date(msg.timestamp)
+    }));
+  }
+
   return {
     message: bodyObj.message.trim(),
-    sessionId: typeof bodyObj.sessionId === 'string' ? bodyObj.sessionId : undefined
+    sessionId: typeof bodyObj.sessionId === 'string' ? bodyObj.sessionId : undefined,
+    conversationHistory
   };
 }
 
@@ -168,7 +209,7 @@ Spark insight and self-reflection
 
 End with a shared intention or working theme to guide future sessions
 
-The session is delivered by an AI and should feel conversational, intelligent, and emotionally attuned. Include prompts, pauses, and reflective questions that encourage the user to drop in deeply, not just give surface answers. Use language that balances warmth with depth.
+The session is delivered by an AI and should feel conversational, intelligent, and emotionally attuned. Include prompts, reflections, mirrors, reframes, and reflective questions that encourage the user to drop in deeply, not just give surface answers. Use language that balances warmth with depth.
 
 Design the full flow, including:
 
@@ -179,7 +220,11 @@ Core exercises (questions or micro-practices)
 Closing (insight summarization + future orientation)
 
 Keep the whole experience within 25 minutes.
-Make it feel like a high-leverage conversation they might normally only have with an elite coach.
+Make it feel like a high-leverage conversation they might normally only have with an elite coach. Don't blindly agree with the client, but also point out where there thinking might me superifical or biased.
+
+After the session, you should be ready to output the following in your final message:
+
+[final-outcome:current-focus="",blockers="",actions=""]
 
 Make sure to take it step by step with the client. Your response will be part of the coachin conversation. So instead of dumping a long answers with multiple questions or steps, focus on the next relevant step only.`;
 } 

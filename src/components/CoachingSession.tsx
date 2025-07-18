@@ -29,7 +29,7 @@ export default function CoachingSession() {
       {
         id: '1',
         role: 'assistant',
-        content: "Before we dive in—take a breath.\nIf you had to name what's most alive in you right now—what would it be?\n\n(Pause. Then gently follow up if needed)\n\"Maybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.\"",
+        content: "Before we dive in—take a breath.\n\nLet's start with a short breathing exercise to center ourselves:\n\n[meditation:title=\"5-Minute Centering\",duration=\"300\",description=\"A gentle breathing exercise to help you connect with what's present right now\",type=\"breathing\"]\n\nOnce you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
         timestamp: new Date()
       }
     ]
@@ -159,7 +159,7 @@ export default function CoachingSession() {
     setIsLoading(true);
 
     try {
-      // Call the new coaching API endpoint
+      // Call the new coaching API endpoint with full conversation history
       const response = await fetch('/api/prototype/coach', {
         method: 'POST',
         headers: {
@@ -167,7 +167,8 @@ export default function CoachingSession() {
         },
         body: JSON.stringify({
           message: content.trim(),
-          sessionId: sessionData.objective // Use objective as session identifier
+          sessionId: sessionData.objective, // Use objective as session identifier
+          conversationHistory: sessionData.messages // Include all previous messages for context
         }),
       });
 
