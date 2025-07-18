@@ -29,7 +29,7 @@ export default function CoachingSession() {
       {
         id: '1',
         role: 'assistant',
-        content: "I'm here to listen and explore with you. What's been on your mind?",
+        content: "Before we dive in—take a breath.\nIf you had to name what's most alive in you right now—what would it be?\n\n(Pause. Then gently follow up if needed)\n\"Maybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.\"",
         timestamp: new Date()
       }
     ]
@@ -158,23 +158,103 @@ export default function CoachingSession() {
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI response (replace with actual API call)
-    setTimeout(() => {
+    try {
+      // Call the new coaching API endpoint
+      const response = await fetch('/api/prototype/coach', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: content.trim(),
+          sessionId: sessionData.objective // Use objective as session identifier
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      // Create AI message placeholder
+      const aiMessageId = (Date.now() + 1).toString();
       const aiMessage: CoachingMessage = {
-        id: (Date.now() + 1).toString(),
+        id: aiMessageId,
         role: 'assistant',
-        content: "I hear you. Can you tell me more about that?",
+        content: '',
         timestamp: new Date()
       };
 
       setSessionData(prev => ({
         ...prev,
-        messages: [...prev.messages, aiMessage],
-        progress: Math.min(prev.progress + 5, 100)
+        messages: [...prev.messages, aiMessage]
       }));
 
       setIsLoading(false);
-    }, 1500);
+
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'content') {
+                // Update the AI message content incrementally
+                setSessionData(prev => ({
+                  ...prev,
+                  messages: prev.messages.map(msg => 
+                    msg.id === aiMessageId 
+                      ? { ...msg, content: msg.content + data.content }
+                      : msg
+                  )
+                }));
+              } else if (data.type === 'done') {
+                // Increment progress when response is complete
+                setSessionData(prev => ({
+                  ...prev,
+                  progress: Math.min(prev.progress + 5, 100)
+                }));
+              } else if (data.type === 'error') {
+                console.error('Streaming error:', data.error);
+              }
+            } catch (parseError) {
+              console.error('Error parsing streaming data:', parseError);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error calling coaching API:', error);
+      
+      // Show error message to user
+      const errorMessage: CoachingMessage = {
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: "I'm sorry, I'm having trouble responding right now. Please try again.",
+        timestamp: new Date()
+      };
+
+      setSessionData(prev => ({
+        ...prev,
+        messages: [...prev.messages, errorMessage]
+      }));
+      
+      setIsLoading(false);
+    }
   };
 
   return (
