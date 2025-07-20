@@ -1,15 +1,44 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
-import { writeFile, unlink } from 'fs/promises';
-import { join } from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { mkdir } from 'fs/promises';
-import { createReadStream } from 'fs';
+import OpenAI, { toFile } from 'openai';
 
 const openai = new OpenAI();
 
-// Ensure temp directory exists
-const TEMP_DIR = join(process.cwd(), 'tmp');
+// Configuration constants
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB (OpenAI's limit)
+const ALLOWED_TYPES = [
+  'audio/webm',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/mpga',
+  'audio/m4a',
+  'audio/wav',
+  'audio/flac',
+  'audio/ogg',
+];
+
+// Helper function to get proper filename with extension
+function getProperFilename(originalName: string, mimeType: string): string {
+  // If filename already has extension, use it
+  if (originalName && originalName.includes('.') && originalName !== 'blob') {
+    return originalName;
+  }
+  
+  // Generate filename with proper extension based on MIME type
+  const timestamp = Date.now();
+  const extensions: Record<string, string> = {
+    'audio/webm': 'webm',
+    'audio/mp4': 'm4a',
+    'audio/mpeg': 'mp3',
+    'audio/mpga': 'mp3',
+    'audio/m4a': 'm4a',
+    'audio/wav': 'wav',
+    'audio/flac': 'flac',
+    'audio/ogg': 'ogg',
+  };
+  
+  const extension = extensions[mimeType] || 'webm';
+  return `audio_${timestamp}.${extension}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +46,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
     
+    // Validate file presence
     if (!audioFile) {
       return NextResponse.json(
         { error: 'No audio file provided' },
@@ -24,50 +54,111 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create temp directory if it doesn't exist
-    try {
-      await mkdir(TEMP_DIR, { recursive: true });
-    } catch (error) {
-      console.log('Temp directory already exists or error creating:', error);
+    // Validate file size
+    if (audioFile.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` },
+        { status: 413 }
+      );
     }
 
-    // Generate a unique filename
-    const fileName = `${uuidv4()}.webm`;
-    const filePath = join(TEMP_DIR, fileName);
+    // Validate file type
+    if (!ALLOWED_TYPES.includes(audioFile.type)) {
+      return NextResponse.json(
+        { 
+          error: `Unsupported file type: ${audioFile.type}. Supported types: ${ALLOWED_TYPES.join(', ')}` 
+        },
+        { status: 415 }
+      );
+    }
 
-    // Write the audio file to disk
+    console.log(`[TRANSCRIBE] Processing file: ${audioFile.name}, size: ${audioFile.size} bytes, type: ${audioFile.type}`);
+
+    // Convert File to buffer
     const bytes = await audioFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    
+    // Get proper filename with extension
+    const properFilename = getProperFilename(audioFile.name, audioFile.type);
+    console.log(`[TRANSCRIBE] Using filename: ${properFilename}`);
+    
+    // Create file object with proper metadata for OpenAI
+    const file = await toFile(buffer, properFilename, { 
+      type: audioFile.type,
+      // Add additional metadata to help OpenAI identify the format
+      lastModified: Date.now()
+    });
+    
+    console.log(`[TRANSCRIBE] File object created - name: ${file.name}, type: ${file.type}, size: ${file.size}`);
 
-    try {
-      // Call OpenAI API with proper file handling
-      const transcription = await openai.audio.transcriptions.create({
-        file: createReadStream(filePath),
-        model: "whisper-1", // Using whisper-1 as it's more widely available
-      });
+    // Call OpenAI API with the file object
+    const transcription = await openai.audio.transcriptions.create({
+      file: file,
+      model: "whisper-1",
+      // Add language hint if needed (optional)
+      // language: 'en',
+    });
 
-      return NextResponse.json({ 
-        success: true,
-        text: transcription.text 
-      });
+    console.log(`[TRANSCRIBE] Success: ${transcription.text.length} characters transcribed`);
+    
+    return NextResponse.json({ 
+      success: true,
+      text: transcription.text 
+    });
 
-    } finally {
-      // Cleanup: Delete the temporary file
-      try {
-        await unlink(filePath);
-        console.log('Temporary file deleted:', filePath);
-      } catch (error) {
-        console.error('Error deleting temporary file:', error);
+  } catch (error) {
+    console.error('[TRANSCRIBE] Error:', error);
+
+    // Handle specific OpenAI API errors
+    if (error instanceof Error) {
+      // Check for common OpenAI API errors
+      if (error.message.includes('Invalid file format') || error.message.includes('Unrecognized file format')) {
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Audio format not supported by the transcription service. Please try recording in a different format (MP3, WAV, or M4A work best).',
+            suggestion: 'Consider using a different recording method or converting the audio file format.' 
+          },
+          { status: 400 }
+        );
+      }
+      
+      if (error.message.includes('rate limit')) {
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Rate limit exceeded. Please try again later.' 
+          },
+          { status: 429 }
+        );
+      }
+
+      if (error.message.includes('API key')) {
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'API configuration error' 
+          },
+          { status: 500 }
+        );
+      }
+
+      if (error.message.includes('timeout')) {
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Request timeout. Please try with a shorter audio file.' 
+          },
+          { status: 408 }
+        );
       }
     }
 
-  } catch (error) {
-    console.error('Transcription error:', error);
+    // Generic error response
     return NextResponse.json(
       { 
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error during transcription'
+        error: 'Transcription service temporarily unavailable. Please try again.' 
       },
       { status: 500 }
     );
