@@ -54,7 +54,7 @@ export function useVoiceRecorder(): VoiceRecorderHook {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [voiceRecording.state, stopRecording]);
+  }, [voiceRecording.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startRecording = async () => {
     try {
