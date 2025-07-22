@@ -54,7 +54,7 @@ export function useVoiceRecorder(): VoiceRecorderHook {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [voiceRecording.state]);
+  }, [voiceRecording.state, stopRecording]);
 
   const startRecording = async () => {
     try {
