@@ -312,21 +312,23 @@ export const useJournal = () => {
       setEntries(currentEntries);
       saveToLocalStorage(currentEntries);
 
-      // 2. Immediate sync for new entries using atomic upsert (only if authenticated)
+      // 2. Background sync for new entries using atomic upsert (only if authenticated)
       if (isAuthenticated && user?.uid) {
         setSyncState('syncing');
-        try {
-          await FirestoreService.upsertEntry(newEntry, user.uid);
-          
-          // Track this content as synced
-          lastSyncedContentRef.current.set(newEntry.id, newEntry.content);
-          
-          console.log('✅ [ADD] New entry synced:', newEntry.id);
-          setSyncState('synced');
-        } catch (err) {
-          console.warn('⚠️ [ADD] Immediate sync failed, will retry on edit:', err);
-          setSyncState('error');
-        }
+        
+        // Don't await - let this happen in the background for fast UI response
+        FirestoreService.upsertEntry(newEntry, user.uid)
+          .then(() => {
+            // Track this content as synced
+            lastSyncedContentRef.current.set(newEntry.id, newEntry.content);
+            console.log('✅ [ADD] New entry synced:', newEntry.id);
+            setSyncState('synced');
+          })
+          .catch((err) => {
+            console.warn('⚠️ [ADD] Background sync failed, will retry on edit:', err);
+            setSyncState('error');
+            // Don't set error state for the user since the entry was saved locally
+          });
       }
 
       return newEntry.id;
