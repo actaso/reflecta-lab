@@ -106,13 +106,6 @@ export default function CoachingInput({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [voiceRecording.state, startRecording, stopRecording, pauseRecording, resumeRecording, resetRecording]);
 
-  // Watch for transcription completion
-  useEffect(() => {
-    if (voiceRecording.state === 'reviewing' && voiceRecording.transcription) {
-      onInputChange(voiceRecording.transcription);
-    }
-  }, [voiceRecording.state, voiceRecording.transcription, onInputChange]);
-
   return (
     <div className="fixed bottom-0 left-0 right-0 max-w-[720px] mx-auto bg-white/95 backdrop-blur-sm border border-neutral-200 rounded-t-2xl shadow-lg">
       <div className="flex justify-center p-3 pb-2">
