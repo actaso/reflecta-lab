@@ -106,6 +106,14 @@ export async function POST(request: NextRequest) {
           });
           controller.enqueue(new TextEncoder().encode(`data: ${doneData}\n\n`));
           controller.close();
+          
+          // Update alignment document in the background
+          updateAlignmentDocInBackground(
+            validatedRequest.conversationHistory || [],
+            validatedRequest.message,
+            validatedRequest.sessionId,
+            userId
+          );
         } catch (error) {
           const errorData = JSON.stringify({ 
             type: 'error', 
@@ -220,6 +228,7 @@ Core exercises (questions or micro-practices)
 Closing (insight summarization + future orientation)
 
 Keep the whole experience within 25 minutes.
+
 Make it feel like a high-leverage conversation they might normally only have with an elite coach. Don't blindly agree with the client, but also point out where there thinking might me superifical or biased.
 
 After the session, you should be ready to output the following in your final message:
@@ -241,5 +250,45 @@ IMPORTANT: For the checkin card, frequency must be exactly one of these 4 option
 
 Use "what" parameter to specify what the client should check-in about (not "method").
 
-Make sure to take it step by step with the client. Your response will be part of the coachin conversation. So instead of dumping a long answers with multiple questions or steps, focus on the next relevant step only.`;
-} 
+Make sure to take it step by step with the client. Your response will be part of the coaching conversation. So instead of dumping a long answers with multiple questions or steps, focus on the next relevant step only.`;
+}
+
+/**
+ * Update alignment document in the background
+ * This function directly calls the alignment doc update logic
+ */
+async function updateAlignmentDocInBackground(
+  conversationHistory: CoachingMessage[],
+  latestMessage: string,
+  sessionId?: string,
+  userId?: string
+): Promise<void> {
+  try {
+    if (!userId) {
+      console.log('❌ [BACKGROUND] No userId provided for alignment doc update');
+      return;
+    }
+
+    // Build complete conversation history including the latest message
+    const completeHistory = [
+      ...conversationHistory,
+      {
+        id: Date.now().toString(),
+        role: 'user' as const,
+        content: latestMessage,
+        timestamp: new Date()
+      }
+    ];
+
+    console.log(`🔄 [BACKGROUND] Updating alignment doc for user ${userId} with ${completeHistory.length} messages`);
+
+    // Import and call the alignment doc update logic directly
+    const { updateAlignmentDoc } = await import('../update-alignment-doc/update-alignment-doc-logic');
+    await updateAlignmentDoc(completeHistory, sessionId, userId);
+
+    console.log(`✅ [BACKGROUND] Alignment doc update completed`);
+  } catch (error) {
+    // Fail silently in background operation
+    console.error('❌ [BACKGROUND] Error updating alignment doc:', error);
+  }
+}

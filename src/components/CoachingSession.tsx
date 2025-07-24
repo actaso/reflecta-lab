@@ -31,7 +31,7 @@ export default function CoachingSession() {
       {
         id: '1',
         role: 'assistant',
-        content: "Once you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
+        content: "Once you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.\n\nThe goal of this session is to get an overview of what your current focus in life is and understanding this deeply inside-out.",
         timestamp: new Date()
       }
     ]
