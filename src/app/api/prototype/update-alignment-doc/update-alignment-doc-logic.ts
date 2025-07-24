@@ -14,8 +14,8 @@ interface CoachingMessage {
 interface AlignmentDocData {
   content: string;
   version: number;
-  lastUpdatedAt: string;
-  sessionId?: string;
+  createdAt: number;
+  lastUpdatedAt: number;
   userId: string;
 }
 
@@ -25,9 +25,8 @@ interface AlignmentDocData {
  */
 export async function updateAlignmentDoc(
   conversationHistory: CoachingMessage[],
-  sessionId?: string,
   userId?: string
-): Promise<{ version: number; lastUpdatedAt: string }> {
+): Promise<{ version: number; createdAt: number; lastUpdatedAt: number }> {
   if (!userId) {
     throw new Error('User ID is required');
   }
@@ -80,11 +79,13 @@ export async function updateAlignmentDoc(
 
   // Save updated alignment doc to Firestore using Admin SDK
   const newVersion = (existingDoc?.version || 0) + 1;
+  const now = Date.now();
+  
   const alignmentDocData: AlignmentDocData = {
     content: aiResponse,
     version: newVersion,
-    lastUpdatedAt: new Date().toISOString(),
-    sessionId,
+    createdAt: existingDoc?.createdAt || now, // Preserve existing createdAt or set to now for new docs
+    lastUpdatedAt: now,
     userId
   };
 
@@ -94,6 +95,7 @@ export async function updateAlignmentDoc(
 
   return {
     version: newVersion,
+    createdAt: alignmentDocData.createdAt,
     lastUpdatedAt: alignmentDocData.lastUpdatedAt
   };
 }

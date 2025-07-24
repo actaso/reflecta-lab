@@ -46,13 +46,13 @@ export async function POST(request: NextRequest) {
     const { updateAlignmentDoc } = await import('./update-alignment-doc-logic');
     const result = await updateAlignmentDoc(
       validatedRequest.conversationHistory,
-      validatedRequest.sessionId,
       userId
     );
 
     return NextResponse.json({
       success: true,
       version: result.version,
+      createdAt: result.createdAt,
       lastUpdatedAt: result.lastUpdatedAt
     });
 

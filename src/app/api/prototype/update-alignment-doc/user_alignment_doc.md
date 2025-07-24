@@ -3,12 +3,6 @@ The purpose of this doc is to keep a log of the current goals, agreements, and f
 
 Below, you find the structure of the doc with detailed instructions on how to upate it/fill it out.
 
-## Meta data
-<meta-data>
-lastUpdatedAt: 2025-07-24
-version: 24
-</meta-data>
-
 ## Template
 <template>
 <objective>

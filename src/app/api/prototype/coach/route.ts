@@ -111,7 +111,6 @@ export async function POST(request: NextRequest) {
           updateAlignmentDocInBackground(
             validatedRequest.conversationHistory || [],
             validatedRequest.message,
-            validatedRequest.sessionId,
             userId
           );
         } catch (error) {
@@ -260,7 +259,6 @@ Make sure to take it step by step with the client. Your response will be part of
 async function updateAlignmentDocInBackground(
   conversationHistory: CoachingMessage[],
   latestMessage: string,
-  sessionId?: string,
   userId?: string
 ): Promise<void> {
   try {
@@ -284,7 +282,7 @@ async function updateAlignmentDocInBackground(
 
     // Import and call the alignment doc update logic directly
     const { updateAlignmentDoc } = await import('../update-alignment-doc/update-alignment-doc-logic');
-    await updateAlignmentDoc(completeHistory, sessionId, userId);
+    await updateAlignmentDoc(completeHistory, userId);
 
     console.log(`✅ [BACKGROUND] Alignment doc update completed`);
   } catch (error) {
