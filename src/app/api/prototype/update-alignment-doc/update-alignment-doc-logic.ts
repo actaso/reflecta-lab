@@ -129,19 +129,24 @@ async function getAlignmentSystemPrompt(): Promise<string> {
     const templateContent = fs.readFileSync(templatePath, 'utf-8');
 
     console.log(templateContent)
+
+    const today = new Date().toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    console.log(today)
     
     return `You are an expert coaching facilitator tasked with updating a user's alignment document based on their coaching session.
 
-The alignment document follows this template:
-${templateContent}
+The date today is ${today}.
 
 Your job is to:
 1. Analyze the coaching conversation to extract insights about the user
 2. Fill out or update the alignment document template with new information
 3. Preserve existing valuable information while incorporating new insights
 4. Use the exact template structure provided
-5. Fill out each section based on what you learned from the conversation
+5. Fill out each section based on what you learned from the conversation. Don't make things up, stick strictly to real things the client shared or said.
 6. If information for a section isn't available from the session, leave it as is or mark as "To be explored in future sessions"
+
+The alignment document follows this template:
+${templateContent}
 
 Return ONLY the filled-out alignment document using the exact template structure. Do not include any additional commentary or explanations outside the template.`;
 
