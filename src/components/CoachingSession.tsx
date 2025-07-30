@@ -4,9 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import CoachingHeader from './CoachingHeader';
 import CoachingInput from './CoachingInput';
 import CoachingMessage from './CoachingMessage';
-import MeditationIntro from './MeditationIntro';
-import MeditationSession from './MeditationSession';
-import MeditationTransition from './MeditationTransition';
 import confetti from 'canvas-confetti';
 
 interface CoachingMessage {
@@ -23,7 +20,6 @@ interface CoachingSessionData {
 }
 
 export default function CoachingSession() {
-  const [meditationPhase, setMeditationPhase] = useState<'intro' | 'active' | 'transitioning' | 'complete'>('intro');
   const [sessionData, setSessionData] = useState<CoachingSessionData>({
     objective: "Life Deep Dive Session",
     progress: 0,
@@ -31,7 +27,7 @@ export default function CoachingSession() {
       {
         id: '1',
         role: 'assistant',
-        content: "Once you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
+        content: "Welcome to your Life Deep Dive session. Before we begin exploring what's most alive in you right now, I'd like to offer you a moment to center yourself.\n\n[meditation:title=\"5-Minute Centering\",duration=\"300\",description=\"A gentle breathing exercise to help you connect with what's present right now\",type=\"breathing\"]\n\nOnce you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
         timestamp: new Date()
       }
     ]
@@ -305,34 +301,7 @@ export default function CoachingSession() {
     }
   };
 
-  const handleMeditationComplete = () => {
-    setMeditationPhase('transitioning');
-    // Give a moment for the transition, then show the coaching interface
-    setTimeout(() => {
-      setMeditationPhase('complete');
-    }, 1000);
-  };
-
-  const startMeditation = () => {
-    setMeditationPhase('active');
-  };
-
-  // Render meditation introduction screen
-  if (meditationPhase === 'intro') {
-    return <MeditationIntro onStartMeditation={startMeditation} />;
-  }
-
-  // Render full-screen meditation experience
-  if (meditationPhase === 'active') {
-    return <MeditationSession onComplete={handleMeditationComplete} />;
-  }
-
-  // Transition phase
-  if (meditationPhase === 'transitioning') {
-    return <MeditationTransition />;
-  }
-
-  // Full coaching interface (meditationPhase === 'complete')
+  // Show the coaching interface directly
   return (
     <div className="h-screen bg-white flex flex-col relative">
       <CoachingHeader 

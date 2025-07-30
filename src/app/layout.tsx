@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
 import { PHProvider } from '../lib/providers';
+import FloatingNavigation from '../components/FloatingNavigation';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -33,6 +34,7 @@ export default function RootLayout({
       >
         <PHProvider>
           {children}
+          <FloatingNavigation />
         </PHProvider>
       </body>
     </html>

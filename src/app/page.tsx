@@ -487,14 +487,14 @@ export default function JournalApp() {
             }}
           />
       
-      {/* Floating Help Button - Bottom Right */}
+      {/* Floating Help Button - Top Right */}
       <button
         onClick={() => setShowHelp(!showHelp)}
-        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors shadow-lg hover:shadow-xl z-50"
+        className="fixed top-6 right-6 w-10 h-10 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors shadow-md hover:shadow-lg z-40"
         title="Show shortcuts"
         aria-label="Show shortcuts"
       >
-        <span className="text-xl leading-none">?</span>
+        <span className="text-lg leading-none">?</span>
       </button>
 
       {/* Initial Alignment Modal */}

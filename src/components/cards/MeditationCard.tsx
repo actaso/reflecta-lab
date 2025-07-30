@@ -18,8 +18,10 @@ export default function MeditationCard({
 }: MeditationCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [audioLoaded, setAudioLoaded] = useState(false);
+  const [actualDuration, setActualDuration] = useState(duration);
   
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -28,42 +30,67 @@ export default function MeditationCard({
 
   const formatCurrentTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progress = (currentTime / duration) * 100;
+  const progress = (currentTime / actualDuration) * 100;
 
+  // Audio event handlers
   useEffect(() => {
-    if (isPlaying && currentTime < duration) {
-      intervalRef.current = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= duration) {
-            setIsPlaying(false);
-            return duration;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleLoadedMetadata = () => {
+      setActualDuration(audio.duration);
+      setAudioLoaded(true);
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(audio.duration);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('play', handlePlay);
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('play', handlePlay);
     };
-  }, [isPlaying, currentTime, duration]);
+  }, []);
 
   const handlePlayPause = () => {
-    if (currentTime >= duration) {
-      setCurrentTime(0);
+    const audio = audioRef.current;
+    if (!audio || !audioLoaded) return;
+
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      // If the meditation is complete, restart from beginning
+      if (currentTime >= actualDuration) {
+        audio.currentTime = 0;
+      }
+      audio.play();
     }
-    setIsPlaying(!isPlaying);
   };
 
   const getTypeIcon = () => {
@@ -79,6 +106,12 @@ export default function MeditationCard({
 
   return (
     <div className="w-full bg-white rounded-lg border border-gray-200/60 py-2 px-2.5 pr-3 my-4 shadow-sm min-w-[272px] max-w-sm">
+      {/* Hidden audio element */}
+      <audio 
+        ref={audioRef} 
+        preload="metadata"
+        src="/audio/5m_meditation.wav"
+      />
       <div className="flex items-center justify-between gap-2">
         {/* Left side: Icon and content */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -90,7 +123,7 @@ export default function MeditationCard({
               </div>
             </div>
             <div className="flex items-center text-[11px] text-gray-500 min-w-0 overflow-hidden">
-              <span className="text-gray-500 text-[11px] flex-shrink-0">{formatTime(duration)}</span>
+              <span className="text-gray-500 text-[11px] flex-shrink-0">{formatTime(actualDuration)}</span>
               {isPlaying && (
                 <>
                   <span className="flex-shrink-0 text-gray-400 mx-1">•</span>
@@ -106,9 +139,12 @@ export default function MeditationCard({
           onClick={handlePlayPause}
           variant="ghost"
           size="sm"
-          className="flex-shrink-0 h-6 w-6 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700 p-0"
+          disabled={!audioLoaded}
+          className="flex-shrink-0 h-6 w-6 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700 p-0 disabled:opacity-50"
         >
-          {isPlaying ? (
+          {!audioLoaded ? (
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+          ) : isPlaying ? (
             <Pause className="w-3.5 h-3.5" />
           ) : (
             <Play className="w-3.5 h-3.5" />
@@ -129,7 +165,7 @@ export default function MeditationCard({
       )}
 
       {/* Completion message */}
-      {currentTime >= duration && (
+      {currentTime >= actualDuration && (
         <div className="mt-1.5 text-center">
           <p className="text-[10px] text-green-600 font-medium">✨ Complete</p>
         </div>
