@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
+import FirestoreAdminService from '@/lib/firestore-admin';
 
 interface CoachingMessage {
   id: string;
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate coaching system prompt
-    const systemPrompt = generateCoachingSystemPrompt();
+    const systemPrompt = await generateCoachingSystemPrompt(userId);
 
     // Build conversation context with history
     const messages: { role: 'system' | 'user' | 'assistant', content: string }[] = [
@@ -192,16 +193,55 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
 }
 
 /**
+ * Generate user context from alignment and recent journal entries
+ */
+async function generateUserContext(userId: string): Promise<string> {
+  try {
+    // Get user account and journal entries in parallel
+    const [userAccount, journalEntries] = await Promise.all([
+      FirestoreAdminService.getUserAccount(userId),
+      FirestoreAdminService.getUserEntries(userId)
+    ]);
+
+    let context = '';
+
+    // Add alignment document if available
+    if (userAccount.alignment) {
+      context += `\n\n=== USER'S CURRENT ALIGNMENT/PRIORITY ===\n${userAccount.alignment}\n`;
+      if (userAccount.alignmentSetAt) {
+        context += `(Set on: ${userAccount.alignmentSetAt.toLocaleDateString()})\n`;
+      }
+    }
+
+    // Add past 10 journal entries if available
+    if (journalEntries.length > 0) {
+      const recentEntries = journalEntries.slice(0, 10);
+      context += `\n\n=== RECENT JOURNAL ENTRIES (Last ${recentEntries.length}) ===\n`;
+      
+      recentEntries.forEach((entry, index) => {
+        const entryDate = entry.timestamp.toLocaleDateString();
+        context += `\n--- Entry ${index + 1} (${entryDate}) ---\n${entry.content}\n`;
+      });
+    }
+
+    return context;
+  } catch (error) {
+    console.error('Error generating user context:', error);
+    return ''; // Return empty string if context generation fails
+  }
+}
+
+/**
  * Generate coaching system prompt for prototype
  */
-function generateCoachingSystemPrompt(): string {
-  return `You are a performance and leadership coach designing a powerful 25-minute onboarding session for a founder or creative client. Your goal is to create a meaningful first experience that builds trust, surfaces self-awareness, and sets the direction for ongoing work.
+async function generateCoachingSystemPrompt(userId: string): Promise<string> {
+  const basePrompt = `You are a performance and leadership coach designing a powerful 25-minute onboarding session for a founder or creative client. Your goal is to create a meaningful first experience that builds trust, surfaces self-awareness, and sets the direction for ongoing work.
 
 The session should:
 
 Establish emotional and psychological safety
 
-Surface the client’s core motivations, values, and current tensions
+Surface the client's core motivations, values, and current tensions
 
 Identify patterns that drive or limit their leadership and creative expression
 
@@ -241,5 +281,10 @@ IMPORTANT: For the checkin card, frequency must be exactly one of these 4 option
 
 Use "what" parameter to specify what the client should check-in about (not "method").
 
-Make sure to take it step by step with the client. Your response will be part of the coachin conversation. So instead of dumping a long answers with multiple questions or steps, focus on the next relevant step only.`;
+Make sure to take it step by step with the client. Your response will be part of the coachin conversation. So instead of dumping a long answers with multiple questions or steps, focus on the next relevant step only. Below, you will get some more context on the user.`;
+
+  // Get user context and append it
+  const userContext = await generateUserContext(userId);
+  
+  return basePrompt + userContext;
 } 
