@@ -35,10 +35,11 @@ export class PrototypeCoachingPromptLoader {
    * Determine which prompt to use based on user context
    * For now, always returns 'default-session' but can be extended with logic
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static determinePromptType(
-    userId: string,
-    sessionCount?: number,
-    isFirstSession?: boolean
+    _userId: string,
+    _sessionCount?: number,
+    _isFirstSession?: boolean
   ): PromptType {
     // Future logic could go here to determine prompt type
     // For example:

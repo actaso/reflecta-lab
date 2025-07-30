@@ -66,7 +66,7 @@ export default function JournalApp() {
   const allEntriesChronological = getAllEntriesChronological(entries);
 
   // Get the current selected entry
-  const getCurrentEntry = () => {
+  const getCurrentEntry = useCallback(() => {
     if (!selectedEntryId) return null;
     
     for (const dateKey of Object.keys(entries)) {
@@ -75,7 +75,7 @@ export default function JournalApp() {
       if (entry) return { entry, dateKey };
     }
     return null;
-  };
+  }, [selectedEntryId, entries]);
 
   const handleEntryChange = (value: string) => {
     if (!selectedEntryId) return;
@@ -349,7 +349,7 @@ export default function JournalApp() {
               // Re-enable scroll-hijacking after scroll animation completes
               setTimeout(() => {
                 isKeyboardNavigatingRef.current = false;
-              }, 500); // Allow time for smooth scroll to complete
+              }, 500);
             }
           }, 50);
         }
@@ -359,6 +359,34 @@ export default function JournalApp() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedEntryId, createNewEntry, allEntriesChronological]);
+
+  // Listen for voice transcription events
+  useEffect(() => {
+    const handleVoiceTranscription = (event: CustomEvent) => {
+      const { text, route } = event.detail;
+      if (route === 'journal' && selectedEntryId) {
+        // Find the current entry and append the text to its content
+        const currentEntry = getCurrentEntry();
+        if (currentEntry?.entry) {
+          const newContent = currentEntry.entry.content + (currentEntry.entry.content ? '\n\n' : '') + text;
+          updateEntry(selectedEntryId, { content: newContent });
+          
+          // Optionally focus the editor after inserting text
+          setTimeout(() => {
+            // Dispatch an event to focus the editor at the end
+            const focusEvent = new CustomEvent('focusEditor', { detail: { entryId: selectedEntryId } });
+            window.dispatchEvent(focusEvent);
+          }, 100);
+        }
+      }
+    };
+
+    window.addEventListener('voiceTranscription', handleVoiceTranscription as EventListener);
+    
+    return () => {
+      window.removeEventListener('voiceTranscription', handleVoiceTranscription as EventListener);
+    };
+  }, [selectedEntryId, updateEntry, getCurrentEntry]);
 
   const currentEntry = getCurrentEntry();
 

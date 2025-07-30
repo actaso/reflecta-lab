@@ -678,6 +678,23 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, place
     }
   }, [editor]);
 
+  // Listen for focus editor events (for voice transcription)
+  useEffect(() => {
+    const handleFocusEditor = (event: CustomEvent) => {
+      const { entryId } = event.detail;
+      if (entryId === entryId && editor) {
+        // Focus the editor at the end after text insertion
+        editor.commands.focus('end');
+      }
+    };
+
+    window.addEventListener('focusEditor', handleFocusEditor as EventListener);
+    
+    return () => {
+      window.removeEventListener('focusEditor', handleFocusEditor as EventListener);
+    };
+  }, [editor, entryId]);
+
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     insertCoachingBlock: (content: string, variant: 'text' | 'buttons' = 'text', options?: string[], thinking?: string) => {
