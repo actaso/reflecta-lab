@@ -12,14 +12,14 @@ import { evaluateCoachingMessage } from './logic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId } = body;
+    const { userId, simulatedDate } = body;
 
     // Validate required parameters
     if (!userId) {
       return NextResponse.json(
         { 
           error: 'Missing required parameter: userId',
-          example: { userId: 'user123' }
+          example: { userId: 'user123', simulatedDate: '2024-01-01T12:00:00.000Z' }
         }, 
         { status: 400 }
       );
@@ -32,10 +32,32 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate simulatedDate if provided
+    let evaluationDate = new Date();
+    if (simulatedDate) {
+      if (typeof simulatedDate !== 'string') {
+        return NextResponse.json(
+          { error: 'simulatedDate must be a string in ISO format' }, 
+          { status: 400 }
+        );
+      }
+      
+      evaluationDate = new Date(simulatedDate);
+      if (isNaN(evaluationDate.getTime())) {
+        return NextResponse.json(
+          { error: 'simulatedDate must be a valid ISO date string' }, 
+          { status: 400 }
+        );
+      }
+    }
+
     console.log(`🚀 Starting coaching message evaluation for user: ${userId}`);
+    if (simulatedDate) {
+      console.log(`🕒 Using simulated date: ${evaluationDate.toISOString()} (${evaluationDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })})`);
+    }
 
     // Run the two-step evaluation process
-    const result = await evaluateCoachingMessage(userId);
+    const result = await evaluateCoachingMessage(userId, evaluationDate);
 
     if (result.shouldSend && result.message) {
       // Simulate sending the message (console.log for now)
@@ -57,6 +79,7 @@ export async function POST(request: Request) {
       shouldSend: result.shouldSend,
       message: result.message || null,
       reasoning: result.reasoning,
+      evaluationDate: evaluationDate.toISOString(),
       timestamp: new Date().toISOString()
     });
 
@@ -95,10 +118,18 @@ export async function GET() {
             type: 'string',
             required: true,
             description: 'The ID of the user to evaluate'
+          },
+          simulatedDate: {
+            type: 'string',
+            required: false,
+            description: 'ISO date string to simulate evaluation at a different time (useful for testing past scenarios)'
           }
         },
         example: {
-          request: { userId: 'user123' },
+          request: { 
+            userId: 'user123', 
+            simulatedDate: '2024-01-01T12:00:00.000Z'
+          },
           response: {
             success: true,
             userId: 'user123',
@@ -114,6 +145,7 @@ export async function GET() {
               }
             },
             reasoning: 'User has been consistent with journaling and ready for accountability check-in',
+            evaluationDate: '2024-01-01T12:00:00.000Z',
             timestamp: '2024-01-01T12:00:00.000Z'
           }
         }

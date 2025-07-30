@@ -18,7 +18,8 @@ import { JournalEntry } from '@/types/journal';
 /**
  * Main evaluation function that orchestrates the two-step AI evaluation process
  */
-export async function evaluateCoachingMessage(userId: string): Promise<EvaluationResult> {
+export async function evaluateCoachingMessage(userId: string, evaluationDate?: Date): Promise<EvaluationResult> {
+  const currentDate = evaluationDate || new Date();
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error('OpenRouter API key not configured');
   }
@@ -28,17 +29,17 @@ export async function evaluateCoachingMessage(userId: string): Promise<Evaluatio
 
   // Step 1: Gather user context
   console.log(`📋 STEP 1: Gathering user context...`);
-  const context = await gatherUserContext(userId);
+  const context = await gatherUserContext(userId, currentDate);
 
   // Step 2: Draft message - determine message type and content
   console.log(`🔍 STEP 2: Drafting message...`);
-  const impactEval = await draftMessage(context);
+  const impactEval = await draftMessage(context, currentDate);
   
   console.log(`✅ Message drafting complete. Recommended: ${impactEval.recommendedMessageType}`);
 
   // Step 3: Outcome simulation - final quality check and decision
   console.log(`🎭 STEP 3: Running outcome simulation...`);
-  const outcomeEval = await simulateMessageOutcome(context, impactEval);
+  const outcomeEval = await simulateMessageOutcome(context, impactEval, currentDate);
   
   console.log(`✅ Outcome simulation complete. Decision: ${outcomeEval.finalDecision} (Excellence: ${outcomeEval.optimizedMessageAnalysis.messageExcellence}/10)`);
 
@@ -69,7 +70,7 @@ export async function evaluateCoachingMessage(userId: string): Promise<Evaluatio
 /**
  * Gather all relevant context for the user
  */
-async function gatherUserContext(userId: string): Promise<UserContext> {
+async function gatherUserContext(userId: string, currentDate: Date): Promise<UserContext> {
   console.log(`📋 Gathering context for user ${userId}`);
 
   const [
@@ -129,7 +130,7 @@ async function gatherUserContext(userId: string): Promise<UserContext> {
 /**
  * Step 1: Draft a coaching message based on user context
  */
-async function draftMessage(context: UserContext): Promise<ImpactEvaluation> {
+async function draftMessage(context: UserContext, currentDate: Date): Promise<ImpactEvaluation> {
   const openrouter = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -139,7 +140,7 @@ async function draftMessage(context: UserContext): Promise<ImpactEvaluation> {
   });
 
   const systemPrompt = await loadPrompt('impact-evaluation.md');
-  const userPrompt = buildImpactEvaluationPrompt(context);
+  const userPrompt = buildImpactEvaluationPrompt(context, currentDate);
 
   const response = await openrouter.chat.completions.create({
     model: 'anthropic/claude-sonnet-4',
@@ -179,7 +180,8 @@ async function draftMessage(context: UserContext): Promise<ImpactEvaluation> {
  */
 async function simulateMessageOutcome(
   context: UserContext, 
-  impactEval: ImpactEvaluation
+  impactEval: ImpactEvaluation,
+  currentDate: Date
 ): Promise<OutcomeSimulation> {
   const openrouter = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
@@ -190,7 +192,7 @@ async function simulateMessageOutcome(
   });
 
   const systemPrompt = await loadPrompt('outcome-simulation.md');
-  const userPrompt = buildOutcomeSimulationPrompt(context, impactEval);
+  const userPrompt = buildOutcomeSimulationPrompt(context, impactEval, currentDate);
 
   const response = await openrouter.chat.completions.create({
     model: 'anthropic/claude-sonnet-4',
@@ -392,10 +394,28 @@ async function loadPrompt(filename: string): Promise<string> {
 /**
  * Build the user prompt for message drafting
  */
-function buildImpactEvaluationPrompt(context: UserContext): string {
+function buildImpactEvaluationPrompt(context: UserContext, currentDate: Date): string {
   const { recentMessages, alignmentDoc, recentJournalEntries, lastMessageSentAt } = context;
 
+  // Format the current date and time for context
+  const dateOptions: Intl.DateTimeFormatOptions = { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  };
+  const formattedDate = currentDate.toLocaleDateString('en-US', dateOptions);
+  const timeOfDay = currentDate.getHours() < 12 ? 'morning' : currentDate.getHours() < 17 ? 'afternoon' : 'evening';
+
   let prompt = `# User Context for Coaching Message Impact Evaluation
+
+## Current Date & Time Context:
+**Evaluation Date:** ${formattedDate}
+**Time of Day:** ${timeOfDay}
+**Day of Week:** ${currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
 
 ## User ID: ${context.userId}
 
@@ -430,7 +450,13 @@ function buildImpactEvaluationPrompt(context: UserContext): string {
   }
 
   prompt += `
-Based on this context, draft a coaching message for this user right now. Consider their recent activity, patterns, and current state.`;
+## Timing & Context Considerations:
+- Current time is ${formattedDate}
+- Consider what time of day/week this is and how it affects the user's receptivity
+- Factor in recent patterns and timing of their last activities
+- Think about whether this is an optimal moment for the type of message you're considering
+
+Based on this context, draft a coaching message for this user right now. Consider their recent activity, patterns, current state, and the timing context above.`;
 
   return prompt;
 }
@@ -438,8 +464,26 @@ Based on this context, draft a coaching message for this user right now. Conside
 /**
  * Build the user prompt for outcome simulation
  */
-function buildOutcomeSimulationPrompt(context: UserContext, impactEval: ImpactEvaluation): string {
+function buildOutcomeSimulationPrompt(context: UserContext, impactEval: ImpactEvaluation, currentDate: Date): string {
+  // Format the current date and time for context
+  const dateOptions: Intl.DateTimeFormatOptions = { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short'
+  };
+  const formattedDate = currentDate.toLocaleDateString('en-US', dateOptions);
+  const timeOfDay = currentDate.getHours() < 12 ? 'morning' : currentDate.getHours() < 17 ? 'afternoon' : 'evening';
+  
   return `# Coaching Message Outcome Simulation
+
+## Current Date & Time Context:
+**Evaluation Date:** ${formattedDate}
+**Time of Day:** ${timeOfDay}
+**Day of Week:** ${currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
 
 ## User Context Summary:
 - User ID: ${context.userId}
@@ -460,8 +504,10 @@ Simulate how this specific user would likely respond to this message. Consider t
 
 Focus on:
 1. How would THIS user specifically react?
-2. Is the timing appropriate given their recent activity?
+2. Is the timing appropriate given their recent activity and the current time (${formattedDate})?
 3. Are there any risks or potential negative outcomes?
-4. How could the message be improved?
-5. Should we send it or wait?`;
+4. How could the message be improved considering the current day/time context?
+5. Should we send it or wait for a better moment?
+
+Consider the current time context: It's ${timeOfDay} on a ${currentDate.toLocaleDateString('en-US', { weekday: 'long' })}. Factor this into your timing analysis.`;
 } 

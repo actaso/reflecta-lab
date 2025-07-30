@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coaching Notifications - 7-Day Test Report</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .summary {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .day-result {
+            margin: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .day-header {
+            padding: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .day-header.sent {
+            background: #d4edda;
+            color: #155724;
+            border-bottom: 1px solid #c3e6cb;
+        }
+        .day-header.not-sent {
+            background: #f8d7da;
+            color: #721c24;
+            border-bottom: 1px solid #f5c6cb;
+        }
+        .day-content {
+            padding: 20px;
+        }
+        .message-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .message-meta {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        .reasoning {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+            margin: 10px 0;
+        }
+        .confidence-score {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .confidence-high { background: #d4edda; color: #155724; }
+        .confidence-medium { background: #fff3cd; color: #856404; }
+        .confidence-low { background: #f8d7da; color: #721c24; }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Coaching Notifications Test Report</h1>
+            <p>7-Day Simulation Analysis</p>
+        </div>
+        <div class="summary">
+            <h2>Test Configuration</h2>
+            <p><strong>User ID:</strong> user_2z09PNxhYSTJRbItrcQzyLOc5H3</p>
+            <p><strong>API Endpoint:</strong> http://localhost:3000/api/prototype/coaching-message-evaluator</p>
+            <p><strong>Test Date:</strong> Mon Jul 28 16:35:43 CEST 2025</p>
+            <p><strong>Time Range:</strong> Past 7 days (2025-07-21 to 2025-07-28)</p>
+        </div>
+        <div class="day-result">
+            <div class="day-header sent">
+                <span>Tuesday, July 22, 2025 at 04:35 PM</span>
+                <span>✅ MESSAGE SENT</span>
+            </div>
+            <div class="day-content">
+                <div class="message-meta">
+                    <strong>Type:</strong> <span class="code">personal_insight</span> | 
+                    <strong>Confidence:</strong> <span class="confidence-score confidence-high">92%</span>
+                </div>
+                <div class="message-preview">
+                    <strong>📱 Push Notification:</strong><br>
+                    "The insight you need for Reflecta is waiting inside Reflecta 🔍"
+                </div>
+                <div class="message-preview">
+                    <strong>💬 Full Message:</strong><br>
+                    "I notice something fascinating: you're designing a transformational 15-minute first-time experience for Reflecta users, but you haven't started your own reflection journey with the tool yet.
+
+There's profound opportunity here. You want users to feel 'wow, this is different' in their first 15 minutes, but you're designing this experience from the outside looking in rather than from lived experience.
+
+Your vision of 'extreme clarity' and 'working through tensions' - these aren't just product features, they're exactly what you need right now as you navigate the gap between 50€ MRR and your 10k goal.
+
+Here's a thought: What if the breakthrough insight for Reflecta is waiting inside Reflecta itself?
+
+Try this: Spend the next 15 minutes using your own tool exactly as you envision your ideal user would. Bring a real tension you're facing - maybe the product direction, the revenue gap, or a specific design challenge.
+
+Sometimes the best product insights come from eating your own cooking. And right now, you have the perfect opportunity to become your own first success story."
+                </div>
+                <div class="reasoning">
+                    <strong>🧠 AI Reasoning:</strong><br>
+                    This is a strategically brilliant first coaching message with perfect timing. The user is building an AI coaching product but hasn't used it themselves - a classic case of 'shoemaker's children have no shoes.' Tuesday 4:35 PM is optimal for insight-driven messages that can lead to immediate action. The meta-insight about becoming their own first power user is exactly what a product builder needs to hear, and the 15-minute challenge is perfectly sized for immediate implementation. The message demonstrates the exact type of transformational insight they want to create for their users.
+                </div>
+            </div>
+        </div>
+        <div class="day-result">
+            <div class="day-header sent">
+                <span>Wednesday, July 23, 2025 at 04:36 PM</span>
+                <span>✅ MESSAGE SENT</span>
+            </div>
+            <div class="day-content">
+                <div class="message-meta">
+                    <strong>Type:</strong> <span class="code">check_in</span> | 
+                    <strong>Confidence:</strong> <span class="confidence-score confidence-high">85%</span>
+                </div>
+                <div class="message-preview">
+                    <strong>📱 Push Notification:</strong><br>
+                    "The hardest user to convert might be yourself 🤔"
+                </div>
+                <div class="message-preview">
+                    <strong>💬 Full Message:</strong><br>
+                    "I've been thinking about our conversation from 5 days ago, and I'm curious about something.
+
+Building a reflection tool while avoiding reflection yourself is one of the most human contradictions I've seen. It's like a chef who never tastes their own cooking - technically possible, but missing something essential.
+
+I'm not here to call you out. I'm genuinely curious: What makes it hard to use your own creation? Is it fear of what you might discover? Perfectionism about the experience? Or something else entirely?
+
+Here's what I suspect: The resistance you feel toward using Reflecta might be the exact same resistance your users feel. Understanding your own friction could be the key to reducing theirs.
+
+No pressure, but if you're up for a small experiment: What if you spent just 10 minutes this evening reflecting on this exact question - 'What stops me from using my own tool?' 
+
+Your resistance might be your greatest teacher."
+                </div>
+                <div class="reasoning">
+                    <strong>🧠 AI Reasoning:</strong><br>
+                    This message hits a core psychological wound (authenticity gap) at a vulnerable time (Wednesday afternoon energy dip). While the insight is valuable, the confrontational tone and timing create high risk of defensiveness and further avoidance. The user is likely already feeling pressure about their startup progress, and this direct challenge could overwhelm rather than motivate. The message needs significant softening and reframing to create psychological safety around this sensitive topic.
+                </div>
+            </div>
+        </div>
+        <div class="day-result">
+            <div class="day-header sent">
+                <span>Thursday, July 24, 2025 at 04:37 PM</span>
+                <span>✅ MESSAGE SENT</span>
+            </div>
+            <div class="day-content">
+                <div class="message-meta">
+                    <strong>Type:</strong> <span class="code">check_in</span> | 
+                    <strong>Confidence:</strong> <span class="confidence-score confidence-high">80%</span>
+                </div>
+                <div class="message-preview">
+                    <strong>📱 Push Notification:</strong><br>
+                    "Been thinking about that Reflecta experiment... 💭"
+                </div>
+                <div class="message-preview">
+                    <strong>💬 Full Message:</strong><br>
+                    "Hey - I've been thinking about that 15-minute Reflecta experiment we discussed.
+
+I'm curious what's been going through your mind about it over the past few days. Whether you tried it, thought about trying it, or found yourself avoiding it entirely - all of that is fascinating data.
+
+Honestly, your mental process around using your own tool might be the most valuable user research you could do. The thoughts, resistance, or insights that came up just from considering it could reveal exactly what your users experience.
+
+What's been rattling around in your head about it? Even if it's just 'ugh, I really should try this but...' - that 'but' is probably gold.
+
+No pressure to have done anything specific - just genuinely curious about your internal experience with the idea."
+                </div>
+                <div class="reasoning">
+                    <strong>🧠 AI Reasoning:</strong><br>
+                    This user has been silent for 4 days after receiving direct challenges about using their own tool. Thursday afternoon timing is decent for a reflective check-in, but the original message feels too much like homework accountability. The user is likely processing or experiencing resistance, both of which are valuable. I need to reframe this as exploration rather than evaluation.
+                </div>
+            </div>
+        </div>
+        <div class="day-result">
+            <div class="day-header sent">
+                <span>Friday, July 25, 2025 at 04:38 PM</span>
+                <span>✅ MESSAGE SENT</span>
+            </div>
+            <div class="day-content">
+                <div class="message-meta">
+                    <strong>Type:</strong> <span class="code">challenge</span> | 
+                    <strong>Confidence:</strong> <span class="confidence-score confidence-high">85%</span>
+                </div>
+                <div class="message-preview">
+                    <strong>📱 Push Notification:</strong><br>
+                    "Your resistance isn't broken. It's data 📊"
+                </div>
+                <div class="message-preview">
+                    <strong>💬 Full Message:</strong><br>
+                    "Friday afternoon permission slip:
+
+Your resistance to using Reflecta isn't a character flaw. It's incredibly valuable user research.
+
+Every moment you haven't opened your own tool, every 'I should but...' thought - that's not personal failure. That's your target user's exact experience speaking through you.
+
+You don't need to fix this resistance or study it or turn it into a weekend project.
+
+You just need to know: the friction you feel is the same friction keeping your users from reaching 10k MRR with you.
+
+Your resistance is working perfectly. It's showing you exactly what needs to change.
+
+No homework. No challenges. Just this: you're not broken, and neither is your instinct to avoid things that don't feel right yet.
+
+Enjoy your Friday evening. 🌅"
+                </div>
+                <div class="reasoning">
+                    <strong>🧠 AI Reasoning:</strong><br>
+                    This user shows clear resistance patterns (0 journal entries despite multiple coaching messages) and Friday afternoon is poor timing for cognitive challenges or weekend assignments. They need validation and permission, not more sophisticated pressure. The original message's homework element will feel burdensome when they want to decompress.
+                </div>
+            </div>
+        </div>
+        <div class="day-result">
+            <div class="day-header sent">
+                <span>Saturday, July 26, 2025 at 04:39 PM</span>
+                <span>✅ MESSAGE SENT</span>
+            </div>
+            <div class="day-content">
+                <div class="message-meta">
+                    <strong>Type:</strong> <span class="code">relevant_lesson</span> | 
+                    <strong>Confidence:</strong> <span class="confidence-score confidence-high">80%</span>
+                </div>
+                <div class="message-preview">
+                    <strong>📱 Push Notification:</strong><br>
+                    "The Wright brothers' surprising creative breakthrough 🛩️"
+                </div>
+                <div class="message-preview">
+                    <strong>💬 Full Message:</strong><br>
+                    "Saturday reflection:
+
+There's a fascinating story about the Wright brothers that every creator should know.
+
+For months before their first flight, Orville refused to ride in their own glider. Not because he didn't believe in it, but because he was so focused on perfecting the design that he couldn't step back and experience it as a user.
+
+Wilbur finally told him: 'You can't design the perfect flying experience from the ground.'
+
+But here's the twist - Orville's resistance wasn't a problem to solve. It was valuable data.
+
+Every transformational tool faces this paradox: the creator becomes so focused on building the perfect experience that they lose touch with the user perspective. Yet that creative distance often reveals what's still missing.
+
+Sometimes the most important question isn't 'How do I force myself to use this?' but 'What would make this so compelling that I couldn't resist using it?'
+
+The breakthrough often comes from honoring the creative tension rather than fighting it.
+
+Just something I was thinking about on this Saturday afternoon."
+                </div>
+                <div class="reasoning">
+                    <strong>🧠 AI Reasoning:</strong><br>
+                    This user shows resistance to direct coaching about tool usage (0 journal entries despite recent messages). Saturday afternoon calls for lighter touch - the original message risks feeling like weekend work intrusion by psychoanalyzing their resistance. The Wright brothers story is valuable but needs reframing as inspiration rather than diagnosis.
+                </div>
+            </div>
+        </div>
+        <div class="day-result">
+            <div class="day-header sent">
+                <span>Sunday, July 27, 2025 at 04:39 PM</span>
+                <span>✅ MESSAGE SENT</span>
+            </div>
+            <div class="day-content">
+                <div class="message-meta">
+                    <strong>Type:</strong> <span class="code">personal_insight</span> | 
+                    <strong>Confidence:</strong> <span class="confidence-score confidence-high">85%</span>
+                </div>
+                <div class="message-preview">
+                    <strong>📱 Push Notification:</strong><br>
+                    "What if your 'resistance' is actually wisdom? 🤔"
+                </div>
+                <div class="message-preview">
+                    <strong>💬 Full Message:</strong><br>
+                    "Sunday afternoon thought experiment:
+
+You're building a tool for 'extreme clarity' but haven't started using it yourself. I have a hypothesis about why, and I'm curious if it resonates.
+
+What if your non-use isn't resistance or procrastination? What if it's your creator's instinct protecting you from experiencing your own vision before it's ready to deliver what you know is possible?
+
+You know what 'magical' feels like from tools like Mac and Cursor. You won't settle for less than that standard - especially from your own creation.
+
+Every day you don't use Reflecta, you're living your future users' exact experience with tools that promise transformation but don't quite deliver it yet.
+
+So here's the question that might unlock everything: What would Reflecta need to become for you to genuinely *want* to open it every day?
+
+Not 'should want to' or 'need to' - but actually *want to*.
+
+What comes up when you sit with that?"
+                </div>
+                <div class="reasoning">
+                    <strong>🧠 AI Reasoning:</strong><br>
+                    This user shows a pattern of intellectual engagement with coaching but behavioral avoidance of their own reflection tool. Sunday afternoon is psychologically optimal for deeper insights, but the original message risks feeling too analytical. The core insight about creator's instinct vs. resistance is valuable but needs to be positioned as collaborative exploration rather than psychological diagnosis.
+                </div>
+            </div>
+        </div>
+        <div class="day-result">
+            <div class="day-header not-sent">
+                <span>Monday, July 28, 2025 at 04:40 PM</span>
+                <span>⏸ NO MESSAGE</span>
+            </div>
+            <div class="day-content">
+                <div class="reasoning">
+                    <strong>🧠 AI Reasoning:</strong><br>
+                    This is a clear case where coaching restraint is more valuable than coaching input. Six messages in one day creates overwhelm, and the coach's self-awareness about being 'enthusiastic' confirms this. Monday afternoon timing compounds the issue - user is likely in work flow or winding down. The best coaching move is to demonstrate trust in their process by giving them space.
+                </div>
+            </div>
+        </div>
+        <div class="summary">
+            <h2>📊 Test Results Summary</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">7</div>
+                    <div>Days Tested</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">6</div>
+                    <div>Messages Sent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">1</div>
+                    <div>Messages Skipped</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">84%</div>
+                    <div>Avg Confidence</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
