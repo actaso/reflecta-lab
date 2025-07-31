@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import CoachingHeader from './CoachingHeader';
 import CoachingInput from './CoachingInput';
 import CoachingMessage from './CoachingMessage';
 import confetti from 'canvas-confetti';
+import { CoachingSession as CoachingSessionType, CoachingSessionMessage } from '@/types/coachingSession';
 
 interface CoachingMessage {
   id: string;
@@ -17,9 +19,13 @@ interface CoachingSessionData {
   objective: string;
   progress: number; // 0-100
   messages: CoachingMessage[];
+  sessionId?: string; // Track the current session ID
 }
 
 export default function CoachingSession() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
   const [sessionData, setSessionData] = useState<CoachingSessionData>({
     objective: "Life Deep Dive Session",
     progress: 0,
@@ -36,6 +42,7 @@ export default function CoachingSession() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [confettiTriggered, setConfettiTriggered] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +53,69 @@ export default function CoachingSession() {
   useEffect(() => {
     scrollToBottom();
   }, [sessionData.messages]);
+
+  // Load existing session if sessionId is provided in URL
+  useEffect(() => {
+    const urlSessionId = searchParams.get('sessionId');
+    
+    if (urlSessionId && urlSessionId !== sessionData.sessionId) {
+      loadExistingSession(urlSessionId);
+    }
+  }, [searchParams]);
+
+  // Load existing session from Firestore
+  const loadExistingSession = async (sessionId: string) => {
+    setIsLoadingSession(true);
+    
+    try {
+      const response = await fetch(`/api/coaching-session?sessionId=${encodeURIComponent(sessionId)}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn('Session not found, starting new session');
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.session) {
+        const loadedSession: CoachingSessionType = result.session;
+        
+        // Convert session data to component format
+        setSessionData({
+          objective: `${loadedSession.sessionType === 'initial-life-deep-dive' ? 'Life Deep Dive' : 'Coaching'} Session`,
+          progress: Math.min((loadedSession.messages.length * 10), 100), // Estimate progress from message count
+          messages: loadedSession.messages.map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp)
+          })),
+          sessionId: loadedSession.id
+        });
+        
+        console.log(`✅ Loaded existing session: ${sessionId} with ${loadedSession.messages.length} messages`);
+      }
+    } catch (error) {
+      console.error('Error loading session:', error);
+    } finally {
+      setIsLoadingSession(false);
+    }
+  };
+
+  // Generate session ID for new sessions
+  const generateSessionId = (): string => {
+    return crypto.randomUUID();
+  };
+
+  // Update URL with session ID
+  const updateUrlWithSessionId = (sessionId: string) => {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('sessionId', sessionId);
+    router.replace(currentUrl.pathname + currentUrl.search);
+  };
 
   // Trigger confetti celebration when reaching 100% progress
   useEffect(() => {
@@ -104,7 +174,7 @@ export default function CoachingSession() {
         body: JSON.stringify({
           conversationHistory: sessionData.messages,
           previousProgress: sessionData.progress,
-          sessionId: sessionData.objective,
+          sessionId: sessionData.sessionId || sessionData.objective,
         }),
       });
 
@@ -144,6 +214,15 @@ export default function CoachingSession() {
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
 
+    // Generate session ID for first user message if not already set
+    let currentSessionId = sessionData.sessionId;
+    if (!currentSessionId) {
+      currentSessionId = generateSessionId();
+      setSessionData(prev => ({ ...prev, sessionId: currentSessionId }));
+      updateUrlWithSessionId(currentSessionId);
+      console.log(`🆔 Generated new session ID: ${currentSessionId}`);
+    }
+
     const userMessage: CoachingMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -160,7 +239,7 @@ export default function CoachingSession() {
     setIsLoading(true);
 
     try {
-      // Call the new coaching API endpoint with full conversation history
+      // Call the coaching API endpoint with session ID and full conversation history
       const response = await fetch('/api/prototype/coach', {
         method: 'POST',
         headers: {
@@ -168,7 +247,8 @@ export default function CoachingSession() {
         },
         body: JSON.stringify({
           message: content.trim(),
-          sessionId: sessionData.objective, // Use objective as session identifier
+          sessionId: currentSessionId, // Use actual session ID for persistence
+          sessionType: 'initial-life-deep-dive', // Set session type
           conversationHistory: sessionData.messages // Include all previous messages for context
         }),
       });
@@ -301,7 +381,19 @@ export default function CoachingSession() {
     }
   };
 
-  // Show the coaching interface directly
+  // Show loading state while loading existing session
+  if (isLoadingSession) {
+    return (
+      <div className="h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-neutral-600">Loading your coaching session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show the coaching interface
   return (
     <div className="h-screen bg-white flex flex-col relative">
       <CoachingHeader 

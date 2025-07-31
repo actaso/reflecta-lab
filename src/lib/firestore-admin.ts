@@ -15,6 +15,11 @@ class FirestoreAdminService {
     return getFirestore(app);
   }
 
+  // Public method to access admin database for custom operations
+  static getAdminDatabase() {
+    return this.getAdminDb();
+  }
+
   // Get user account using Admin SDK (for server-side operations)
   static async getUserAccount(userId: string): Promise<UserAccount> {
     try {

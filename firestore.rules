@@ -44,6 +44,26 @@ service cloud.firestore {
                       userId == request.auth.uid;
     }
     
+    // Allow users to access their own coaching sessions
+    match /coachingSessions/{sessionId} {
+      // Read operations - check document ownership via userId field
+      allow read: if request.auth != null && 
+                    resource.data.userId == request.auth.uid;
+      
+      // Create operations - check userId field matches authenticated user
+      allow create: if request.auth != null && 
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Update operations - check document ownership via userId field
+      allow update: if request.auth != null && 
+                      resource.data.userId == request.auth.uid &&
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Delete operations - check document ownership
+      allow delete: if request.auth != null && 
+                      resource.data.userId == request.auth.uid;
+    }
+    
     // Deny access to all other collections
     match /{document=**} {
       allow read, write: if false;

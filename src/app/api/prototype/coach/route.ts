@@ -1,20 +1,46 @@
+/**
+ * PROTOTYPE COACH API ROUTE
+ * 
+ * This endpoint provides a simplified coaching interface for prototype testing using OpenRouter.
+ * 
+ * FEATURES:
+ * - Streams responses in real-time using Server-Sent Events (SSE)
+ * - Supports multiple coaching session types (default-session, initial-life-deep-dive)
+ * - Persists conversation history to Firestore when sessionId is provided
+ * - Builds user context from alignment and recent journal entries
+ * - Uses Anthropic Claude 3.5 Sonnet via OpenRouter
+ * 
+ * REQUEST PARAMETERS:
+ * - message: Required string - The user's message to the coach
+ * - sessionId: Optional string - If provided, conversation is persisted to Firestore
+ * - sessionType: Optional PromptType - Determines coaching style ('default-session' | 'initial-life-deep-dive')
+ * - conversationHistory: Optional array - Previous messages in the conversation
+ * 
+ * RESPONSE FORMAT:
+ * - Streaming SSE with data chunks containing: { type: 'content'|'done'|'error', content?, sessionId? }
+ * - After streaming completes, Firestore document is updated if sessionId provided
+ * 
+ * AUTHENTICATION:
+ * - Requires valid Clerk authentication
+ * - Uses userId from Clerk for context building and Firestore operations
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
 import FirestoreAdminService from '@/lib/firestore-admin';
-import { PrototypeCoachingPromptLoader } from '@/lib/coaching/models/prototypeCoaching/promptLoader';
+import { PrototypeCoachingPromptLoader, PromptType } from '@/lib/coaching/models/prototypeCoaching/promptLoader';
+import { PrototypeCoachRequest, CoachingSession, CoachingSessionMessage } from '@/types/coachingSession';
 
+/**
+ * Legacy interface for backward compatibility
+ * @deprecated Use CoachingSessionMessage from types instead
+ */
 interface CoachingMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-}
-
-interface PrototypeCoachRequest {
-  message: string;
-  sessionId?: string;
-  conversationHistory?: CoachingMessage[];
 }
 
 /**
@@ -53,8 +79,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate coaching system prompt
-    const systemPrompt = await generateCoachingSystemPrompt(userId);
+    // Generate coaching system prompt based on session type
+    const sessionType = validatedRequest.sessionType || 'default-session';
+    const systemPrompt = await generateCoachingSystemPrompt(userId, sessionType);
 
     // Build conversation context with history
     const messages: { role: 'system' | 'user' | 'assistant', content: string }[] = [
@@ -74,7 +101,7 @@ export async function POST(request: NextRequest) {
     // Add the current message
     messages.push({ role: 'user', content: validatedRequest.message });
 
-    console.log(`🧠 Coaching context: ${messages.length} messages (including system prompt)`);
+    console.log(`🧠 Coaching context: ${messages.length} messages (including system prompt), session type: ${sessionType}`);
 
     // Create streaming response
     const stream = await openrouter.chat.completions.create({
@@ -85,6 +112,9 @@ export async function POST(request: NextRequest) {
       stream: true,
     });
 
+    // Store the assistant's response for Firestore update
+    let assistantResponse = '';
+
     // Create readable stream for response
     const readableStream = new ReadableStream({
       async start(controller) {
@@ -92,12 +122,31 @@ export async function POST(request: NextRequest) {
           for await (const chunk of stream) {
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) {
+              assistantResponse += content; // Accumulate response for Firestore
               const data = JSON.stringify({ 
                 type: 'content', 
                 content,
                 sessionId: validatedRequest.sessionId 
               });
               controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`));
+            }
+          }
+          
+          // Update Firestore after streaming completes (if sessionId provided)
+          if (validatedRequest.sessionId && assistantResponse.trim()) {
+            try {
+              await updateCoachingSession(
+                validatedRequest.sessionId,
+                userId,
+                validatedRequest.message,
+                assistantResponse,
+                sessionType,
+                validatedRequest.conversationHistory || []
+              );
+              console.log(`✅ Updated coaching session: ${validatedRequest.sessionId}`);
+            } catch (firestoreError) {
+              console.error('Failed to update Firestore:', firestoreError);
+              // Don't fail the response if Firestore update fails
             }
           }
           
@@ -171,8 +220,20 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
     throw new Error('Invalid or missing message');
   }
 
+  // Validate sessionType if provided
+  let sessionType: PromptType | undefined;
+  if (bodyObj.sessionType) {
+    if (typeof bodyObj.sessionType !== 'string') {
+      throw new Error('Invalid sessionType format');
+    }
+    if (!['default-session', 'initial-life-deep-dive'].includes(bodyObj.sessionType)) {
+      throw new Error('Invalid sessionType value. Must be "default-session" or "initial-life-deep-dive"');
+    }
+    sessionType = bodyObj.sessionType as PromptType;
+  }
+
   // Validate conversation history if provided
-  let conversationHistory: CoachingMessage[] | undefined;
+  let conversationHistory: CoachingSessionMessage[] | undefined;
   if (bodyObj.conversationHistory) {
     if (!Array.isArray(bodyObj.conversationHistory)) {
       throw new Error('Invalid conversation history format');
@@ -189,8 +250,96 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
   return {
     message: bodyObj.message.trim(),
     sessionId: typeof bodyObj.sessionId === 'string' ? bodyObj.sessionId : undefined,
+    sessionType,
     conversationHistory
   };
+}
+
+/**
+ * Update or create coaching session in Firestore
+ */
+async function updateCoachingSession(
+  sessionId: string,
+  userId: string,
+  userMessage: string,
+  assistantMessage: string,
+  sessionType: PromptType,
+  existingHistory: CoachingSessionMessage[]
+): Promise<void> {
+  // Skip if no sessionId provided
+  if (!sessionId || !sessionId.trim()) {
+    return;
+  }
+
+  try {
+    const db = FirestoreAdminService.getAdminDatabase();
+    const sessionRef = db.collection('coachingSessions').doc(sessionId);
+    const now = new Date();
+    
+    // Create new messages
+    const userMsg: CoachingSessionMessage = {
+      id: `${Date.now()}-user`,
+      role: 'user',
+      content: userMessage,
+      timestamp: now
+    };
+    
+    const assistantMsg: CoachingSessionMessage = {
+      id: `${Date.now()}-assistant`,
+      role: 'assistant',
+      content: assistantMessage,
+      timestamp: now
+    };
+
+    // Get existing session or prepare for new one
+    const sessionDoc = await sessionRef.get();
+    let allMessages: CoachingSessionMessage[];
+    let createdAt: Date;
+
+    if (sessionDoc.exists) {
+      // Update existing session
+      const currentSession = sessionDoc.data() as any; // Use any to handle Firestore timestamp conversion
+      
+      // Convert messages timestamps from Firestore to Date objects
+      const existingMessages = currentSession.messages.map((msg: any) => ({
+        ...msg,
+        timestamp: msg.timestamp.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp)
+      }));
+      
+      allMessages = [...existingMessages, userMsg, assistantMsg];
+      // Convert Firestore timestamp to Date object
+      createdAt = currentSession.createdAt.toDate ? currentSession.createdAt.toDate() : new Date(currentSession.createdAt);
+    } else {
+      // New session
+      allMessages = [...existingHistory, userMsg, assistantMsg];
+      createdAt = now;
+    }
+
+    // Calculate word count for all user messages
+    const wordCount = allMessages
+      .filter(msg => msg.role === 'user')
+      .reduce((count, msg) => count + msg.content.trim().split(/\s+/).length, 0);
+
+    // Calculate duration in seconds
+    const duration = Math.floor((now.getTime() - createdAt.getTime()) / 1000);
+
+    const sessionData: CoachingSession = {
+      id: sessionId,
+      userId,
+      sessionType,
+      messages: allMessages,
+      createdAt,
+      updatedAt: now,
+      duration,
+      wordCount
+    };
+    
+    // Use set with merge to simplify logic
+    await sessionRef.set(sessionData, { merge: true });
+  } catch (error) {
+    console.error('Error updating coaching session:', error);
+    throw error;
+  }
 }
 
 /**
@@ -235,12 +384,9 @@ async function generateUserContext(userId: string): Promise<string> {
 /**
  * Generate coaching system prompt for prototype
  */
-async function generateCoachingSystemPrompt(userId: string): Promise<string> {
-  // Determine which prompt to use (for now, always default session)
-  const promptType = PrototypeCoachingPromptLoader.determinePromptType(userId);
-  
-  // Load the base prompt from file
-  const basePrompt = PrototypeCoachingPromptLoader.getSystemPrompt(promptType);
+async function generateCoachingSystemPrompt(userId: string, sessionType: PromptType = 'default-session'): Promise<string> {
+  // Load the base prompt from file based on session type
+  const basePrompt = PrototypeCoachingPromptLoader.getSystemPrompt(sessionType);
 
   // Get user context and append it
   const userContext = await generateUserContext(userId);
