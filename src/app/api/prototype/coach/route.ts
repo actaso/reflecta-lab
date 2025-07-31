@@ -32,16 +32,7 @@ import FirestoreAdminService from '@/lib/firestore-admin';
 import { PrototypeCoachingPromptLoader, PromptType } from '@/lib/coaching/models/prototypeCoaching/promptLoader';
 import { PrototypeCoachRequest, CoachingSession, CoachingSessionMessage } from '@/types/coachingSession';
 
-/**
- * Legacy interface for backward compatibility
- * @deprecated Use CoachingSessionMessage from types instead
- */
-interface CoachingMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
+// Legacy interface removed - using CoachingSessionMessage from types instead
 
 /**
  * Prototype Coach API Route
@@ -298,17 +289,31 @@ async function updateCoachingSession(
 
     if (sessionDoc.exists) {
       // Update existing session
-      const currentSession = sessionDoc.data() as any; // Use any to handle Firestore timestamp conversion
+      const currentSession = sessionDoc.data() as {
+        messages: Array<{
+          id: string;
+          role: 'user' | 'assistant';
+          content: string;
+          timestamp: unknown;
+        }>;
+        createdAt: unknown;
+        userId: string;
+        sessionType: 'default-session' | 'initial-life-deep-dive';
+        duration: number;
+        wordCount: number;
+      };
       
       // Convert messages timestamps from Firestore to Date objects
-      const existingMessages = currentSession.messages.map((msg: any) => ({
+      const existingMessages: CoachingSessionMessage[] = currentSession.messages.map((msg) => ({
         ...msg,
-        timestamp: msg.timestamp.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        timestamp: (msg.timestamp as any)?.toDate ? (msg.timestamp as any).toDate() : new Date(msg.timestamp as any)
       }));
       
       allMessages = [...existingMessages, userMsg, assistantMsg];
       // Convert Firestore timestamp to Date object
-      createdAt = currentSession.createdAt.toDate ? currentSession.createdAt.toDate() : new Date(currentSession.createdAt);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createdAt = (currentSession.createdAt as any)?.toDate ? (currentSession.createdAt as any).toDate() : new Date(currentSession.createdAt as any);
     } else {
       // New session
       allMessages = [...existingHistory, userMsg, assistantMsg];

@@ -6,7 +6,7 @@ import CoachingHeader from './CoachingHeader';
 import CoachingInput from './CoachingInput';
 import CoachingMessage from './CoachingMessage';
 import confetti from 'canvas-confetti';
-import { CoachingSession as CoachingSessionType, CoachingSessionMessage } from '@/types/coachingSession';
+import { CoachingSession as CoachingSessionType } from '@/types/coachingSession';
 
 interface CoachingMessage {
   id: string;
@@ -61,7 +61,7 @@ export default function CoachingSession() {
     if (urlSessionId && urlSessionId !== sessionData.sessionId) {
       loadExistingSession(urlSessionId);
     }
-  }, [searchParams]);
+  }, [searchParams, sessionData.sessionId]);
 
   // Load existing session from Firestore
   const loadExistingSession = async (sessionId: string) => {

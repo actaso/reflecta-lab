@@ -56,7 +56,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sessionData = sessionDoc.data() as any;
+    const sessionData = sessionDoc.data() as {
+      id: string;
+      userId: string;
+      sessionType: 'default-session' | 'initial-life-deep-dive';
+      messages: Array<{
+        id: string;
+        role: 'user' | 'assistant';
+        content: string;
+        timestamp: unknown;
+      }>;
+      createdAt: unknown;
+      updatedAt: unknown;
+      duration: number;
+      wordCount: number;
+    };
 
     // Verify user ownership
     if (sessionData.userId !== userId) {
@@ -71,14 +85,17 @@ export async function GET(request: NextRequest) {
       id: sessionData.id,
       userId: sessionData.userId,
       sessionType: sessionData.sessionType,
-      messages: sessionData.messages.map((msg: any) => ({
+      messages: sessionData.messages.map((msg) => ({
         id: msg.id,
         role: msg.role,
         content: msg.content,
-        timestamp: msg.timestamp.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        timestamp: (msg.timestamp as any)?.toDate ? (msg.timestamp as any).toDate() : new Date(msg.timestamp as any)
       })),
-      createdAt: sessionData.createdAt.toDate ? sessionData.createdAt.toDate() : new Date(sessionData.createdAt),
-      updatedAt: sessionData.updatedAt.toDate ? sessionData.updatedAt.toDate() : new Date(sessionData.updatedAt),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createdAt: (sessionData.createdAt as any)?.toDate ? (sessionData.createdAt as any).toDate() : new Date(sessionData.createdAt as any),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      updatedAt: (sessionData.updatedAt as any)?.toDate ? (sessionData.updatedAt as any).toDate() : new Date(sessionData.updatedAt as any),
       duration: sessionData.duration,
       wordCount: sessionData.wordCount
     };
