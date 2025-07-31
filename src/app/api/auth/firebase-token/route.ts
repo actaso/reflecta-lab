@@ -4,16 +4,9 @@ import { createCustomToken } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the Clerk session
-    const { userId } = await auth();
+    // Use auth.protect() for robust authentication check
+    const { userId } = await auth.protect();
     
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized - no valid session found' },
-        { status: 401 }
-      );
-    }
-
     // Extract any additional claims from the request body
     const body = await request.json().catch(() => ({}));
     const additionalClaims = body.claims || {};
