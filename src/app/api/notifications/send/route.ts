@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userData = userDoc.data();
-    const expoPushTokens = userData?.expoPushTokens || [];
+    const expoPushTokens = userData?.mobilePushNotifications?.expoPushTokens || [];
 
     if (expoPushTokens.length === 0) {
       console.log(`⚠️ No push tokens found for user ${targetUserId}`);
