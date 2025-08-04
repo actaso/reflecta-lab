@@ -37,5 +37,10 @@ export type UserAccount = {
       coachingMessageFrequency: 'daily' | 'multipleTimesPerWeek' | 'onceAWeek';
       enableCoachingMessages: boolean; // if true, based on frequency messages will be sent. this should be a setting in the user doc.
   }
+  mobilePushNotifications: {
+    enabled: boolean;
+    expoToken: string[]; // array of expo tokens
+    lastNotificationSentAt: number; // unix timestamp
+  }
   userTimezone: string; // timezone of the user (e.g. "America/New_York")
 };

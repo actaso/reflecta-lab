@@ -27,6 +27,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { waitUntil } from '@vercel/functions';
 import OpenAI from 'openai';
 import FirestoreAdminService from '@/lib/firestore-admin';
 import { CoachingPromptLoader, PromptType } from '@/app/api/coaching/utils/promptLoader';
@@ -134,6 +135,18 @@ export async function POST(request: NextRequest) {
                 validatedRequest.conversationHistory || []
               );
               console.log(`✅ Updated coaching session: ${validatedRequest.sessionId}`);
+              
+              // Trigger insight extraction for initial life deep dive sessions that contain finish token
+              if (sessionType === 'initial-life-deep-dive' && assistantResponse.includes('[finish-end]')) {
+                console.log(`🧠 Triggering insight extraction for initial life deep dive session: ${validatedRequest.sessionId}`);
+                // Use Vercel's waitUntil to ensure insight extraction completes without blocking the response
+                waitUntil(
+                  triggerInsightExtraction(validatedRequest.sessionId, userId).catch((error) => {
+                    console.error('Failed to trigger insight extraction:', error);
+                    // Error is caught and logged, but won't affect user response
+                  })
+                );
+              }
             } catch (firestoreError) {
               console.error('Failed to update Firestore:', firestoreError);
               // Don't fail the response if Firestore update fails
@@ -371,4 +384,25 @@ async function generateCoachingSystemPrompt(userId: string, sessionType: PromptT
   const userContext = await generateUserContext(userId);
   
   return basePrompt + userContext;
+}
+
+/**
+ * Trigger insight extraction for completed initial life deep dive sessions
+ * Called asynchronously when [finish-end] token is detected via waitUntil
+ */
+async function triggerInsightExtraction(sessionId: string, userId: string): Promise<void> {
+  console.log(`🧠 Starting insight extraction for session: ${sessionId}`);
+  
+  // Import and call the service function directly
+  const { extractInsightsForSession } = await import('@/app/api/coaching/insightExtractor/service');
+  
+  const result = await extractInsightsForSession(sessionId, userId);
+  
+  if (result.success) {
+    console.log(`✅ Successfully extracted insights for session ${sessionId}`);
+    console.log(`📊 Insights extracted: mainFocus="${result.insights?.mainFocus?.headline}", keyBlockers="${result.insights?.keyBlockers?.headline}", plan="${result.insights?.plan?.headline}"`);
+  } else {
+    console.error(`❌ Insight extraction failed for session ${sessionId}: ${result.error}`);
+    throw new Error(`Insight extraction failed: ${result.error}`);
+  }
 }

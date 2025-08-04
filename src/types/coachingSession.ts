@@ -1,4 +1,4 @@
-import { PromptType } from '@/lib/coaching/models/prototypeCoaching/promptLoader';
+import { PromptType } from '@/app/api/coaching/utils/promptLoader';
 
 /**
  * Coaching session message structure

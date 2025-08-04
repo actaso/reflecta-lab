@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 export type PromptType = 'initial-life-deep-dive' | 'default-session';
+export type InsightPromptType = 'insight-extraction';
 
 /**
  * Coaching Prompt Loader
@@ -10,13 +11,14 @@ export type PromptType = 'initial-life-deep-dive' | 'default-session';
  */
 export class CoachingPromptLoader {
   private static readonly PROMPTS_DIR = join(process.cwd(), 'src/app/api/coaching/chat/prompts');
+  private static readonly INSIGHT_PROMPTS_DIR = join(process.cwd(), 'src/app/api/coaching/insightExtractor/prompts');
 
   /**
-   * Load a specific prompt file
+   * Load a specific prompt file from a given directory
    */
-  private static loadPromptFile(filename: string): string {
+  private static loadPromptFile(filename: string, directory: string = CoachingPromptLoader.PROMPTS_DIR): string {
     try {
-      const filePath = join(CoachingPromptLoader.PROMPTS_DIR, filename);
+      const filePath = join(directory, filename);
       return readFileSync(filePath, 'utf-8').trim();
     } catch (error) {
       console.error(`Error reading prompt file ${filename}:`, error);
@@ -30,6 +32,14 @@ export class CoachingPromptLoader {
   static getSystemPrompt(promptType: PromptType = 'default-session'): string {
     const filename = `${promptType}.md`;
     return CoachingPromptLoader.loadPromptFile(filename);
+  }
+
+  /**
+   * Get the insight extraction prompt
+   */
+  static getInsightExtractionPrompt(promptType: InsightPromptType = 'insight-extraction'): string {
+    const filename = `${promptType}.md`;
+    return CoachingPromptLoader.loadPromptFile(filename, CoachingPromptLoader.INSIGHT_PROMPTS_DIR);
   }
 
   /**
