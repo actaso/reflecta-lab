@@ -14,6 +14,7 @@
  * - message: Required string - The user's message to the coach
  * - sessionId: Optional string - If provided, conversation is persisted to Firestore
  * - sessionType: Optional PromptType - Determines coaching style ('default-session' | 'initial-life-deep-dive')
+ * - sessionDuration: Optional number - Session duration in minutes (used for initial-life-deep-dive customization)
  * - conversationHistory: Optional array - Previous messages in the conversation
  * 
  * RESPONSE FORMAT:
@@ -72,7 +73,11 @@ export async function POST(request: NextRequest) {
 
     // Generate coaching system prompt based on session type
     const sessionType = validatedRequest.sessionType || 'default-session';
-    const systemPrompt = await generateCoachingSystemPrompt(userId, sessionType);
+    const systemPrompt = await generateCoachingSystemPrompt(
+      userId, 
+      sessionType, 
+      validatedRequest.sessionDuration
+    );
 
     // Build conversation context with history
     const messages: { role: 'system' | 'user' | 'assistant', content: string }[] = [
@@ -235,6 +240,15 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
     sessionType = bodyObj.sessionType as PromptType;
   }
 
+  // Validate sessionDuration if provided
+  let sessionDuration: number | undefined;
+  if (bodyObj.sessionDuration !== undefined && bodyObj.sessionDuration !== null) {
+    if (typeof bodyObj.sessionDuration !== 'number' || bodyObj.sessionDuration <= 0) {
+      throw new Error('Invalid sessionDuration. Must be a positive number representing minutes');
+    }
+    sessionDuration = bodyObj.sessionDuration;
+  }
+
   // Validate conversation history if provided
   let conversationHistory: CoachingSessionMessage[] | undefined;
   if (bodyObj.conversationHistory) {
@@ -254,6 +268,7 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
     message: bodyObj.message.trim(),
     sessionId: typeof bodyObj.sessionId === 'string' ? bodyObj.sessionId : undefined,
     sessionType,
+    sessionDuration,
     conversationHistory
   };
 }
@@ -376,9 +391,27 @@ async function generateUserContext(userId: string): Promise<string> {
 /**
  * Generate coaching system prompt
  */
-async function generateCoachingSystemPrompt(userId: string, sessionType: PromptType = 'default-session'): Promise<string> {
+async function generateCoachingSystemPrompt(
+  userId: string, 
+  sessionType: PromptType = 'default-session',
+  sessionDuration?: number
+): Promise<string> {
   // Load the base prompt from file based on session type
-  const basePrompt = CoachingPromptLoader.getSystemPrompt(sessionType);
+  let basePrompt = CoachingPromptLoader.getSystemPrompt(sessionType);
+
+  // Inject session duration into initial life deep dive prompt if provided
+  if (sessionType === 'initial-life-deep-dive' && sessionDuration) {
+    basePrompt = basePrompt.replace(
+      /Keep the whole experience within 25 minutes\./g,
+      `Keep the whole experience within ${sessionDuration} minutes.`
+    );
+    
+    // Also update any other references to the 25-minute session
+    basePrompt = basePrompt.replace(
+      /25-minute onboarding session/g,
+      `${sessionDuration}-minute onboarding session`
+    );
+  }
 
   // Get user context and append it
   const userContext = await generateUserContext(userId);

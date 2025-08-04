@@ -33,5 +33,6 @@ export type PrototypeCoachRequest = {
   message: string;
   sessionId?: string; // Optional session ID for persistence
   sessionType?: PromptType; // Type of session, defaults to 'default-session'
+  sessionDuration?: number; // Optional session duration in minutes for dynamic prompt customization
   conversationHistory?: CoachingSessionMessage[]; // Previous messages in conversation
 }; 
