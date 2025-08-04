@@ -1,7 +1,7 @@
 /**
- * PROTOTYPE COACH API ROUTE
+ * COACHING CHAT API ROUTE
  * 
- * This endpoint provides a simplified coaching interface for prototype testing using OpenRouter.
+ * This endpoint provides the main coaching interface with real-time streaming responses.
  * 
  * FEATURES:
  * - Streams responses in real-time using Server-Sent Events (SSE)
@@ -29,14 +29,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
 import FirestoreAdminService from '@/lib/firestore-admin';
-import { PrototypeCoachingPromptLoader, PromptType } from '@/lib/coaching/models/prototypeCoaching/promptLoader';
+import { CoachingPromptLoader, PromptType } from '@/app/api/coaching/utils/promptLoader';
+import { CoachingContextBuilder } from '@/lib/coaching/contextBuilder';
 import { PrototypeCoachRequest, CoachingSession, CoachingSessionMessage } from '@/types/coachingSession';
 
-// Legacy interface removed - using CoachingSessionMessage from types instead
-
 /**
- * Prototype Coach API Route
- * Simplified coaching endpoint for prototype testing with OpenRouter
+ * Main Coaching Chat API Route
+ * Handles real-time coaching conversations with streaming responses
  */
 export async function POST(request: NextRequest) {
   try {
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: process.env.OPENROUTER_API_KEY,
       defaultHeaders: {
-        'X-Title': 'Reflecta Coaching Prototype',
+        'X-Title': 'Reflecta Coaching',
       },
     });
 
@@ -172,7 +171,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Prototype coach API error:', error);
+    console.error('Coaching chat API error:', error);
     
     if (error instanceof Error) {
       if (error.message.includes('rate limit')) {
@@ -198,7 +197,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Validate prototype coach request
+ * Validate coaching chat request
  */
 function validateRequest(body: unknown): PrototypeCoachRequest {
   if (!body || typeof body !== 'object') {
@@ -348,29 +347,13 @@ async function updateCoachingSession(
 }
 
 /**
- * Generate user context from recent journal entries
+ * Generate user context using the enhanced CoachingContextBuilder
  */
 async function generateUserContext(userId: string): Promise<string> {
   try {
-    // Get journal entries
-    const journalEntries = await FirestoreAdminService.getUserEntries(userId);
-
-    let context = '';
-
-
-
-    // Add past 10 journal entries if available
-    if (journalEntries.length > 0) {
-      const recentEntries = journalEntries.slice(0, 10);
-      context += `\n\n=== RECENT JOURNAL ENTRIES (Last ${recentEntries.length}) ===\n`;
-      
-      recentEntries.forEach((entry, index) => {
-        const entryDate = entry.timestamp.toLocaleDateString();
-        context += `\n--- Entry ${index + 1} (${entryDate}) ---\n${entry.content}\n`;
-      });
-    }
-
-    return context;
+    // Use the enhanced context builder that includes user profile and preferences
+    const contextData = await CoachingContextBuilder.buildChatContext(userId);
+    return contextData.formattedContext;
   } catch (error) {
     console.error('Error generating user context:', error);
     return ''; // Return empty string if context generation fails
@@ -378,14 +361,14 @@ async function generateUserContext(userId: string): Promise<string> {
 }
 
 /**
- * Generate coaching system prompt for prototype
+ * Generate coaching system prompt
  */
 async function generateCoachingSystemPrompt(userId: string, sessionType: PromptType = 'default-session'): Promise<string> {
   // Load the base prompt from file based on session type
-  const basePrompt = PrototypeCoachingPromptLoader.getSystemPrompt(sessionType);
+  const basePrompt = CoachingPromptLoader.getSystemPrompt(sessionType);
 
   // Get user context and append it
   const userContext = await generateUserContext(userId);
   
   return basePrompt + userContext;
-} 
+}

@@ -194,7 +194,7 @@ export function useGlobalVoiceRecorder(): GlobalVoiceRecorderHook {
       const formData = new FormData();
       formData.append('audio', audioBlob);
 
-      const response = await fetch('/api/prototype/transcribe', {
+              const response = await fetch('/api/transcribe', {
         method: 'POST',
         body: formData
       });

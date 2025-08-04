@@ -68,7 +68,7 @@ export default function CoachingSession() {
     setIsLoadingSession(true);
     
     try {
-      const response = await fetch(`/api/coaching-session?sessionId=${encodeURIComponent(sessionId)}`);
+      const response = await fetch(`/api/coaching/sessions?sessionId=${encodeURIComponent(sessionId)}`);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -166,7 +166,7 @@ export default function CoachingSession() {
     try {
       console.log('🎯 Evaluating coaching progress...', 'Current progress:', sessionData.progress);
       
-      const response = await fetch('/api/prototype/progress-evaluation', {
+      const response = await fetch('/api/coaching/progress', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -240,7 +240,7 @@ export default function CoachingSession() {
 
     try {
       // Call the coaching API endpoint with session ID and full conversation history
-      const response = await fetch('/api/prototype/coach', {
+      const response = await fetch('/api/coaching/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

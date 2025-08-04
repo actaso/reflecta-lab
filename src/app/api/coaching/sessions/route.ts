@@ -1,5 +1,5 @@
 /**
- * COACHING SESSION API ROUTE
+ * COACHING SESSIONS API ROUTE
  * 
  * This endpoint handles loading existing coaching sessions from Firestore.
  * Used for session persistence and continuation across browser sessions.
@@ -112,4 +112,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

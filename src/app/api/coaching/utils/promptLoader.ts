@@ -4,18 +4,19 @@ import { join } from 'path';
 export type PromptType = 'initial-life-deep-dive' | 'default-session';
 
 /**
- * Prototype Coaching Prompt Loader
+ * Coaching Prompt Loader
  * Loads the appropriate coaching prompt based on session type
+ * Moved from lib to be closer to the routes that use it
  */
-export class PrototypeCoachingPromptLoader {
-  private static readonly PROMPTS_DIR = join(process.cwd(), 'src/lib/coaching/models/prototypeCoaching/prompts');
+export class CoachingPromptLoader {
+  private static readonly PROMPTS_DIR = join(process.cwd(), 'src/app/api/coaching/chat/prompts');
 
   /**
    * Load a specific prompt file
    */
   private static loadPromptFile(filename: string): string {
     try {
-      const filePath = join(PrototypeCoachingPromptLoader.PROMPTS_DIR, filename);
+      const filePath = join(CoachingPromptLoader.PROMPTS_DIR, filename);
       return readFileSync(filePath, 'utf-8').trim();
     } catch (error) {
       console.error(`Error reading prompt file ${filename}:`, error);
@@ -28,7 +29,7 @@ export class PrototypeCoachingPromptLoader {
    */
   static getSystemPrompt(promptType: PromptType = 'default-session'): string {
     const filename = `${promptType}.md`;
-    return PrototypeCoachingPromptLoader.loadPromptFile(filename);
+    return CoachingPromptLoader.loadPromptFile(filename);
   }
 
   /**
@@ -44,4 +45,4 @@ export class PrototypeCoachingPromptLoader {
     
     return 'default-session';
   }
-} 
+}

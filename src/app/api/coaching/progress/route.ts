@@ -1,3 +1,26 @@
+/**
+ * COACHING PROGRESS EVALUATION API ROUTE
+ * 
+ * This endpoint evaluates the progress of coaching sessions based on 5 key dimensions:
+ * - Psychological safety: Has rapport and trust been built?
+ * - Self-awareness: Have core motivations, values, tensions been surfaced?
+ * - Pattern identification: Have limiting/driving patterns been named?
+ * - Insight: Has a genuine "a-ha" moment or deep reflection occurred?
+ * - Shared intention: Has a working theme or next-steps focus been co-created?
+ * 
+ * Uses a cost-efficient LLM model (Claude Haiku) for evaluation.
+ * 
+ * REQUEST PARAMETERS:
+ * - conversationHistory: Array of coaching messages
+ * - previousProgress: Number between 0-100 representing previous progress
+ * - sessionId: Optional string for session tracking
+ * 
+ * RESPONSE:
+ * - progress: Number between 0-100 (monotonic, always >= previousProgress)
+ * - rationale: String explaining the evaluation
+ * - fallback: Boolean indicating if fallback evaluation was used
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import OpenAI from 'openai';
@@ -222,4 +245,4 @@ Session Transcript:
 ${transcript}
 
 Please evaluate the current progress based on the five coaching dimensions and provide your assessment in the required JSON format.`;
-} 
+}

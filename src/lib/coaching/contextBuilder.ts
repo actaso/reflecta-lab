@@ -1,17 +1,67 @@
 import { CoachingInteractionRequest, CoachingContext } from '@/types/coaching';
 import { FirestoreAdminService } from '@/services/firestoreAdminService';
-import { JournalEntry } from '@/types/journal';
+import { JournalEntry, UserAccount } from '@/types/journal';
 
 /**
- * Coaching Context Builder
- * Builds comprehensive context for coaching interactions
+ * Coaching Context Builder Service
  * 
- * This is coaching-specific business logic that combines user data
- * with request data to create context for AI coaching prompts.
+ * OVERVIEW:
+ * This service builds comprehensive context for coaching interactions by combining:
+ * - User's recent journal entries
+ * - User account data (onboarding answers, coaching preferences)
+ * - Session-specific information
+ * 
+ * PURPOSE:
+ * The coaching context is reused across multiple coaching features:
+ * - Real-time coaching chat sessions
+ * - Progress evaluation
+ * - Session summaries and insights
+ * - Personalized coaching recommendations
+ * 
+ * ARCHITECTURE:
+ * This is kept as a service (not route-specific) because the context building
+ * logic is shared across multiple coaching endpoints and can be extended
+ * for future coaching features.
+ * 
+ * USAGE:
+ * - Call buildContext() for general coaching interactions
+ * - Call buildChatContext() for streaming chat sessions (includes user prefs)
+ * - Call buildUserProfile() for user-specific coaching configuration
  */
 export class CoachingContextBuilder {
   /**
-   * Build coaching context from request and user data
+   * Build comprehensive coaching context for chat sessions
+   * Includes user preferences, onboarding data, and recent entries
+   */
+  static async buildChatContext(userId: string): Promise<{
+    userProfile: UserAccount | null;
+    recentEntries: JournalEntry[];
+    formattedContext: string;
+    entryCount: number;
+  }> {
+    // Get user account data including coaching preferences
+    const userProfile = await FirestoreAdminService.getUserAccount(userId);
+    
+    // Get recent journal entries
+    const recentEntries = await FirestoreAdminService.getRecentJournalEntries(userId, 10);
+    
+    // Get total entry count for coaching strategy
+    const entryCount = await FirestoreAdminService.getUserEntryCount(userId);
+    
+    // Build formatted context string for AI prompts
+    const formattedContext = this.buildFormattedContext(userProfile, recentEntries, entryCount);
+    
+    return {
+      userProfile,
+      recentEntries,
+      formattedContext,
+      entryCount
+    };
+  }
+
+  /**
+   * Build coaching context from request and user data (legacy method)
+   * @deprecated Use buildChatContext() for new implementations
    */
   static async buildContext(request: CoachingInteractionRequest, userId: string): Promise<CoachingContext> {
     const recentEntries = await FirestoreAdminService.getRecentJournalEntries(userId, 10);
@@ -28,6 +78,86 @@ export class CoachingContextBuilder {
       userId,
       entryCount
     };
+  }
+
+  /**
+   * Build formatted context string for AI coaching prompts
+   */
+  private static buildFormattedContext(
+    userProfile: UserAccount | null, 
+    recentEntries: JournalEntry[], 
+    entryCount: number
+  ): string {
+    let context = '';
+
+    // Add user profile information if available
+    if (userProfile) {
+      context += this.formatUserProfile(userProfile);
+    }
+
+    // Add recent journal entries
+    if (recentEntries.length > 0) {
+      context += this.formatRecentEntries(recentEntries);
+    } else {
+      context += '\n\n=== JOURNAL ENTRIES ===\nNo recent entries available.';
+    }
+
+    // Add entry count context for coaching strategy
+    context += `\n\n=== JOURNALING HISTORY ===\nTotal entries: ${entryCount}`;
+    if (entryCount === 0) {
+      context += '\nThis user is new to journaling.';
+    } else if (entryCount < 5) {
+      context += '\nThis user is just getting started with journaling.';
+    } else if (entryCount < 20) {
+      context += '\nThis user has been journaling regularly.';
+    } else {
+      context += '\nThis user is an experienced journaler.';
+    }
+
+    return context;
+  }
+
+  /**
+   * Format user profile information for coaching context
+   */
+  private static formatUserProfile(userProfile: UserAccount): string {
+    let profileContext = '\n\n=== USER PROFILE ===\n';
+    
+    // Add onboarding information if completed
+    if (userProfile.onboardingAnswers?.onboardingCompleted) {
+      profileContext += `Onboarding completed: ${new Date(userProfile.onboardingAnswers.onboardingCompletedAt).toLocaleDateString()}\n`;
+      
+      if (userProfile.onboardingAnswers.whatDoYouDoInLife?.length > 0) {
+        profileContext += `Life areas: ${userProfile.onboardingAnswers.whatDoYouDoInLife.join(', ')}\n`;
+      }
+      
+      if (userProfile.onboardingAnswers.selfReflectionPracticesTried?.length > 0) {
+        profileContext += `Previous reflection practices: ${userProfile.onboardingAnswers.selfReflectionPracticesTried.join(', ')}\n`;
+      }
+      
+      if (typeof userProfile.onboardingAnswers.clarityInLife === 'number') {
+        profileContext += `Life clarity level: ${userProfile.onboardingAnswers.clarityInLife}/10\n`;
+      }
+      
+      if (typeof userProfile.onboardingAnswers.stressInLife === 'number') {
+        profileContext += `Stress level: ${userProfile.onboardingAnswers.stressInLife}/10\n`;
+      }
+    }
+
+    // Add coaching preferences
+    if (userProfile.coachingConfig) {
+      profileContext += `\n--- Coaching Preferences ---\n`;
+      profileContext += `Challenge degree: ${userProfile.coachingConfig.challengeDegree}\n`;
+      profileContext += `Communication style: ${userProfile.coachingConfig.harshToneDegree}\n`;
+      profileContext += `Preferred frequency: ${userProfile.coachingConfig.coachingMessageFrequency}\n`;
+    }
+
+    // Add timezone for temporal context
+    if (userProfile.userTimezone) {
+      profileContext += `\nUser timezone: ${userProfile.userTimezone}`;
+    }
+
+    return profileContext;
   }
 
   /**
