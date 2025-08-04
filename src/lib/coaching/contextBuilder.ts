@@ -149,12 +149,22 @@ export class CoachingContextBuilder {
       profileContext += `\n--- Coaching Preferences ---\n`;
       profileContext += `Challenge degree: ${userProfile.coachingConfig.challengeDegree}\n`;
       profileContext += `Communication style: ${userProfile.coachingConfig.harshToneDegree}\n`;
-      profileContext += `Preferred frequency: ${userProfile.coachingConfig.coachingMessageFrequency}\n`;
     }
 
-    // Add timezone for temporal context
+    // Add current time and timezone for temporal context
     if (userProfile.userTimezone) {
-      profileContext += `\nUser timezone: ${userProfile.userTimezone}`;
+      const now = new Date();
+      const userTime = now.toLocaleString('en-US', {
+        timeZone: userProfile.userTimezone,
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      profileContext += `\nCurrent time for user: ${userTime} (${userProfile.userTimezone})`;
     }
 
     return profileContext;

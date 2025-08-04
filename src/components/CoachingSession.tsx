@@ -248,7 +248,7 @@ export default function CoachingSession() {
         body: JSON.stringify({
           message: content.trim(),
           sessionId: currentSessionId, // Use actual session ID for persistence
-          sessionType: 'initial-life-deep-dive', // Set session type
+          sessionType: 'default-session', // Use default coaching session type
           conversationHistory: sessionData.messages // Include all previous messages for context
         }),
       });
