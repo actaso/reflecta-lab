@@ -5,17 +5,20 @@ export type userInsight = {
     mainFocus: {
         headline: string,
         description: string,
-        sources: insightSource[]
+        sources: insightSource[],
+        updatedAt: number, // unix timestamp
     },
     keyBlockers: {
         headline: string,
         description: string,
-        sources: insightSource[]
+        sources: insightSource[],
+        updatedAt: number,
     },
     plan: {
         headline: string,
         description: string,
-        sources: insightSource[]
+        sources: insightSource[],
+        updatedAt: number,
     },
     userId: string,
     createdAt: number,
