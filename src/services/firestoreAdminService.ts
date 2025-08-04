@@ -10,7 +10,7 @@ export class FirestoreAdminService {
   private static db = app ? getFirestore(app) : null;
 
   /**
-   * Get user account data including alignment and morning guidance
+   * Get user account data including morning guidance
    */
   static async getUserAccount(userId: string): Promise<UserAccount | null> {
     if (!this.db) return null;
@@ -25,8 +25,6 @@ export class FirestoreAdminService {
       const data = doc.data()!;
       return {
         uid: data.uid,
-        alignment: data.alignment,
-        alignmentSetAt: data.alignmentSetAt?.toDate(),
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
         currentMorningGuidance: data.currentMorningGuidance ? {

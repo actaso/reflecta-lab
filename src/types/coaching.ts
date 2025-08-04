@@ -25,7 +25,6 @@ export type CoachingInteractionResponse = {
 export type CoachingContext = {
   entryId: string;
   entryContent: string;
-  userAlignment: string;
   recentEntries: JournalEntry[];
   formattedRecentEntries: string;
   userId: string;

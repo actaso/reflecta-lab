@@ -7,7 +7,7 @@
  * - Streams responses in real-time using Server-Sent Events (SSE)
  * - Supports multiple coaching session types (default-session, initial-life-deep-dive)
  * - Persists conversation history to Firestore when sessionId is provided
- * - Builds user context from alignment and recent journal entries
+ * - Builds user context from recent journal entries
  * - Uses Anthropic Claude 3.5 Sonnet via OpenRouter
  * 
  * REQUEST PARAMETERS:
@@ -348,25 +348,16 @@ async function updateCoachingSession(
 }
 
 /**
- * Generate user context from alignment and recent journal entries
+ * Generate user context from recent journal entries
  */
 async function generateUserContext(userId: string): Promise<string> {
   try {
-    // Get user account and journal entries in parallel
-    const [userAccount, journalEntries] = await Promise.all([
-      FirestoreAdminService.getUserAccount(userId),
-      FirestoreAdminService.getUserEntries(userId)
-    ]);
+    // Get journal entries
+    const journalEntries = await FirestoreAdminService.getUserEntries(userId);
 
     let context = '';
 
-    // Add alignment document if available
-    if (userAccount.alignment) {
-      context += `\n\n=== USER'S CURRENT ALIGNMENT/PRIORITY ===\n${userAccount.alignment}\n`;
-      if (userAccount.alignmentSetAt) {
-        context += `(Set on: ${userAccount.alignmentSetAt.toLocaleDateString()})\n`;
-      }
-    }
+
 
     // Add past 10 journal entries if available
     if (journalEntries.length > 0) {

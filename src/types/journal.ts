@@ -32,8 +32,6 @@ export type MorningGuidance = {
 export type UserAccount = {
   uid: string;
   currentMorningGuidance?: MorningGuidance; // Today's morning guidance
-  alignment?: string; // User's biggest priority in life right now
-  alignmentSetAt?: Date; // When the alignment was last set
   createdAt: Date;
   updatedAt: Date;
 };

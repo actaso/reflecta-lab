@@ -45,7 +45,7 @@ class FirestoreAdminService {
         return {
           uid: data.uid,
           currentMorningGuidance,
-          alignment: data.alignment,
+    
           createdAt: data.createdAt ? data.createdAt.toDate() : data.updatedAt.toDate(),
           updatedAt: data.updatedAt.toDate()
         };
@@ -117,21 +117,7 @@ class FirestoreAdminService {
     }
   }
 
-  // Save user alignment using Admin SDK
-  static async saveAlignment(userId: string, alignment: string): Promise<void> {
-    try {
-      const adminDb = this.getAdminDb();
-      const docRef = adminDb.collection(this.USERS_COLLECTION_NAME).doc(userId);
-      await docRef.update({
-        alignment,
-        alignmentSetAt: new Date(),
-        updatedAt: new Date()
-      });
-    } catch (error) {
-      console.error('Error saving alignment (admin):', error);
-      throw new Error('Failed to save alignment to Firestore');
-    }
-  }
+
 
   // Mark morning guidance as used when user journals with it
   static async markGuidanceAsUsed(userId: string): Promise<void> {

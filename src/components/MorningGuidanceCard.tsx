@@ -7,12 +7,11 @@ import { useAnalytics } from '@/hooks/useAnalytics';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import AlignmentModal from '@/components/AlignmentModal';
+
 
 interface MorningGuidanceCardProps {
   onJournalNow?: (content?: string) => void;
   selectedEntryId?: string | null;
-  userAlignment?: string | null;
 }
 
 interface GuidanceResponse {
@@ -24,7 +23,7 @@ interface GuidanceResponse {
   alreadyUsed?: boolean;
 }
 
-export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, userAlignment }: MorningGuidanceCardProps) {
+export default function MorningGuidanceCard({ onJournalNow, selectedEntryId }: MorningGuidanceCardProps) {
   const { user } = useUser();
   const { entries } = useJournal(); // Get journal entries from the hook
   const {
@@ -40,7 +39,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
   const [, setError] = useState<string | null>(null);
   const [showReasoning, setShowReasoning] = useState(false);
   const [hasGuidance, setHasGuidance] = useState(false);
-  const [showAlignModal, setShowAlignModal] = useState(false);
+
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [journaledEntryId, setJournaledEntryId] = useState<string | null>(null);
   const hasInitializedRef = useRef(false);
@@ -82,8 +81,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
         // Track analytics
         trackMorningGuidanceGenerated({
           fromCache: data.fromCache,
-          entryCount: journalEntries.length,
-          hasAlignment: Boolean(userAlignment)
+          entryCount: journalEntries.length
         });
       }
     } catch (err) {
@@ -92,7 +90,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
     } finally {
       setLoading(false);
     }
-  }, [entries, trackMorningGuidanceGenerated, userAlignment]);
+  }, [entries, trackMorningGuidanceGenerated]);
 
   // Load guidance once when user becomes available
   useEffect(() => {
@@ -143,8 +141,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
       
       // Track analytics
       trackMorningGuidanceDismissed({
-        entryCount: entries.length,
-        hasAlignment: Boolean(userAlignment)
+        entryCount: entries.length
       });
       
       // Hide guidance
@@ -183,8 +180,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
       // Track analytics (always using detailed content now)
       trackMorningGuidanceUsed({
         useDetailedPrompt: true, // Always true since we always include detailed explanation
-        entryCount: entries.length,
-        hasAlignment: Boolean(userAlignment)
+        entryCount: entries.length
       });
       
       // Set journaled state to prevent hiding
@@ -207,8 +203,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
       // Track analytics for error case too (always using detailed content now)
       trackMorningGuidanceUsed({
         useDetailedPrompt: true, // Always true since we always include detailed explanation
-        entryCount: entries.length,
-        hasAlignment: Boolean(userAlignment)
+        entryCount: entries.length
       });
       setJournaledEntryId('journaled');
       onJournalNow?.(content);
@@ -400,12 +395,7 @@ export default function MorningGuidanceCard({ onJournalNow, selectedEntryId, use
         </DialogFooter>
       </Dialog>
 
-      {/* Settings Alignment Modal - for updating */}
-      <AlignmentModal
-        isOpen={showAlignModal}
-        onClose={() => setShowAlignModal(false)}
-        isInitial={false}
-      />
+
     </>
   );
 }

@@ -14,9 +14,6 @@ export class CoachingContextBuilder {
    * Build coaching context from request and user data
    */
   static async buildContext(request: CoachingInteractionRequest, userId: string): Promise<CoachingContext> {
-    const userAccount = await FirestoreAdminService.getUserAccount(userId);
-    const alignment = userAccount?.alignment || "Not specified";
-    
     const recentEntries = await FirestoreAdminService.getRecentJournalEntries(userId, 10);
     const formattedRecentEntries = this.formatRecentEntries(recentEntries);
     
@@ -26,7 +23,6 @@ export class CoachingContextBuilder {
     return {
       entryId: request.entryId,
       entryContent: request.entryContent,
-      userAlignment: alignment,
       recentEntries,
       formattedRecentEntries,
       userId,

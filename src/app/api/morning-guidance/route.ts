@@ -45,9 +45,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Get user alignment for context
-    const userAccount = await FirestoreAdminService.getUserAccount(userId);
-    const alignment = userAccount.alignment || "Not specified";
+
 
     // Convert journal entries to proper format (they come as plain objects from JSON)
     const typedEntries: JournalEntry[] = journalEntries.map((entry: Record<string, unknown>) => ({
@@ -94,9 +92,7 @@ export async function POST(req: NextRequest) {
       .join('\n\n');
 
     // Create the formatted prompt
-    const formattedPrompt = `Client's current main objective: ${alignment}
-
-Client's last ${recentEntries.length} journaling entries:
+    const formattedPrompt = `Client's last ${recentEntries.length} journaling entries:
 
 ${entriesText}`;
 
