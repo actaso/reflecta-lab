@@ -26,17 +26,41 @@ export default function CoachingSession() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
+  // Determine session type from URL parameter
+  const getSessionType = (): 'default-session' | 'initial-life-deep-dive' => {
+    const typeParam = searchParams.get('type');
+    return typeParam === 'initial-life-deep-dive' ? 'initial-life-deep-dive' : 'default-session';
+  };
+
+  const sessionType = getSessionType();
+  
+  // Set initial messages based on session type
+  const getInitialMessages = () => {
+    if (sessionType === 'initial-life-deep-dive') {
+      return [
+        {
+          id: '1',
+          role: 'assistant' as const,
+          content: "Welcome to your Life Deep Dive session. Before we begin exploring what's most alive in you right now, I'd like to offer you a moment to center yourself.\n\n[meditation:title=\"5-Minute Centering\",duration=\"300\",description=\"A gentle breathing exercise to help you connect with what's present right now\",type=\"breathing\"]\n\nOnce you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
+          timestamp: new Date()
+        }
+      ];
+    } else {
+      return [
+        {
+          id: '1',
+          role: 'assistant' as const,
+          content: "Welcome to your coaching session. I'm here to support you in exploring what's on your mind and help you find clarity and forward momentum.\n\nWhat would you like to focus on today?",
+          timestamp: new Date()
+        }
+      ];
+    }
+  };
+
   const [sessionData, setSessionData] = useState<CoachingSessionData>({
-    objective: "Life Deep Dive Session",
+    objective: sessionType === 'initial-life-deep-dive' ? "Life Deep Dive Session" : "Coaching Session",
     progress: 0,
-    messages: [
-      {
-        id: '1',
-        role: 'assistant',
-        content: "Welcome to your Life Deep Dive session. Before we begin exploring what's most alive in you right now, I'd like to offer you a moment to center yourself.\n\n[meditation:title=\"5-Minute Centering\",duration=\"300\",description=\"A gentle breathing exercise to help you connect with what's present right now\",type=\"breathing\"]\n\nOnce you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
-        timestamp: new Date()
-      }
-    ]
+    messages: getInitialMessages()
   });
 
   const [input, setInput] = useState('');
@@ -62,6 +86,22 @@ export default function CoachingSession() {
       loadExistingSession(urlSessionId);
     }
   }, [searchParams, sessionData.sessionId]);
+
+  // Handle session type changes from URL parameter
+  useEffect(() => {
+    const newSessionType = getSessionType();
+    const currentObjective = sessionData.objective;
+    const expectedObjective = newSessionType === 'initial-life-deep-dive' ? "Life Deep Dive Session" : "Coaching Session";
+    
+    // Only reset if no sessionId (new session) and session type changed
+    if (!sessionData.sessionId && currentObjective !== expectedObjective) {
+      setSessionData({
+        objective: expectedObjective,
+        progress: 0,
+        messages: getInitialMessages()
+      });
+    }
+  }, [searchParams]);
 
   // Load existing session from Firestore
   const loadExistingSession = async (sessionId: string) => {
@@ -95,6 +135,18 @@ export default function CoachingSession() {
           })),
           sessionId: loadedSession.id
         });
+
+        // Update URL to match the loaded session type if different
+        const urlSessionType = getSessionType();
+        if (loadedSession.sessionType !== urlSessionType) {
+          const currentUrl = new URL(window.location.href);
+          if (loadedSession.sessionType === 'initial-life-deep-dive') {
+            currentUrl.searchParams.set('type', 'initial-life-deep-dive');
+          } else {
+            currentUrl.searchParams.delete('type');
+          }
+          router.replace(currentUrl.pathname + currentUrl.search);
+        }
         
         console.log(`✅ Loaded existing session: ${sessionId} with ${loadedSession.messages.length} messages`);
       }
@@ -248,7 +300,7 @@ export default function CoachingSession() {
         body: JSON.stringify({
           message: content.trim(),
           sessionId: currentSessionId, // Use actual session ID for persistence
-          sessionType: 'default-session', // Use default coaching session type
+          sessionType: sessionType, // Use dynamic session type based on URL parameter
           conversationHistory: sessionData.messages // Include all previous messages for context
         }),
       });
