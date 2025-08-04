@@ -27,10 +27,10 @@ Make it feel like a high-leverage conversation they might normally only have wit
 After the session, you should be ready to output the following in your final message:
 
 [finish-start]
+[checkin]
 [focus:headline="short headline of current focus",explanation="1 sentence explanation of the focus in the client's words"]
 [blockers:headline="short headline of blockers",items="a list of blockers separated by |"]  
 [actions:headline="short headline of actions",items="a list of actions separated by | that the client agreed to"]
-[checkin]
 [finish-end]
 
 Each of these will be rendered into an interactive ui element in the chat with the client. so make sure to use the correct format.
