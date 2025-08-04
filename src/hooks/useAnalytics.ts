@@ -77,48 +77,13 @@ export function useAnalytics() {
     });
   }, [posthog]);
 
-  const trackMorningGuidanceGenerated = useCallback((properties?: {
-    fromCache?: boolean;
-    entryCount?: number;
 
-  }) => {
-    posthog?.capture('morning_guidance_generated', {
-      timestamp: new Date().toISOString(),
-      from_cache: properties?.fromCache || false,
-      entry_count: properties?.entryCount || 0,
 
-    });
-  }, [posthog]);
 
-  const trackMorningGuidanceUsed = useCallback((properties?: {
-    useDetailedPrompt?: boolean;
-    entryCount?: number;
 
-  }) => {
-    posthog?.capture('morning_guidance_used', {
-      timestamp: new Date().toISOString(),
-      use_detailed_prompt: properties?.useDetailedPrompt || false,
-      entry_count: properties?.entryCount || 0,
 
-    });
-  }, [posthog]);
 
-  const trackMorningGuidanceModalOpened = useCallback(() => {
-    posthog?.capture('morning_guidance_modal_opened', {
-      timestamp: new Date().toISOString(),
-    });
-  }, [posthog]);
 
-  const trackMorningGuidanceDismissed = useCallback((properties?: {
-    entryCount?: number;
-
-  }) => {
-    posthog?.capture('morning_guidance_dismissed', {
-      timestamp: new Date().toISOString(),
-      entry_count: properties?.entryCount || 0,
-
-    });
-  }, [posthog]);
 
 
 
@@ -148,10 +113,7 @@ export function useAnalytics() {
     trackSignIn,
     trackSignUp,
     trackSignOut,
-    trackMorningGuidanceGenerated,
-    trackMorningGuidanceUsed,
-    trackMorningGuidanceModalOpened,
-    trackMorningGuidanceDismissed,
+
     trackCoachingCompletion,
   };
 }

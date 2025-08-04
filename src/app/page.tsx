@@ -7,7 +7,7 @@ import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
 import CommandPalette from '../components/CommandPalette';
-import MorningGuidanceCard from '../components/MorningGuidanceCard';
+
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry, ImageMetadata } from '../types/journal';
 import { useJournal } from '../hooks/useJournal';
@@ -449,13 +449,7 @@ export default function JournalApp() {
         {/* Align with header height */}
         <div className="h-[76px]"></div>
         
-        {/* Morning Guidance */}
-        <div className="pt-36">
-          <MorningGuidanceCard 
-            onJournalNow={(content) => createNewEntry(content)} 
-            selectedEntryId={selectedEntryId}
-          />
-        </div>
+
       </div>
     </div>
       

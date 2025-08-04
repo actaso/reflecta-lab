@@ -1,6 +1,6 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import app from './firebase-admin';
-import { UserAccount, JournalEntry, MorningGuidance } from '@/types/journal';
+import { UserAccount, JournalEntry } from '@/types/journal';
 
 class FirestoreAdminService {
   private static USERS_COLLECTION_NAME = 'users';
@@ -30,22 +30,10 @@ class FirestoreAdminService {
       if (docSnap.exists) {
         const data = docSnap.data()!;
         
-        // Convert morning guidance if it exists
-        let currentMorningGuidance: MorningGuidance | undefined = undefined;
-        if (data.currentMorningGuidance) {
-          currentMorningGuidance = {
-            journalQuestion: data.currentMorningGuidance.journalQuestion,
-            detailedMorningPrompt: data.currentMorningGuidance.detailedMorningPrompt,
-            reasoning: data.currentMorningGuidance.reasoning,
-            generatedAt: data.currentMorningGuidance.generatedAt ? data.currentMorningGuidance.generatedAt.toDate() : new Date(),
-            usedAt: data.currentMorningGuidance.usedAt ? data.currentMorningGuidance.usedAt.toDate() : undefined
-          };
-        }
+
         
         return {
           uid: data.uid,
-          currentMorningGuidance,
-    
           createdAt: data.createdAt ? data.createdAt.toDate() : data.updatedAt.toDate(),
           updatedAt: data.updatedAt.toDate()
         };
@@ -69,72 +57,13 @@ class FirestoreAdminService {
 
 
 
-  // Save morning guidance to user account using Admin SDK
-  static async saveMorningGuidance(userId: string, guidance: Omit<MorningGuidance, 'generatedAt'>): Promise<void> {
-    try {
-      const adminDb = this.getAdminDb();
-      const now = new Date();
-      
-      const docRef = adminDb.collection(this.USERS_COLLECTION_NAME).doc(userId);
-      await docRef.update({
-        currentMorningGuidance: {
-          journalQuestion: guidance.journalQuestion,
-          detailedMorningPrompt: guidance.detailedMorningPrompt,
-          reasoning: guidance.reasoning,
-          generatedAt: now
-        },
-        updatedAt: now
-      });
-    } catch (error) {
-      console.error('Error saving morning guidance (admin):', error);
-      throw new Error('Failed to save morning guidance to Firestore');
-    }
-  }
-
-  // Get current morning guidance for today using Admin SDK
-  static async getCurrentMorningGuidance(userId: string): Promise<MorningGuidance | null> {
-    try {
-      const userAccount = await this.getUserAccount(userId);
-      
-      if (userAccount.currentMorningGuidance) {
-        const today = new Date().toISOString().split('T')[0];
-        const guidanceDate = userAccount.currentMorningGuidance.generatedAt.toISOString().split('T')[0];
-        
-        if (guidanceDate === today) {
-          // If guidance was generated today and NOT used, return it
-          if (!userAccount.currentMorningGuidance.usedAt) {
-            return userAccount.currentMorningGuidance;
-          }
-          // If guidance was generated today and WAS used, return special marker to prevent new generation
-          return { ...userAccount.currentMorningGuidance, isUsed: true } as MorningGuidance & { isUsed: true };
-        }
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error getting current morning guidance (admin):', error);
-      return null;
-    }
-  }
 
 
 
-  // Mark morning guidance as used when user journals with it
-  static async markGuidanceAsUsed(userId: string): Promise<void> {
-    try {
-      const adminDb = this.getAdminDb();
-      const docRef = adminDb.collection(this.USERS_COLLECTION_NAME).doc(userId);
-      const now = new Date();
-      
-      await docRef.update({
-        'currentMorningGuidance.usedAt': now,
-        updatedAt: now
-      });
-    } catch (error) {
-      console.error('Error marking guidance as used (admin):', error);
-      throw new Error('Failed to mark guidance as used');
-    }
-  }
+
+
+
+
 
   // Get user's journal entries using Admin SDK (for server-side operations)
   static async getUserEntries(userId: string): Promise<JournalEntry[]> {

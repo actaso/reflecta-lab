@@ -27,13 +27,7 @@ export class FirestoreAdminService {
         uid: data.uid,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
-        currentMorningGuidance: data.currentMorningGuidance ? {
-          journalQuestion: data.currentMorningGuidance.journalQuestion,
-          detailedMorningPrompt: data.currentMorningGuidance.detailedMorningPrompt,
-          reasoning: data.currentMorningGuidance.reasoning,
-          generatedAt: data.currentMorningGuidance.generatedAt?.toDate() || new Date(),
-          usedAt: data.currentMorningGuidance.usedAt?.toDate()
-        } : undefined
+
       };
     } catch (error) {
       console.error('Error fetching user account:', error);
