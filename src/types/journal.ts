@@ -39,7 +39,7 @@ export type UserAccount = {
   }
   mobilePushNotifications: {
     enabled: boolean;
-    expoToken: string[]; // array of expo tokens
+    expoPushTokens: string[]; // array of expo tokens
     lastNotificationSentAt: number; // unix timestamp
   }
   userTimezone: string; // timezone of the user (e.g. "America/New_York")
