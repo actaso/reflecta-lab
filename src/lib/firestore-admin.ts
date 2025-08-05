@@ -1,6 +1,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import app from './firebase-admin';
 import { UserAccount, JournalEntry } from '@/types/journal';
+import { generateDefaultUserAccount, DEFAULT_USER_ACCOUNT_FIELDS } from './userAccountDefaults';
 
 class FirestoreAdminService {
   private static USERS_COLLECTION_NAME = 'users';
@@ -35,16 +36,17 @@ class FirestoreAdminService {
         return {
           uid: data.uid,
           createdAt: data.createdAt ? data.createdAt.toDate() : data.updatedAt.toDate(),
-          updatedAt: data.updatedAt.toDate()
+          updatedAt: data.updatedAt.toDate(),
+          firstName: data.firstName || DEFAULT_USER_ACCOUNT_FIELDS.firstName,
+          onboardingAnswers: data.onboardingAnswers || DEFAULT_USER_ACCOUNT_FIELDS.onboardingAnswers,
+          coachingConfig: data.coachingConfig || DEFAULT_USER_ACCOUNT_FIELDS.coachingConfig,
+          mobilePushNotifications: data.mobilePushNotifications || DEFAULT_USER_ACCOUNT_FIELDS.mobilePushNotifications,
+          userTimezone: data.userTimezone || DEFAULT_USER_ACCOUNT_FIELDS.userTimezone,
+          nextCoachingMessageDue: data.nextCoachingMessageDue || DEFAULT_USER_ACCOUNT_FIELDS.nextCoachingMessageDue,
         };
       } else {
-        // Create new user account using Admin SDK
-        const now = new Date();
-        const newUserData = {
-          uid: userId,
-          createdAt: now,
-          updatedAt: now
-        };
+        // Create new user account using Admin SDK with intelligent defaults
+        const newUserData = generateDefaultUserAccount(userId);
         
         await docRef.set(newUserData);
         return newUserData;

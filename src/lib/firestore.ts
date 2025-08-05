@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { JournalEntry, UserAccount } from '@/types/journal';
+import { generateDefaultUserAccount, DEFAULT_USER_ACCOUNT_FIELDS } from './userAccountDefaults';
 
 // Firestore document interface (includes Firestore metadata)
 export interface FirestoreJournalEntry {
@@ -81,23 +82,34 @@ const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): User
   return {
     uid: data.uid as string,
     createdAt,
-    updatedAt: (data.updatedAt as Timestamp).toDate()
+    updatedAt: (data.updatedAt as Timestamp).toDate(),
+    firstName: data.firstName || DEFAULT_USER_ACCOUNT_FIELDS.firstName,
+    onboardingAnswers: data.onboardingAnswers || DEFAULT_USER_ACCOUNT_FIELDS.onboardingAnswers,
+    coachingConfig: data.coachingConfig || DEFAULT_USER_ACCOUNT_FIELDS.coachingConfig,
+    mobilePushNotifications: data.mobilePushNotifications || DEFAULT_USER_ACCOUNT_FIELDS.mobilePushNotifications,
+    userTimezone: data.userTimezone || DEFAULT_USER_ACCOUNT_FIELDS.userTimezone,
+    nextCoachingMessageDue: data.nextCoachingMessageDue || DEFAULT_USER_ACCOUNT_FIELDS.nextCoachingMessageDue,
   };
 };
 
 // Convert UserAccount to Firestore document data
-const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): Partial<FirestoreUserAccount> => {
+const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): any => { // eslint-disable-line @typescript-eslint/no-explicit-any
   const now = Timestamp.now();
-  const data: Partial<FirestoreUserAccount> = {
+  
+  // Base data with timestamps
+  const data: any = { // eslint-disable-line @typescript-eslint/no-explicit-any
     uid: userAccount.uid!,
     updatedAt: now,
     ...(userAccount.createdAt ? { createdAt: Timestamp.fromDate(userAccount.createdAt) } : { createdAt: now })
   };
 
-
-
-
-  
+  // Include all other UserAccount fields if they exist
+  if (userAccount.firstName !== undefined) data.firstName = userAccount.firstName;
+  if (userAccount.onboardingAnswers !== undefined) data.onboardingAnswers = userAccount.onboardingAnswers;
+  if (userAccount.coachingConfig !== undefined) data.coachingConfig = userAccount.coachingConfig;
+  if (userAccount.mobilePushNotifications !== undefined) data.mobilePushNotifications = userAccount.mobilePushNotifications;
+  if (userAccount.userTimezone !== undefined) data.userTimezone = userAccount.userTimezone;
+  if (userAccount.nextCoachingMessageDue !== undefined) data.nextCoachingMessageDue = userAccount.nextCoachingMessageDue;
 
   return data;
 };
@@ -236,12 +248,8 @@ export class FirestoreService {
         
         return convertFirestoreUserAccount({ id: docSnap.id, data: () => docSnap.data() });
       } else {
-        // Create new user account
-        const newUserAccount: UserAccount = {
-          uid: userId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+        // Create new user account with intelligent defaults
+        const newUserAccount = generateDefaultUserAccount(userId);
         
         const firestoreData = convertToFirestoreUserData(newUserAccount);
         await setDoc(docRef, firestoreData);

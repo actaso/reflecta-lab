@@ -36,6 +36,8 @@ export type UserAccount = {
       harshToneDegree: 'supportive' | 'direct' | 'firm' | 'harsh';
       coachingMessageFrequency: 'daily' | 'multipleTimesPerWeek' | 'onceAWeek';
       enableCoachingMessages: boolean; // if true, based on frequency messages will be sent. this should be a setting in the user doc.
+      lastCoachingMessageSentAt: number; // unix timestamp
+      coachingMessageTimePreference: 'morning' | 'afternoon' | 'evening';
   }
   mobilePushNotifications: {
     enabled: boolean;
@@ -43,4 +45,5 @@ export type UserAccount = {
     lastNotificationSentAt: number; // unix timestamp
   }
   userTimezone: string; // timezone of the user (e.g. "America/New_York")
+  nextCoachingMessageDue?: number; // unix timestamp when next coaching message should be sent
 };
