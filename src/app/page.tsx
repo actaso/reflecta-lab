@@ -7,6 +7,7 @@ import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
 import CommandPalette from '../components/CommandPalette';
+import PulseReminder from '../components/PulseReminder';
 
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry, ImageMetadata } from '../types/journal';
@@ -449,6 +450,8 @@ export default function JournalApp() {
         {/* Align with header height */}
         <div className="h-[76px]"></div>
         
+        {/* Pulse Reminder */}
+        <PulseReminder />
 
       </div>
     </div>
