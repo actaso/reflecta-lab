@@ -86,7 +86,7 @@ const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): User
     createdAt,
     updatedAt: (data.updatedAt as Timestamp).toDate(),
     firstName: data.firstName || DEFAULT_USER_ACCOUNT_FIELDS.firstName,
-    onboardingAnswers: data.onboardingAnswers || DEFAULT_USER_ACCOUNT_FIELDS.onboardingAnswers,
+    onboardingData: data.onboardingData || DEFAULT_USER_ACCOUNT_FIELDS.onboardingData,
     coachingConfig: data.coachingConfig || DEFAULT_USER_ACCOUNT_FIELDS.coachingConfig,
     mobilePushNotifications: data.mobilePushNotifications || DEFAULT_USER_ACCOUNT_FIELDS.mobilePushNotifications,
     userTimezone: data.userTimezone || DEFAULT_USER_ACCOUNT_FIELDS.userTimezone,
@@ -107,7 +107,7 @@ const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): any => {
 
   // Include all other UserAccount fields if they exist
   if (userAccount.firstName !== undefined) data.firstName = userAccount.firstName;
-  if (userAccount.onboardingAnswers !== undefined) data.onboardingAnswers = userAccount.onboardingAnswers;
+  if (userAccount.onboardingData !== undefined) data.onboardingData = userAccount.onboardingData;
   if (userAccount.coachingConfig !== undefined) data.coachingConfig = userAccount.coachingConfig;
   if (userAccount.mobilePushNotifications !== undefined) data.mobilePushNotifications = userAccount.mobilePushNotifications;
   if (userAccount.userTimezone !== undefined) data.userTimezone = userAccount.userTimezone;

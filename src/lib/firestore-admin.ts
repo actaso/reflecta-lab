@@ -38,7 +38,7 @@ class FirestoreAdminService {
           createdAt: data.createdAt ? data.createdAt.toDate() : data.updatedAt.toDate(),
           updatedAt: data.updatedAt.toDate(),
           firstName: data.firstName || DEFAULT_USER_ACCOUNT_FIELDS.firstName,
-          onboardingAnswers: data.onboardingAnswers || DEFAULT_USER_ACCOUNT_FIELDS.onboardingAnswers,
+          onboardingData: data.onboardingData || DEFAULT_USER_ACCOUNT_FIELDS.onboardingData,
           coachingConfig: data.coachingConfig || DEFAULT_USER_ACCOUNT_FIELDS.coachingConfig,
           mobilePushNotifications: data.mobilePushNotifications || DEFAULT_USER_ACCOUNT_FIELDS.mobilePushNotifications,
           userTimezone: data.userTimezone || DEFAULT_USER_ACCOUNT_FIELDS.userTimezone,

@@ -23,7 +23,7 @@ export type UserAccount = {
   createdAt: Date;
   updatedAt: Date;
   firstName: string;
-  onboardingAnswers: {
+  onboardingData: {
       onboardingCompleted: boolean;
       onboardingCompletedAt: number; // unix timestamp
       whatDoYouDoInLife: string[]; // string of tags selected

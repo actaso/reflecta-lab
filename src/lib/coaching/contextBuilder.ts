@@ -124,23 +124,23 @@ export class CoachingContextBuilder {
     let profileContext = '\n\n=== USER PROFILE ===\n';
     
     // Add onboarding information if completed
-    if (userProfile.onboardingAnswers?.onboardingCompleted) {
-      profileContext += `Onboarding completed: ${new Date(userProfile.onboardingAnswers.onboardingCompletedAt).toLocaleDateString()}\n`;
+    if (userProfile.onboardingData?.onboardingCompleted) {
+      profileContext += `Onboarding completed: ${new Date(userProfile.onboardingData.onboardingCompletedAt).toLocaleDateString()}\n`;
       
-      if (userProfile.onboardingAnswers.whatDoYouDoInLife?.length > 0) {
-        profileContext += `Life areas: ${userProfile.onboardingAnswers.whatDoYouDoInLife.join(', ')}\n`;
+      if (userProfile.onboardingData.whatDoYouDoInLife?.length > 0) {
+        profileContext += `Life areas: ${userProfile.onboardingData.whatDoYouDoInLife.join(', ')}\n`;
       }
       
-      if (userProfile.onboardingAnswers.selfReflectionPracticesTried?.length > 0) {
-        profileContext += `Previous reflection practices: ${userProfile.onboardingAnswers.selfReflectionPracticesTried.join(', ')}\n`;
+      if (userProfile.onboardingData.selfReflectionPracticesTried?.length > 0) {
+        profileContext += `Previous reflection practices: ${userProfile.onboardingData.selfReflectionPracticesTried.join(', ')}\n`;
       }
       
-      if (typeof userProfile.onboardingAnswers.clarityInLife === 'number') {
-        profileContext += `Life clarity level: ${userProfile.onboardingAnswers.clarityInLife}/10\n`;
+      if (typeof userProfile.onboardingData.clarityInLife === 'number') {
+        profileContext += `Life clarity level: ${userProfile.onboardingData.clarityInLife}/10\n`;
       }
       
-      if (typeof userProfile.onboardingAnswers.stressInLife === 'number') {
-        profileContext += `Stress level: ${userProfile.onboardingAnswers.stressInLife}/10\n`;
+      if (typeof userProfile.onboardingData.stressInLife === 'number') {
+        profileContext += `Stress level: ${userProfile.onboardingData.stressInLife}/10\n`;
       }
     }
 

@@ -35,7 +35,7 @@ export class FirestoreAdminService {
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
         firstName: data.firstName || '',
-        onboardingAnswers: data.onboardingAnswers || {
+        onboardingData: data.onboardingData || {
           onboardingCompleted: false,
           onboardingCompletedAt: 0,
           whatDoYouDoInLife: [],
@@ -135,7 +135,7 @@ export class FirestoreAdminService {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           firstName: data.firstName || '',
-          onboardingAnswers: data.onboardingAnswers || {
+          onboardingData: data.onboardingData || {
             onboardingCompleted: false,
             onboardingCompletedAt: 0,
             whatDoYouDoInLife: [],
@@ -191,7 +191,7 @@ export class FirestoreAdminService {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           firstName: data.firstName || '',
-          onboardingAnswers: data.onboardingAnswers || {
+          onboardingData: data.onboardingData || {
             onboardingCompleted: false,
             onboardingCompletedAt: 0,
             whatDoYouDoInLife: [],
@@ -248,7 +248,7 @@ export class FirestoreAdminService {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           firstName: data.firstName || '',
-          onboardingAnswers: data.onboardingAnswers || {
+          onboardingData: data.onboardingData || {
             onboardingCompleted: false,
             onboardingCompletedAt: 0,
             whatDoYouDoInLife: [],

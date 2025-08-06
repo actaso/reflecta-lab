@@ -26,7 +26,7 @@ export function generateDefaultUserAccount(userId: string): UserAccount {
     createdAt: now,
     updatedAt: now,
     firstName: '',
-    onboardingAnswers: {
+    onboardingData: {
       onboardingCompleted: false,
       onboardingCompletedAt: 0,
       whatDoYouDoInLife: [],
@@ -58,7 +58,7 @@ export function generateDefaultUserAccount(userId: string): UserAccount {
  */
 export const DEFAULT_USER_ACCOUNT_FIELDS = {
   firstName: '',
-  onboardingAnswers: {
+  onboardingData: {
     onboardingCompleted: false,
     onboardingCompletedAt: 0,
     whatDoYouDoInLife: [],
