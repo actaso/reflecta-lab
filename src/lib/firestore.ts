@@ -10,6 +10,7 @@ import {
   query, 
   where, 
   orderBy, 
+  limit,
   onSnapshot,
   serverTimestamp,
   Timestamp,
@@ -19,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { JournalEntry, UserAccount } from '@/types/journal';
+import { userInsight } from '@/types/insights';
 import { generateDefaultUserAccount, DEFAULT_USER_ACCOUNT_FIELDS } from './userAccountDefaults';
 
 // Firestore document interface (includes Firestore metadata)
@@ -117,6 +119,7 @@ const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): any => {
 export class FirestoreService {
   private static COLLECTION_NAME = 'journal_entries';
   private static USERS_COLLECTION_NAME = 'users';
+  private static INSIGHTS_COLLECTION_NAME = 'userInsights';
 
   // NEW: Upsert method using set() with merge - handles both create and update atomically
   static async upsertEntry(entry: JournalEntry, userId: string): Promise<void> {
@@ -278,11 +281,83 @@ export class FirestoreService {
     }
   }
 
+  // User Insights Methods
+  
+  /**
+   * Get user insights from userInsights collection
+   */
+  static async getUserInsights(userId: string): Promise<userInsight | null> {
+    try {
+      const q = query(
+        collection(db, this.INSIGHTS_COLLECTION_NAME),
+        where('userId', '==', userId),
+        orderBy('updatedAt', 'desc'),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return null;
+      }
+      
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      
+      return {
+        mainFocus: data.mainFocus,
+        keyBlockers: data.keyBlockers,
+        plan: data.plan,
+        userId: data.userId,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      };
+    } catch (error) {
+      console.error('Error fetching user insights:', error);
+      throw new Error('Failed to fetch insights from Firestore');
+    }
+  }
 
+  /**
+   * Real-time listener for user insights
+   */
+  static subscribeToUserInsights(
+    userId: string,
+    callback: (insights: userInsight | null) => void
+  ): () => void {
+    const q = query(
+      collection(db, this.INSIGHTS_COLLECTION_NAME),
+      where('userId', '==', userId),
+      orderBy('updatedAt', 'desc'),
+      limit(1)
+    );
 
-
-
-
-
-
+    return onSnapshot(
+      q,
+      (querySnapshot) => {
+        if (querySnapshot.empty) {
+          callback(null);
+          return;
+        }
+        
+        const doc = querySnapshot.docs[0];
+        const data = doc.data();
+        
+        const insights: userInsight = {
+          mainFocus: data.mainFocus,
+          keyBlockers: data.keyBlockers,
+          plan: data.plan,
+          userId: data.userId,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        };
+        
+        callback(insights);
+      },
+      (error) => {
+        console.error('Error in insights real-time listener:', error);
+        callback(null);
+      }
+    );
+  }
 }
