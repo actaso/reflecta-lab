@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { BookOpen, MessageCircle, Compass, Mic, Pause, Play, X, RotateCcw } from 'lucide-react';
+import { BookOpen, MessageCircle, Compass, Mic, Pause, Play, X, RotateCcw, Zap } from 'lucide-react';
 import { useGlobalVoiceRecorder } from '../hooks/useGlobalVoiceRecorder';
 import AudioVisualizer from './AudioVisualizer';
 import { Button } from './ui/button';
@@ -21,6 +21,12 @@ const navigation: NavItem[] = [
     label: 'Journal',
     href: '/',
     icon: <BookOpen size={16} strokeWidth={1.5} />,
+  },
+  {
+    id: 'pulse',
+    label: 'Pulse',
+    href: '/pulse',
+    icon: <Zap size={16} strokeWidth={1.5} />,
   },
   {
     id: 'coach',
