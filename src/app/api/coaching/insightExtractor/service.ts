@@ -32,7 +32,7 @@ const LLMInsightResponseSchema = z.object({
   plan: LLMInsightSectionSchema
 });
 
-type LLMInsightResponse = z.infer<typeof LLMInsightResponseSchema>;
+
 
 /**
  * Extract insights for a coaching session by sessionId

@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
-import { Compass, Share, ExternalLink } from 'lucide-react';
+import { Compass, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CompassCardProps {

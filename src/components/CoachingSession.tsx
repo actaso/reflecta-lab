@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import CoachingHeader from './CoachingHeader';
 import CoachingInput from './CoachingInput';
@@ -27,16 +27,17 @@ export default function CoachingSession() {
   const router = useRouter();
   
   // Determine session type from URL parameter
-  const getSessionType = (): 'default-session' | 'initial-life-deep-dive' => {
+  const getSessionType = useCallback((): 'default-session' | 'initial-life-deep-dive' => {
     const typeParam = searchParams.get('type');
     return typeParam === 'initial-life-deep-dive' ? 'initial-life-deep-dive' : 'default-session';
-  };
+  }, [searchParams]);
 
-  const sessionType = getSessionType();
+
   
   // Set initial messages based on session type
-  const getInitialMessages = () => {
-    if (sessionType === 'initial-life-deep-dive') {
+  const getInitialMessages = useCallback(() => {
+    const currentSessionType = getSessionType();
+    if (currentSessionType === 'initial-life-deep-dive') {
       return [
         {
           id: '1',
@@ -55,12 +56,15 @@ export default function CoachingSession() {
         }
       ];
     }
-  };
+  }, [getSessionType]);
 
-  const [sessionData, setSessionData] = useState<CoachingSessionData>({
-    objective: sessionType === 'initial-life-deep-dive' ? "Life Deep Dive Session" : "Coaching Session",
-    progress: 0,
-    messages: getInitialMessages()
+  const [sessionData, setSessionData] = useState<CoachingSessionData>(() => {
+    const initialSessionType = getSessionType();
+    return {
+      objective: initialSessionType === 'initial-life-deep-dive' ? "Life Deep Dive Session" : "Coaching Session",
+      progress: 0,
+      messages: getInitialMessages()
+    };
   });
 
   const [input, setInput] = useState('');
@@ -78,33 +82,8 @@ export default function CoachingSession() {
     scrollToBottom();
   }, [sessionData.messages]);
 
-  // Load existing session if sessionId is provided in URL
-  useEffect(() => {
-    const urlSessionId = searchParams.get('sessionId');
-    
-    if (urlSessionId && urlSessionId !== sessionData.sessionId) {
-      loadExistingSession(urlSessionId);
-    }
-  }, [searchParams, sessionData.sessionId]);
-
-  // Handle session type changes from URL parameter
-  useEffect(() => {
-    const newSessionType = getSessionType();
-    const currentObjective = sessionData.objective;
-    const expectedObjective = newSessionType === 'initial-life-deep-dive' ? "Life Deep Dive Session" : "Coaching Session";
-    
-    // Only reset if no sessionId (new session) and session type changed
-    if (!sessionData.sessionId && currentObjective !== expectedObjective) {
-      setSessionData({
-        objective: expectedObjective,
-        progress: 0,
-        messages: getInitialMessages()
-      });
-    }
-  }, [searchParams]);
-
   // Load existing session from Firestore
-  const loadExistingSession = async (sessionId: string) => {
+  const loadExistingSession = useCallback(async (sessionId: string) => {
     setIsLoadingSession(true);
     
     try {
@@ -155,7 +134,32 @@ export default function CoachingSession() {
     } finally {
       setIsLoadingSession(false);
     }
-  };
+  }, [getSessionType, router]);
+
+  // Load existing session if sessionId is provided in URL
+  useEffect(() => {
+    const urlSessionId = searchParams.get('sessionId');
+    
+    if (urlSessionId && urlSessionId !== sessionData.sessionId) {
+      loadExistingSession(urlSessionId);
+    }
+  }, [searchParams, sessionData.sessionId, loadExistingSession]);
+
+  // Handle session type changes from URL parameter
+  useEffect(() => {
+    const newSessionType = getSessionType();
+    const currentObjective = sessionData.objective;
+    const expectedObjective = newSessionType === 'initial-life-deep-dive' ? "Life Deep Dive Session" : "Coaching Session";
+    
+    // Only reset if no sessionId (new session) and session type changed
+    if (!sessionData.sessionId && currentObjective !== expectedObjective) {
+      setSessionData({
+        objective: expectedObjective,
+        progress: 0,
+        messages: getInitialMessages()
+      });
+    }
+  }, [searchParams, getInitialMessages, getSessionType, sessionData.objective, sessionData.sessionId]);
 
   // Generate session ID for new sessions
   const generateSessionId = (): string => {
@@ -300,7 +304,7 @@ export default function CoachingSession() {
         body: JSON.stringify({
           message: content.trim(),
           sessionId: currentSessionId, // Use actual session ID for persistence
-          sessionType: sessionType, // Use dynamic session type based on URL parameter
+          sessionType: getSessionType(), // Use dynamic session type based on URL parameter
           conversationHistory: sessionData.messages // Include all previous messages for context
         }),
       });

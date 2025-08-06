@@ -64,7 +64,6 @@ const OutcomeSimulationResponseSchema = z.object({
 });
 
 type MessageGenerationResponse = z.infer<typeof MessageGenerationResponseSchema>;
-type OutcomeSimulationResponse = z.infer<typeof OutcomeSimulationResponseSchema>;
 
 /**
  * Main cron job endpoint for automated coaching message generation
@@ -167,7 +166,6 @@ async function shouldProcessUser(user: UserAccount): Promise<boolean> {
   // Get current time in user's timezone
   const userLocalTime = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
   const userHour = userLocalTime.getHours();
-  const userDay = userLocalTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
   // Check if we're in the user's preferred time window
   const timePreference = user.coachingConfig.coachingMessageTimePreference;
@@ -182,7 +180,7 @@ async function shouldProcessUser(user: UserAccount): Promise<boolean> {
   const frequency = user.coachingConfig.coachingMessageFrequency;
   
   const timeSinceLastMessage = now.getTime() - lastMessageTime;
-  const isDue = isUserDueForMessage(timeSinceLastMessage, frequency, userDay);
+  const isDue = isUserDueForMessage(timeSinceLastMessage, frequency);
 
   return isDue;
 }
@@ -208,8 +206,8 @@ function isInPreferredTimeWindow(hour: number, preference: string): boolean {
  */
 function isUserDueForMessage(
   timeSinceLastMessage: number, 
-  frequency: string, 
-  currentDay: number
+  frequency: string
+  /* , _currentDay: number */
 ): boolean {
   const hoursAgo = timeSinceLastMessage / (1000 * 60 * 60);
   const daysAgo = hoursAgo / 24;

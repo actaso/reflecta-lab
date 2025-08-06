@@ -53,7 +53,6 @@ const OutcomeSimulationResponseSchema = z.object({
 });
 
 type MessageGenerationResponse = z.infer<typeof MessageGenerationResponseSchema>;
-type OutcomeSimulationResponse = z.infer<typeof OutcomeSimulationResponseSchema>;
 
 /**
  * Process coaching message for individual user
@@ -183,7 +182,7 @@ async function generateAndDeliverCoachingMessage(userId: string): Promise<{
     await FirestoreAdminService.updateCoachingMessageJournalEntry(coachingMessageId, journalEntryId);
     
     // 7. Update user's next due timestamp (message was sent successfully)
-    const nextDueTime = calculateNextCoachingMessageDue(user, true);
+    const nextDueTime = calculateNextCoachingMessageDue(user);
     await FirestoreAdminService.updateUserNextCoachingMessageDue(userId, nextDueTime);
     
     console.log(`🎉 [COACHING-PROCESSOR] Completed processing for user ${userId}`);
@@ -357,10 +356,10 @@ async function generateCoachingMessage(context: string): Promise<MessageGenerati
     console.error('❌ [COACHING-PROCESSOR] JSON Parse Error Details:');
     console.error('  Original JSON (first 500 chars):', rawJson.substring(0, 500));
     console.error('  Error:', error);
-    console.error('  Error position:', error instanceof SyntaxError ? (error as any).position : 'unknown');
+    console.error('  Error position:', error instanceof SyntaxError ? (error as SyntaxError & { position?: number }).position : 'unknown');
     
     if (error instanceof SyntaxError) {
-      const position = (error as any).position || 0;
+      const position = (error as SyntaxError & { position?: number }).position || 0;
       const around = rawJson.substring(Math.max(0, position - 50), position + 50);
       console.error('  Context around error:', around);
     }
@@ -461,10 +460,10 @@ Full Message: ${initialMessage.fullMessage}
     console.error('❌ [COACHING-PROCESSOR] Optimization JSON Parse Error Details:');
     console.error('  Original JSON (first 500 chars):', rawJson.substring(0, 500));
     console.error('  Error:', error);
-    console.error('  Error position:', error instanceof SyntaxError ? (error as any).position : 'unknown');
+    console.error('  Error position:', error instanceof SyntaxError ? (error as SyntaxError & { position?: number }).position : 'unknown');
     
     if (error instanceof SyntaxError) {
-      const position = (error as any).position || 0;
+      const position = (error as SyntaxError & { position?: number }).position || 0;
       const around = rawJson.substring(Math.max(0, position - 50), position + 50);
       console.error('  Context around error:', around);
     }
@@ -508,7 +507,7 @@ async function createCoachingJournalEntry(
  * @param user - User account with coaching preferences
  * @param justSentMessage - Whether a message was just sent (affects timing)
  */
-function calculateNextCoachingMessageDue(user: UserAccount, justSentMessage: boolean): number {
+function calculateNextCoachingMessageDue(user: UserAccount, /* _justSentMessage: boolean */): number {
   const now = new Date();
   const userTimezone = user.userTimezone || 'America/New_York';
   const frequency = user.coachingConfig.coachingMessageFrequency;

@@ -56,12 +56,12 @@ export async function POST(request: NextRequest) {
       errors: 0
     };
 
-    const jobPromises: Promise<any>[] = [];
+    const jobPromises: Promise<void>[] = [];
 
     // Bootstrap users who need nextCoachingMessageDue to be set
     for (const user of usersNeedingBootstrap) {
       try {
-        const nextDueTime = calculateNextCoachingMessageDue(user, false);
+        const nextDueTime = calculateNextCoachingMessageDue(user);
         await FirestoreAdminService.updateUserNextCoachingMessageDue(user.uid, nextDueTime);
         results.usersBootstrapped++;
         console.log(`🔧 [COACHING-SCHEDULER] Bootstrapped schedule for user ${user.uid}`);
@@ -175,7 +175,7 @@ function isUserInPreferredTimeWindow(user: UserAccount): boolean {
  * @param user - User account with coaching preferences
  * @param justSentMessage - Whether a message was just sent (affects timing)
  */
-function calculateNextCoachingMessageDue(user: UserAccount, justSentMessage: boolean): number {
+function calculateNextCoachingMessageDue(user: UserAccount /* , justSentMessage: boolean */): number {
   const now = new Date();
   const userTimezone = user.userTimezone || 'America/New_York';
   const frequency = user.coachingConfig.coachingMessageFrequency;
@@ -195,21 +195,18 @@ function calculateNextCoachingMessageDue(user: UserAccount, justSentMessage: boo
       break;
   }
 
-  // If a message was just sent, use the full interval
-  // If bootstrapping, start with a shorter interval to get them into the system sooner
-  if (!justSentMessage) {
-    // For bootstrap, start with a shorter interval (1-6 hours depending on frequency)
-    switch (frequency) {
-      case 'daily':
-        hoursToAdd = Math.random() * 6 + 1; // 1-7 hours
-        break;
-      case 'multipleTimesPerWeek':
-        hoursToAdd = Math.random() * 12 + 1; // 1-13 hours  
-        break;
-      case 'onceAWeek':
-        hoursToAdd = Math.random() * 24 + 1; // 1-25 hours
-        break;
-    }
+  // For bootstrap, start with a shorter interval to get them into the system sooner
+  // This function is only used for bootstrapping new users
+  switch (frequency) {
+    case 'daily':
+      hoursToAdd = Math.random() * 6 + 1; // 1-7 hours
+      break;
+    case 'multipleTimesPerWeek':
+      hoursToAdd = Math.random() * 12 + 1; // 1-13 hours  
+      break;
+    case 'onceAWeek':
+      hoursToAdd = Math.random() * 24 + 1; // 1-25 hours
+      break;
   }
 
   // Calculate next time
@@ -252,7 +249,6 @@ function calculateNextTimeWindowForUser(user: UserAccount): number {
   
   // Get current time in user's timezone
   const userLocalTime = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
-  const currentHour = userLocalTime.getHours();
   
   let targetHour = 9;
   switch (timePreference) {

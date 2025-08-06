@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { FirestoreAdminService } from '@/services/firestoreAdminService';
+import { UserAccount } from '@/types/journal';
 
 /**
  * Local testing endpoint for coaching messages
@@ -350,7 +351,7 @@ async function dryRunMessageGeneration(userId: string) {
 /**
  * Check if user is eligible for coaching messages (simplified for testing)
  */
-async function isUserEligibleForTesting(user: any): Promise<{ isEligible: boolean; reason: string }> {
+async function isUserEligibleForTesting(user: UserAccount): Promise<{ isEligible: boolean; reason: string }> {
   if (!user.coachingConfig.enableCoachingMessages) {
     return { isEligible: false, reason: 'Coaching messages disabled' };
   }
