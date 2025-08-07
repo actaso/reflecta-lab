@@ -32,6 +32,7 @@ export class FirestoreAdminService {
       const data = doc.data()!;
       return {
         uid: data.uid,
+        email: data.email || '',
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
         firstName: data.firstName || '',
@@ -132,6 +133,7 @@ export class FirestoreAdminService {
         const data = doc.data();
         return {
           uid: data.uid,
+          email: data.email || '',
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           firstName: data.firstName || '',
@@ -188,6 +190,7 @@ export class FirestoreAdminService {
         const data = doc.data();
         return {
           uid: data.uid,
+          email: data.email || '',
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           firstName: data.firstName || '',
@@ -245,6 +248,7 @@ export class FirestoreAdminService {
         const data = doc.data();
         return {
           uid: data.uid,
+          email: data.email || '',
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           firstName: data.firstName || '',

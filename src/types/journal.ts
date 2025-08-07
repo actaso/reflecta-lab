@@ -20,6 +20,7 @@ export type ImageMetadata = {
 // collection name on firestore: "users"
 export type UserAccount = {
   uid: string;
+  email: string;
   createdAt: Date;
   updatedAt: Date;
   firstName: string;
