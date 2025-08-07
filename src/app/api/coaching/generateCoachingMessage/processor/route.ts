@@ -62,6 +62,8 @@ export async function POST(request: NextRequest) {
     // Verify authorization
     if (process.env.NODE_ENV === 'production') {
       const authHeader = request.headers.get('authorization');
+      console.log(`authHeader: ${authHeader}`);
+      console.log(`process.env.CRON_SECRET: ${process.env.CRON_SECRET}`);
       if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return NextResponse.json(
           { success: false, error: 'Unauthorized' },
