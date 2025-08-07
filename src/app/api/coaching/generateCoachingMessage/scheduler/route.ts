@@ -131,6 +131,7 @@ async function handleSchedulerRequest(request: NextRequest) {
 async function createUserProcessingJob(userId: string): Promise<void> {
   try {
     console.log(`cron secret: ${process.env.CRON_SECRET}`);
+    console.log(`vercel url: ${process.env.VERCEL_URL}`);
     const baseUrl = process.env.VERCEL_URL 
       ? `https://${process.env.VERCEL_URL}` 
       : 'http://localhost:3000';
