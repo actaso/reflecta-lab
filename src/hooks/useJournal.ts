@@ -91,7 +91,8 @@ export const useJournal = () => {
             images: (entry as JournalEntry).images?.map(img => ({
               ...img,
               uploadedAt: new Date(img.uploadedAt)
-            })) || []
+            })) || [],
+            linkedCoachingSessionId: (entry as JournalEntry).linkedCoachingSessionId
           });
         });
       });

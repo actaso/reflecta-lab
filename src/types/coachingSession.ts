@@ -24,6 +24,7 @@ export type CoachingSession = {
   updatedAt: Date; // Last time session was modified
   duration: number; // Session duration in seconds (updatedAt - createdAt)
   wordCount: number; // Total word count of all user messages
+  linkedJournalEntryId?: string; // id of the journal entry that this session is linked to
 };
 
 /**

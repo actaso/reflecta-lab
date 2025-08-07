@@ -6,6 +6,7 @@ export type JournalEntry = {
   uid: string; // user id from firebase auth & clerk (should be the same)
   lastUpdated: Date; // last time a change happened to this entry
   images?: ImageMetadata[]; // metadata of images contained in this entry
+  linkedCoachingSessionId?: string; // id of the coaching session that this entry is linked to
 };
 
 // Image metadata stored with journal entries

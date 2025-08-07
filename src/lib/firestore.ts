@@ -19,7 +19,7 @@ import {
   FieldValue
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { JournalEntry, UserAccount } from '@/types/journal';
+import { JournalEntry, UserAccount, ImageMetadata } from '@/types/journal';
 import { userInsight } from '@/types/insights';
 import { generateDefaultUserAccount, DEFAULT_USER_ACCOUNT_FIELDS } from './userAccountDefaults';
 
@@ -32,6 +32,8 @@ export interface FirestoreJournalEntry {
   lastUpdated: Timestamp | FieldValue;
   createdAt: Timestamp | FieldValue;
   updatedAt: Timestamp | FieldValue;
+  images?: ImageMetadata[];
+  linkedCoachingSessionId?: string;
 }
 
 // Firestore user account interface
@@ -49,7 +51,9 @@ const convertFirestoreEntry = (doc: { id: string; data: () => any }): JournalEnt
     content: data.content as string,
     timestamp: (data.timestamp as Timestamp).toDate(),
     uid: data.uid as string,
-    lastUpdated: data.lastUpdated ? (data.lastUpdated as Timestamp).toDate() : (data.updatedAt as Timestamp).toDate()
+    lastUpdated: data.lastUpdated ? (data.lastUpdated as Timestamp).toDate() : (data.updatedAt as Timestamp).toDate(),
+    images: data.images || [],
+    linkedCoachingSessionId: data.linkedCoachingSessionId
   };
 };
 
@@ -60,6 +64,8 @@ const convertToFirestoreData = (entry: Partial<JournalEntry>, userId: string): P
   timestamp: entry.timestamp ? Timestamp.fromDate(entry.timestamp) : serverTimestamp(),
   lastUpdated: entry.lastUpdated ? Timestamp.fromDate(entry.lastUpdated) : serverTimestamp(),
   updatedAt: serverTimestamp(),
+  images: entry.images || [],
+  linkedCoachingSessionId: entry.linkedCoachingSessionId,
   ...(entry.id ? {} : { createdAt: serverTimestamp() })
 });
 

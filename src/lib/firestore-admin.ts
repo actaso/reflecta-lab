@@ -85,7 +85,9 @@ class FirestoreAdminService {
           uid: data.uid,
           content: data.content,
           timestamp: data.timestamp.toDate(),
-          lastUpdated: data.lastUpdated ? data.lastUpdated.toDate() : data.updatedAt.toDate()
+          lastUpdated: data.lastUpdated ? data.lastUpdated.toDate() : data.updatedAt.toDate(),
+          images: data.images || [],
+          linkedCoachingSessionId: data.linkedCoachingSessionId
         };
       });
     } catch (error) {

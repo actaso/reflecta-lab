@@ -313,6 +313,7 @@ async function updateCoachingSession(
     const sessionDoc = await sessionRef.get();
     let allMessages: CoachingSessionMessage[];
     let createdAt: Date;
+    let linkedJournalEntryId: string | undefined;
 
     if (sessionDoc.exists) {
       // Update existing session
@@ -328,6 +329,7 @@ async function updateCoachingSession(
         sessionType: 'default-session' | 'initial-life-deep-dive';
         duration: number;
         wordCount: number;
+        linkedJournalEntryId?: string;
       };
       
       // Convert messages timestamps from Firestore to Date objects
@@ -341,10 +343,36 @@ async function updateCoachingSession(
       // Convert Firestore timestamp to Date object
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       createdAt = (currentSession.createdAt as any)?.toDate ? (currentSession.createdAt as any).toDate() : new Date(currentSession.createdAt as any);
+      // Keep existing link
+      linkedJournalEntryId = currentSession.linkedJournalEntryId;
     } else {
-      // New session
+      // New session - create linked journal entry
       allMessages = [...existingHistory, userMsg, assistantMsg];
       createdAt = now;
+      
+      // Create a new journal entry linked to this coaching session
+      try {
+        const journalEntryId = crypto.randomUUID();
+        const journalEntryData = {
+          id: journalEntryId,
+          uid: userId,
+          content: '', // Empty content as requested
+          timestamp: now,
+          lastUpdated: now,
+          linkedCoachingSessionId: sessionId
+        };
+        
+        // Create journal entry in Firestore
+        await db.collection('journal_entries').doc(journalEntryId).set(journalEntryData);
+        linkedJournalEntryId = journalEntryId;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Created linked journal entry: ${journalEntryId} for session: ${sessionId}`);
+        }
+      } catch (journalError) {
+        console.error('Failed to create linked journal entry:', journalError);
+        // Continue without linking - session creation should not fail
+      }
     }
 
     // Calculate word count for all user messages
@@ -363,7 +391,8 @@ async function updateCoachingSession(
       createdAt,
       updatedAt: now,
       duration,
-      wordCount
+      wordCount,
+      linkedJournalEntryId
     };
     
     // Use set with merge to simplify logic

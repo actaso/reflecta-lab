@@ -1,20 +1,25 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 
 import Editor from '../components/Editor';
 import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
 import CommandPalette from '../components/CommandPalette';
+import CoachingSessionCard from '../components/CoachingSessionCard';
 
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry, ImageMetadata } from '../types/journal';
+import { CoachingSession } from '../types/coachingSession';
 import { useJournal } from '../hooks/useJournal';
 import { useAnalytics } from '../hooks/useAnalytics';
 
 
 export default function JournalApp() {
+  const router = useRouter();
+  
   // Use the sync-enabled journal hook
   const { 
     entries: flatEntries, 
@@ -31,6 +36,10 @@ export default function JournalApp() {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  
+  // Coaching session state
+  const [coachingSessionData, setCoachingSessionData] = useState<CoachingSession | null>(null);
+  const [loadingCoachingSession, setLoadingCoachingSession] = useState(false);
   
   // Convert flat array to date-keyed format for UI compatibility
   const entries = useMemo(() => {
@@ -367,9 +376,61 @@ export default function JournalApp() {
     };
   }, [selectedEntryId, updateEntry, getCurrentEntry]);
 
+  // Fetch coaching session data when current entry has linkedCoachingSessionId
+  const fetchCoachingSession = useCallback(async (sessionId: string) => {
+    if (!sessionId) return;
+    
+    setLoadingCoachingSession(true);
+    try {
+      const url = `/api/coaching/sessions?sessionId=${encodeURIComponent(sessionId)}`;
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.session) {
+          setCoachingSessionData(result.session);
+        } else {
+          setCoachingSessionData(null);
+        }
+      } else {
+        console.warn('Failed to fetch coaching session:', response.status);
+        setCoachingSessionData(null);
+      }
+    } catch (error) {
+      console.error('Error fetching coaching session:', error);
+      setCoachingSessionData(null);
+    } finally {
+      setLoadingCoachingSession(false);
+    }
+  }, []);
+
+  // Check for linked coaching session when current entry changes
+  useEffect(() => {
+    if (!selectedEntryId) {
+      setCoachingSessionData(null);
+      return;
+    }
+    
+    // Find the current entry
+    const currentEntryData = flatEntries.find(entry => entry.id === selectedEntryId);
+    const linkedSessionId = currentEntryData?.linkedCoachingSessionId;
+    
+    if (linkedSessionId && linkedSessionId !== coachingSessionData?.id) {
+      // Only fetch if we don't already have this session data
+      fetchCoachingSession(linkedSessionId);
+    } else if (!linkedSessionId) {
+      setCoachingSessionData(null);
+    }
+  }, [selectedEntryId, flatEntries, fetchCoachingSession, coachingSessionData?.id]);
+
+  // Navigation handler for coaching session
+  const handleOpenCoachingSession = useCallback(() => {
+    if (coachingSessionData?.id) {
+      router.push(`/coach?sessionId=${coachingSessionData.id}`);
+    }
+  }, [router, coachingSessionData?.id]);
+
   const currentEntry = getCurrentEntry();
-
-
 
   return (
     <div className="h-screen bg-neutral-50 dark:bg-neutral-900 flex justify-center">
@@ -415,6 +476,17 @@ export default function JournalApp() {
             currentEntry={currentEntry}
             onDeleteEntry={deleteEntry}
           />
+          
+          {/* Coaching Session Card - Show only when current entry has linked session */}
+          {(coachingSessionData || loadingCoachingSession) && (
+            <CoachingSessionCard 
+              title={coachingSessionData?.sessionType === 'initial-life-deep-dive' ? 'Life Deep Dive Session' : 'Goal breakout session'}
+              messageCount={coachingSessionData?.messages.length || 0}
+              sessionType={coachingSessionData?.sessionType === 'initial-life-deep-dive' ? 'Initial Life Deep Dive' : 'Coach chat'}
+              onOpenConversation={handleOpenCoachingSession}
+              loading={loadingCoachingSession}
+            />
+          )}
           
           {/* Editor */}
           <div className="flex-1 min-h-0 relative">
