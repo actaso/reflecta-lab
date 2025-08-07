@@ -130,13 +130,11 @@ async function handleSchedulerRequest(request: NextRequest) {
  */
 async function createUserProcessingJob(userId: string): Promise<void> {
   try {
-    console.log(`cron secret: ${process.env.CRON_SECRET}`);
-    console.log(`vercel url: ${process.env.VERCEL_URL}`);
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
+    const baseUrl = process.env.PRODUCTION_URL 
+      ? `https://${process.env.PRODUCTION_URL}` 
       : 'http://localhost:3000';
     
-    const response = await fetch(`${baseUrl}/api/coaching/generateCoachingMessage/processor`, {
+    const response = await fetch(`/api/coaching/generateCoachingMessage/processor`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
