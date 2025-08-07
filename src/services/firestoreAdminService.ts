@@ -338,56 +338,7 @@ export class FirestoreAdminService {
     }
   }
 
-  /**
-   * Get the latest journal entry for a user
-   */
-  static async getLatestJournalEntry(userId: string): Promise<JournalEntry | null> {
-    if (!this.db) return null;
-    
-    try {
-      const query = this.db.collection('journal_entries')
-        .where('uid', '==', userId)
-        .orderBy('timestamp', 'desc')
-        .limit(1);
-      
-      const snapshot = await query.get();
-      
-      if (snapshot.empty) {
-        return null;
-      }
-      
-      const doc = snapshot.docs[0];
-      const data = doc.data();
-      return {
-        id: doc.id,
-        uid: data.uid,
-        content: data.content,
-        timestamp: data.timestamp?.toDate() || new Date(),
-        lastUpdated: data.lastUpdated?.toDate() || data.updatedAt?.toDate() || new Date(),
-        images: data.images || []
-      };
-    } catch (error) {
-      console.error('Error fetching latest journal entry:', error);
-      return null;
-    }
-  }
 
-  /**
-   * Update journal entry content (used to inject coaching messages)
-   */
-  static async updateJournalEntryContent(entryId: string, newContent: string): Promise<void> {
-    if (!this.db) return;
-    
-    try {
-      await this.db.collection('journal_entries').doc(entryId).update({
-        content: newContent,
-        lastUpdated: new Date()
-      });
-    } catch (error) {
-      console.error('Error updating journal entry content:', error);
-      throw error;
-    }
-  }
 
   /**
    * Create a new journal entry (for coaching messages)
@@ -417,9 +368,37 @@ export class FirestoreAdminService {
   }
 
   /**
+   * Create a new journal entry with coaching message linking
+   */
+  static async createJournalEntryWithCoachingMessage(userId: string, content: string, coachingMessageId: string): Promise<string> {
+    if (!this.db) return '';
+    
+    try {
+      const now = new Date();
+      
+      const entryData = {
+        uid: userId,
+        content: content,
+        timestamp: now,
+        lastUpdated: now,
+        createdAt: now,
+        updatedAt: now,
+        linkedCoachingMessageId: coachingMessageId
+      };
+
+      const docRef = await this.db.collection('journal_entries').add(entryData);
+      console.log(`✅ [FIRESTORE] Created journal entry ${docRef.id} for user ${userId} linked to coaching message ${coachingMessageId}`);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating journal entry with coaching message:', error);
+      throw new Error('Failed to create journal entry with coaching message in Firestore');
+    }
+  }
+
+  /**
    * Save a coaching message attempt (whether sent or not)
    */
-  static async saveCoachingMessage(coachingMessage: Omit<CoachingMessage, 'createdAt' | 'updatedAt'>): Promise<string> {
+  static async saveCoachingMessage(coachingMessage: Omit<CoachingMessage, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     if (!this.db) return '';
     
     try {

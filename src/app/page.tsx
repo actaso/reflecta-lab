@@ -9,12 +9,15 @@ import HelpModal from '../components/HelpModal';
 import EntryHeader from '../components/EntryHeader';
 import CommandPalette from '../components/CommandPalette';
 import CoachingSessionCard from '../components/CoachingSessionCard';
+import CoachingMessageCard from '../components/CoachingMessageCard';
 
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry, ImageMetadata } from '../types/journal';
 import { CoachingSession } from '../types/coachingSession';
+import { CoachingMessage } from '../types/coachingMessage';
 import { useJournal } from '../hooks/useJournal';
 import { useAnalytics } from '../hooks/useAnalytics';
+import { FirestoreService } from '../lib/firestore';
 
 
 export default function JournalApp() {
@@ -40,6 +43,10 @@ export default function JournalApp() {
   // Coaching session state
   const [coachingSessionData, setCoachingSessionData] = useState<CoachingSession | null>(null);
   const [loadingCoachingSession, setLoadingCoachingSession] = useState(false);
+  
+  // Coaching message state
+  const [coachingMessageData, setCoachingMessageData] = useState<CoachingMessage | null>(null);
+  const [loadingCoachingMessage, setLoadingCoachingMessage] = useState(false);
   
   // Convert flat array to date-keyed format for UI compatibility
   const entries = useMemo(() => {
@@ -404,24 +411,51 @@ export default function JournalApp() {
     }
   }, []);
 
-  // Check for linked coaching session when current entry changes
+  // Fetch coaching message data when current entry has linkedCoachingMessageId
+  const fetchCoachingMessage = useCallback(async (messageId: string) => {
+    if (!messageId) return;
+    
+    setLoadingCoachingMessage(true);
+    try {
+      const coachingMessage = await FirestoreService.getCoachingMessage(messageId);
+      setCoachingMessageData(coachingMessage);
+    } catch (error) {
+      console.error('Error fetching coaching message:', error);
+      setCoachingMessageData(null);
+    } finally {
+      setLoadingCoachingMessage(false);
+    }
+  }, []);
+
+  // Check for linked coaching content when current entry changes
   useEffect(() => {
     if (!selectedEntryId) {
       setCoachingSessionData(null);
+      setCoachingMessageData(null);
       return;
     }
     
     // Find the current entry
     const currentEntryData = flatEntries.find(entry => entry.id === selectedEntryId);
     const linkedSessionId = currentEntryData?.linkedCoachingSessionId;
+    const linkedMessageId = currentEntryData?.linkedCoachingMessageId;
     
+    // Handle coaching session linking
     if (linkedSessionId && linkedSessionId !== coachingSessionData?.id) {
       // Only fetch if we don't already have this session data
       fetchCoachingSession(linkedSessionId);
     } else if (!linkedSessionId) {
       setCoachingSessionData(null);
     }
-  }, [selectedEntryId, flatEntries, fetchCoachingSession, coachingSessionData?.id]);
+    
+    // Handle coaching message linking
+    if (linkedMessageId && linkedMessageId !== coachingMessageData?.id) {
+      // Only fetch if we don't already have this message data
+      fetchCoachingMessage(linkedMessageId);
+    } else if (!linkedMessageId) {
+      setCoachingMessageData(null);
+    }
+  }, [selectedEntryId, flatEntries, fetchCoachingSession, fetchCoachingMessage, coachingSessionData?.id, coachingMessageData?.id]);
 
   // Navigation handler for coaching session
   const handleOpenCoachingSession = useCallback(() => {
@@ -485,6 +519,16 @@ export default function JournalApp() {
               sessionType={coachingSessionData?.sessionType === 'initial-life-deep-dive' ? 'Initial Life Deep Dive' : 'Coach chat'}
               onOpenConversation={handleOpenCoachingSession}
               loading={loadingCoachingSession}
+            />
+          )}
+
+          {/* Coaching Message Card - Show only when current entry has linked coaching message */}
+          {(coachingMessageData || loadingCoachingMessage) && (
+            <CoachingMessageCard 
+              pushText={coachingMessageData?.pushNotificationText}
+              fullMessage={coachingMessageData?.messageContent}
+              messageType={coachingMessageData?.messageType}
+              loading={loadingCoachingMessage}
             />
           )}
           

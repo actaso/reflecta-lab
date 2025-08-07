@@ -21,6 +21,7 @@ import {
 import { db } from './firebase';
 import { JournalEntry, UserAccount, ImageMetadata } from '@/types/journal';
 import { userInsight } from '@/types/insights';
+import { CoachingMessage } from '@/types/coachingMessage';
 import { generateDefaultUserAccount, DEFAULT_USER_ACCOUNT_FIELDS } from './userAccountDefaults';
 
 // Firestore document interface (includes Firestore metadata)
@@ -34,6 +35,7 @@ export interface FirestoreJournalEntry {
   updatedAt: Timestamp | FieldValue;
   images?: ImageMetadata[];
   linkedCoachingSessionId?: string;
+  linkedCoachingMessageId?: string;
 }
 
 // Firestore user account interface
@@ -53,21 +55,34 @@ const convertFirestoreEntry = (doc: { id: string; data: () => any }): JournalEnt
     uid: data.uid as string,
     lastUpdated: data.lastUpdated ? (data.lastUpdated as Timestamp).toDate() : (data.updatedAt as Timestamp).toDate(),
     images: data.images || [],
-    linkedCoachingSessionId: data.linkedCoachingSessionId
+    linkedCoachingSessionId: data.linkedCoachingSessionId,
+    linkedCoachingMessageId: data.linkedCoachingMessageId
   };
 };
 
 // Convert JournalEntry to Firestore document data
-const convertToFirestoreData = (entry: Partial<JournalEntry>, userId: string): Partial<FirestoreJournalEntry> => ({
-  uid: userId,
-  content: entry.content,
-  timestamp: entry.timestamp ? Timestamp.fromDate(entry.timestamp) : serverTimestamp(),
-  lastUpdated: entry.lastUpdated ? Timestamp.fromDate(entry.lastUpdated) : serverTimestamp(),
-  updatedAt: serverTimestamp(),
-  images: entry.images || [],
-  linkedCoachingSessionId: entry.linkedCoachingSessionId,
-  ...(entry.id ? {} : { createdAt: serverTimestamp() })
-});
+const convertToFirestoreData = (entry: Partial<JournalEntry>, userId: string): Partial<FirestoreJournalEntry> => {
+  const firestoreData: Partial<FirestoreJournalEntry> = {
+    uid: userId,
+    content: entry.content,
+    timestamp: entry.timestamp ? Timestamp.fromDate(entry.timestamp) : serverTimestamp(),
+    lastUpdated: entry.lastUpdated ? Timestamp.fromDate(entry.lastUpdated) : serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    images: entry.images || [],
+    ...(entry.id ? {} : { createdAt: serverTimestamp() })
+  };
+
+  // Only include linked IDs if they have actual values (not undefined)
+  if (entry.linkedCoachingSessionId) {
+    firestoreData.linkedCoachingSessionId = entry.linkedCoachingSessionId;
+  }
+  
+  if (entry.linkedCoachingMessageId) {
+    firestoreData.linkedCoachingMessageId = entry.linkedCoachingMessageId;
+  }
+
+  return firestoreData;
+};
 
 // Convert Firestore document to UserAccount
 const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): UserAccount => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -367,5 +382,47 @@ export class FirestoreService {
         callback(null);
       }
     );
+  }
+
+  /**
+   * Get a specific coaching message by ID
+   */
+  static async getCoachingMessage(messageId: string): Promise<CoachingMessage | null> {
+    try {
+      const docRef = doc(db, 'coachingMessages', messageId);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        return null;
+      }
+      
+      const data = docSnap.data();
+      
+      // Convert the Firestore document to CoachingMessage type
+      const coachingMessage: CoachingMessage = {
+        id: messageId, // Include the document ID
+        uid: data.uid,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        messageContent: data.messageContent,
+        messageType: data.messageType,
+        pushNotificationText: data.pushNotificationText,
+        effectivenessRating: data.effectivenessRating || 0,
+        recommendedAction: data.recommendedAction,
+        wasSent: data.wasSent || false,
+        journalEntryId: data.journalEntryId,
+        contextUsed: data.contextUsed || '',
+        generationAttempt: data.generationAttempt || 1,
+        failureReason: data.failureReason,
+        userTimezone: data.userTimezone || '',
+        userTimePreference: data.userTimePreference || 'morning',
+        scheduledFor: data.scheduledFor
+      };
+      
+      return coachingMessage;
+    } catch (error) {
+      console.error('Error fetching coaching message:', error);
+      throw new Error('Failed to fetch coaching message from Firestore');
+    }
   }
 }

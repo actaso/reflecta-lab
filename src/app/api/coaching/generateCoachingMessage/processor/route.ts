@@ -157,7 +157,7 @@ async function generateAndDeliverCoachingMessage(userId: string): Promise<{
     const finalMessage = await optimizeCoachingMessage(initialMessage, context);
     
     // 4. Save coaching message to collection (before sending)
-    const coachingMessageData: Omit<CoachingMessage, 'createdAt' | 'updatedAt'> = {
+    const coachingMessageData: Omit<CoachingMessage, 'id' | 'createdAt' | 'updatedAt'> = {
       uid: userId,
       messageContent: finalMessage.fullMessage,
       messageType: finalMessage.recommendedMessageType,
@@ -177,8 +177,8 @@ async function generateAndDeliverCoachingMessage(userId: string): Promise<{
     
     console.log(`💬 [COACHING-PROCESSOR] Creating coaching journal entry for user ${userId}`);
     
-    // 5. Create new journal entry with coaching message
-    const journalEntryId = await createCoachingJournalEntry(userId, finalMessage);
+    // 5. Create new journal entry with coaching message (with bidirectional linking)
+    const journalEntryId = await createCoachingJournalEntry(userId, finalMessage, coachingMessageId);
     
     // 6. Update coaching message record with journal entry ID
     await FirestoreAdminService.updateCoachingMessageJournalEntry(coachingMessageId, journalEntryId);
@@ -199,7 +199,7 @@ async function generateAndDeliverCoachingMessage(userId: string): Promise<{
     try {
       const user = await FirestoreAdminService.getUserAccount(userId);
       if (user) {
-        const failedMessageData: Omit<CoachingMessage, 'createdAt' | 'updatedAt'> = {
+        const failedMessageData: Omit<CoachingMessage, 'id' | 'createdAt' | 'updatedAt'> = {
           uid: userId,
           messageContent: '',
           messageType: 'unknown',
@@ -479,28 +479,19 @@ Full Message: ${initialMessage.fullMessage}
  */
 async function createCoachingJournalEntry(
   userId: string, 
-  message: MessageGenerationResponse
+  message: MessageGenerationResponse,
+  coachingMessageId: string
 ): Promise<string> {
-  // Create a dedicated coaching message entry with rich formatting
-  const coachingContent = `
-<div style="background: #f8f9fa; border-left: 4px solid #4f46e5; padding: 16px; margin: 16px 0; border-radius: 8px;">
-  <div style="display: flex; align-items: center; margin-bottom: 12px;">
-    <span style="font-size: 24px; margin-right: 8px;">💭</span>
-    <strong style="color: #4f46e5; font-size: 16px;">Coaching Reflection</strong>
-  </div>
-  <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #374151;">
-    ${message.fullMessage}
-  </p>
-  <div style="margin-top: 12px; font-size: 12px; color: #6b7280;">
-    Type: ${message.recommendedMessageType.replace('_', ' ')} • ${new Date().toLocaleDateString()}
-  </div>
-</div>
-`.trim();
-
-  // Create the new journal entry
-  const entryId = await FirestoreAdminService.createJournalEntry(userId, coachingContent);
+  // Create journal entry with empty content - coaching message is displayed in separate card
+  const entryId = await FirestoreAdminService.createJournalEntryWithCoachingMessage(
+    userId, 
+    '', // Empty content since coaching message is shown in dedicated card
+    coachingMessageId
+  );
   
-  console.log(`✅ [COACHING-PROCESSOR] Created coaching journal entry ${entryId} for user ${userId}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`✅ [COACHING-PROCESSOR] Created coaching journal entry ${entryId} linked to message ${coachingMessageId}`);
+  }
   return entryId;
 }
 

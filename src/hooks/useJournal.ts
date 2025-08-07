@@ -92,7 +92,8 @@ export const useJournal = () => {
               ...img,
               uploadedAt: new Date(img.uploadedAt)
             })) || [],
-            linkedCoachingSessionId: (entry as JournalEntry).linkedCoachingSessionId
+            linkedCoachingSessionId: (entry as JournalEntry).linkedCoachingSessionId,
+            linkedCoachingMessageId: (entry as JournalEntry).linkedCoachingMessageId
           });
         });
       });

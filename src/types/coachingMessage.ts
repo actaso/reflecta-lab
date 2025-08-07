@@ -1,5 +1,6 @@
 // collection name on firestore: "coachingMessages"
 export type CoachingMessage = {
+  id: string; // Firestore document ID
   uid: string;
   createdAt: number; // unix timestamp
   updatedAt: number; // unix timestamp

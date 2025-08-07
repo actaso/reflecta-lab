@@ -7,6 +7,7 @@ export type JournalEntry = {
   lastUpdated: Date; // last time a change happened to this entry
   images?: ImageMetadata[]; // metadata of images contained in this entry
   linkedCoachingSessionId?: string; // id of the coaching session that this entry is linked to
+  linkedCoachingMessageId?: string; // id of the coaching message that this entry is linked to
 };
 
 // Image metadata stored with journal entries
