@@ -83,6 +83,7 @@ const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): User
   
   return {
     uid: data.uid as string,
+    email: data.email || DEFAULT_USER_ACCOUNT_FIELDS.email,
     createdAt,
     updatedAt: (data.updatedAt as Timestamp).toDate(),
     firstName: data.firstName || DEFAULT_USER_ACCOUNT_FIELDS.firstName,
@@ -106,6 +107,7 @@ const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): any => {
   };
 
   // Include all other UserAccount fields if they exist
+  if (userAccount.email !== undefined) data.email = userAccount.email;
   if (userAccount.firstName !== undefined) data.firstName = userAccount.firstName;
   if (userAccount.onboardingAnswers !== undefined) data.onboardingAnswers = userAccount.onboardingAnswers;
   if (userAccount.coachingConfig !== undefined) data.coachingConfig = userAccount.coachingConfig;
@@ -233,7 +235,7 @@ export class FirestoreService {
   // User Account Methods
   
   // Get or create user account
-  static async getUserAccount(userId: string): Promise<UserAccount> {
+  static async getUserAccount(userId: string, email?: string): Promise<UserAccount> {
     try {
       const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
       const docSnap = await getDoc(docRef);
@@ -252,7 +254,7 @@ export class FirestoreService {
         return convertFirestoreUserAccount({ id: docSnap.id, data: () => docSnap.data() });
       } else {
         // Create new user account with intelligent defaults
-        const newUserAccount = generateDefaultUserAccount(userId);
+        const newUserAccount = generateDefaultUserAccount(userId, email || '');
         
         const firestoreData = convertToFirestoreUserData(newUserAccount);
         await setDoc(docRef, firestoreData);

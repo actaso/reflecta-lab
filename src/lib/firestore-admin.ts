@@ -35,6 +35,7 @@ class FirestoreAdminService {
         
         return {
           uid: data.uid,
+          email: data.email || DEFAULT_USER_ACCOUNT_FIELDS.email,
           createdAt: data.createdAt ? data.createdAt.toDate() : data.updatedAt.toDate(),
           updatedAt: data.updatedAt.toDate(),
           firstName: data.firstName || DEFAULT_USER_ACCOUNT_FIELDS.firstName,
@@ -46,7 +47,7 @@ class FirestoreAdminService {
         };
       } else {
         // Create new user account using Admin SDK with intelligent defaults
-        const newUserData = generateDefaultUserAccount(userId);
+        const newUserData = generateDefaultUserAccount(userId, '');
         
         await docRef.set(newUserData);
         return newUserData;

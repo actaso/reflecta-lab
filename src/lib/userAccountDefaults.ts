@@ -4,7 +4,7 @@ import { UserAccount } from '@/types/journal';
  * Generates default values for a new UserAccount
  * This ensures consistency across client-side and server-side user creation
  */
-export function generateDefaultUserAccount(userId: string): UserAccount {
+export function generateDefaultUserAccount(userId: string, email: string = ''): UserAccount {
   // Try to detect user's timezone, fallback to America/New_York
   const detectedTimezone = (() => {
     try {
@@ -23,6 +23,7 @@ export function generateDefaultUserAccount(userId: string): UserAccount {
 
   return {
     uid: userId,
+    email: email,
     createdAt: now,
     updatedAt: now,
     firstName: '',
@@ -57,6 +58,7 @@ export function generateDefaultUserAccount(userId: string): UserAccount {
  * Used for backward compatibility with documents that might be missing newer fields
  */
 export const DEFAULT_USER_ACCOUNT_FIELDS = {
+  email: '',
   firstName: '',
   onboardingAnswers: {
     onboardingCompleted: false,

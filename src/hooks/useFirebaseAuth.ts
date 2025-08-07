@@ -51,7 +51,8 @@ export const useFirebaseAuth = () => {
 
       try {
         // Ensure user document exists in Firestore
-        await FirestoreService.getUserAccount(firebaseUser.uid);
+        const email = firebaseUser.email || clerkUser?.primaryEmailAddress?.emailAddress || '';
+        await FirestoreService.getUserAccount(firebaseUser.uid, email);
         console.log('✅ User document initialized for:', firebaseUser.uid);
       } catch (error) {
         console.error('Failed to initialize user document:', error);
@@ -60,7 +61,7 @@ export const useFirebaseAuth = () => {
     };
 
     initializeUserDocument();
-  }, [firebaseUser?.uid]); // Only run when firebaseUser.uid changes
+  }, [firebaseUser?.uid, firebaseUser?.email, clerkUser?.primaryEmailAddress?.emailAddress]); // Dependencies for email capture
 
   // Memoize the authUser object to prevent unnecessary re-renders
   const authUser: AuthUser | null = useMemo(() => {
