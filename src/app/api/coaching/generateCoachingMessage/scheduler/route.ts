@@ -24,8 +24,17 @@ import { UserAccount } from '@/types/journal';
 
 /**
  * Scheduler endpoint - creates individual jobs for each user due for coaching
+ * Supports both GET (for Vercel cron) and POST (for manual triggers)
  */
+export async function GET(request: NextRequest) {
+  return handleSchedulerRequest(request);
+}
+
 export async function POST(request: NextRequest) {
+  return handleSchedulerRequest(request);
+}
+
+async function handleSchedulerRequest(request: NextRequest) {
   try {
     console.log('🕐 [COACHING-SCHEDULER] Starting coaching message scheduler');
     
