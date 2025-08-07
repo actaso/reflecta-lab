@@ -130,10 +130,6 @@ async function handleSchedulerRequest(request: NextRequest) {
  */
 async function createUserProcessingJob(userId: string): Promise<void> {
   try {
-    const baseUrl = process.env.PRODUCTION_URL 
-      ? `https://${process.env.PRODUCTION_URL}` 
-      : 'http://localhost:3000';
-    
     const response = await fetch(`/api/coaching/generateCoachingMessage/processor`, {
       method: 'POST',
       headers: {
