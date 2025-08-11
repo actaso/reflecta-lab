@@ -1,4 +1,4 @@
-import { Expo, ExpoPushMessage, ExpoPushTicket, ExpoPushReceipt } from 'expo-server-sdk';
+import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 import { FirestoreAdminService } from './firestoreAdminService';
 import { 
   PushNotificationResult, 
