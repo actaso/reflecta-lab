@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import CoachingHeader from './CoachingHeader';
 import CoachingInput from './CoachingInput';
@@ -26,17 +26,45 @@ export default function CoachingSession() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const [sessionData, setSessionData] = useState<CoachingSessionData>({
-    objective: "Life Deep Dive Session",
-    progress: 0,
-    messages: [
-      {
-        id: '1',
-        role: 'assistant',
-        content: "Welcome to your Life Deep Dive session. Before we begin exploring what's most alive in you right now, I'd like to offer you a moment to center yourself.\n\n[meditation:title=\"5-Minute Centering\",duration=\"300\",description=\"A gentle breathing exercise to help you connect with what's present right now\",type=\"breathing\"]\n\nOnce you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
-        timestamp: new Date()
-      }
-    ]
+  // Determine session type from URL parameter
+  const getSessionType = useCallback((): 'default-session' | 'initial-life-deep-dive' => {
+    const typeParam = searchParams.get('type');
+    return typeParam === 'initial-life-deep-dive' ? 'initial-life-deep-dive' : 'default-session';
+  }, [searchParams]);
+
+
+  
+  // Set initial messages based on session type
+  const getInitialMessages = useCallback(() => {
+    const currentSessionType = getSessionType();
+    if (currentSessionType === 'initial-life-deep-dive') {
+      return [
+        {
+          id: '1',
+          role: 'assistant' as const,
+          content: "Welcome to your Life Deep Dive session. Before we begin exploring what's most alive in you right now, I'd like to offer you a moment to center yourself.\n\n[meditation:title=\"5-Minute Centering\",duration=\"300\",description=\"A gentle breathing exercise to help you connect with what's present right now\",type=\"breathing\"]\n\nOnce you're ready, I'd love to hear: If you had to name what's most alive in you right now—what would it be?\n\nMaybe it's a tension you're holding, a quiet longing, or something you don't quite have words for yet. Whatever shows up—start there.",
+          timestamp: new Date()
+        }
+      ];
+    } else {
+      return [
+        {
+          id: '1',
+          role: 'assistant' as const,
+          content: "Welcome to your coaching session. I'm here to support you in exploring what's on your mind and help you find clarity and forward momentum.\n\nWhat would you like to focus on today?",
+          timestamp: new Date()
+        }
+      ];
+    }
+  }, [getSessionType]);
+
+  const [sessionData, setSessionData] = useState<CoachingSessionData>(() => {
+    const initialSessionType = getSessionType();
+    return {
+      objective: initialSessionType === 'initial-life-deep-dive' ? "Life Deep Dive Session" : "Coaching Session",
+      progress: 0,
+      messages: getInitialMessages()
+    };
   });
 
   const [input, setInput] = useState('');
@@ -54,21 +82,12 @@ export default function CoachingSession() {
     scrollToBottom();
   }, [sessionData.messages]);
 
-  // Load existing session if sessionId is provided in URL
-  useEffect(() => {
-    const urlSessionId = searchParams.get('sessionId');
-    
-    if (urlSessionId && urlSessionId !== sessionData.sessionId) {
-      loadExistingSession(urlSessionId);
-    }
-  }, [searchParams, sessionData.sessionId]);
-
   // Load existing session from Firestore
-  const loadExistingSession = async (sessionId: string) => {
+  const loadExistingSession = useCallback(async (sessionId: string) => {
     setIsLoadingSession(true);
     
     try {
-      const response = await fetch(`/api/coaching-session?sessionId=${encodeURIComponent(sessionId)}`);
+      const response = await fetch(`/api/coaching/sessions?sessionId=${encodeURIComponent(sessionId)}`);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -95,6 +114,18 @@ export default function CoachingSession() {
           })),
           sessionId: loadedSession.id
         });
+
+        // Update URL to match the loaded session type if different
+        const urlSessionType = getSessionType();
+        if (loadedSession.sessionType !== urlSessionType) {
+          const currentUrl = new URL(window.location.href);
+          if (loadedSession.sessionType === 'initial-life-deep-dive') {
+            currentUrl.searchParams.set('type', 'initial-life-deep-dive');
+          } else {
+            currentUrl.searchParams.delete('type');
+          }
+          router.replace(currentUrl.pathname + currentUrl.search);
+        }
         
         console.log(`✅ Loaded existing session: ${sessionId} with ${loadedSession.messages.length} messages`);
       }
@@ -103,7 +134,32 @@ export default function CoachingSession() {
     } finally {
       setIsLoadingSession(false);
     }
-  };
+  }, [getSessionType, router]);
+
+  // Load existing session if sessionId is provided in URL
+  useEffect(() => {
+    const urlSessionId = searchParams.get('sessionId');
+    
+    if (urlSessionId && urlSessionId !== sessionData.sessionId) {
+      loadExistingSession(urlSessionId);
+    }
+  }, [searchParams, sessionData.sessionId, loadExistingSession]);
+
+  // Handle session type changes from URL parameter
+  useEffect(() => {
+    const newSessionType = getSessionType();
+    const currentObjective = sessionData.objective;
+    const expectedObjective = newSessionType === 'initial-life-deep-dive' ? "Life Deep Dive Session" : "Coaching Session";
+    
+    // Only reset if no sessionId (new session) and session type changed
+    if (!sessionData.sessionId && currentObjective !== expectedObjective) {
+      setSessionData({
+        objective: expectedObjective,
+        progress: 0,
+        messages: getInitialMessages()
+      });
+    }
+  }, [searchParams, getInitialMessages, getSessionType, sessionData.objective, sessionData.sessionId]);
 
   // Generate session ID for new sessions
   const generateSessionId = (): string => {
@@ -166,7 +222,7 @@ export default function CoachingSession() {
     try {
       console.log('🎯 Evaluating coaching progress...', 'Current progress:', sessionData.progress);
       
-      const response = await fetch('/api/prototype/progress-evaluation', {
+      const response = await fetch('/api/coaching/progress', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -240,7 +296,7 @@ export default function CoachingSession() {
 
     try {
       // Call the coaching API endpoint with session ID and full conversation history
-      const response = await fetch('/api/prototype/coach', {
+      const response = await fetch('/api/coaching/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -248,7 +304,7 @@ export default function CoachingSession() {
         body: JSON.stringify({
           message: content.trim(),
           sessionId: currentSessionId, // Use actual session ID for persistence
-          sessionType: 'initial-life-deep-dive', // Set session type
+          sessionType: getSessionType(), // Use dynamic session type based on URL parameter
           conversationHistory: sessionData.messages // Include all previous messages for context
         }),
       });

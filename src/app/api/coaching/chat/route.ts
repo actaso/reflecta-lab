@@ -1,19 +1,20 @@
 /**
- * PROTOTYPE COACH API ROUTE
+ * COACHING CHAT API ROUTE
  * 
- * This endpoint provides a simplified coaching interface for prototype testing using OpenRouter.
+ * This endpoint provides the main coaching interface with real-time streaming responses.
  * 
  * FEATURES:
  * - Streams responses in real-time using Server-Sent Events (SSE)
  * - Supports multiple coaching session types (default-session, initial-life-deep-dive)
  * - Persists conversation history to Firestore when sessionId is provided
- * - Builds user context from alignment and recent journal entries
+ * - Builds user context from recent journal entries
  * - Uses Anthropic Claude 3.5 Sonnet via OpenRouter
  * 
  * REQUEST PARAMETERS:
  * - message: Required string - The user's message to the coach
  * - sessionId: Optional string - If provided, conversation is persisted to Firestore
  * - sessionType: Optional PromptType - Determines coaching style ('default-session' | 'initial-life-deep-dive')
+ * - sessionDuration: Optional number - Session duration in minutes (used for initial-life-deep-dive customization)
  * - conversationHistory: Optional array - Previous messages in the conversation
  * 
  * RESPONSE FORMAT:
@@ -27,16 +28,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { waitUntil } from '@vercel/functions';
 import OpenAI from 'openai';
 import FirestoreAdminService from '@/lib/firestore-admin';
-import { PrototypeCoachingPromptLoader, PromptType } from '@/lib/coaching/models/prototypeCoaching/promptLoader';
+import { CoachingPromptLoader, PromptType } from '@/app/api/coaching/utils/promptLoader';
+import { CoachingContextBuilder } from '@/lib/coaching/contextBuilder';
 import { PrototypeCoachRequest, CoachingSession, CoachingSessionMessage } from '@/types/coachingSession';
 
-// Legacy interface removed - using CoachingSessionMessage from types instead
-
 /**
- * Prototype Coach API Route
- * Simplified coaching endpoint for prototype testing with OpenRouter
+ * Main Coaching Chat API Route
+ * Handles real-time coaching conversations with streaming responses
  */
 export async function POST(request: NextRequest) {
   try {
@@ -66,13 +67,17 @@ export async function POST(request: NextRequest) {
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: process.env.OPENROUTER_API_KEY,
       defaultHeaders: {
-        'X-Title': 'Reflecta Coaching Prototype',
+        'X-Title': 'Reflecta Coaching',
       },
     });
 
     // Generate coaching system prompt based on session type
     const sessionType = validatedRequest.sessionType || 'default-session';
-    const systemPrompt = await generateCoachingSystemPrompt(userId, sessionType);
+    const systemPrompt = await generateCoachingSystemPrompt(
+      userId, 
+      sessionType, 
+      validatedRequest.sessionDuration
+    );
 
     // Build conversation context with history
     const messages: { role: 'system' | 'user' | 'assistant', content: string }[] = [
@@ -135,6 +140,18 @@ export async function POST(request: NextRequest) {
                 validatedRequest.conversationHistory || []
               );
               console.log(`✅ Updated coaching session: ${validatedRequest.sessionId}`);
+              
+              // Trigger insight extraction for initial life deep dive sessions that contain finish token
+              if (sessionType === 'initial-life-deep-dive' && assistantResponse.includes('[finish-end]')) {
+                console.log(`🧠 Triggering insight extraction for initial life deep dive session: ${validatedRequest.sessionId}`);
+                // Use Vercel's waitUntil to ensure insight extraction completes without blocking the response
+                waitUntil(
+                  triggerInsightExtraction(validatedRequest.sessionId, userId).catch((error) => {
+                    console.error('Failed to trigger insight extraction:', error);
+                    // Error is caught and logged, but won't affect user response
+                  })
+                );
+              }
             } catch (firestoreError) {
               console.error('Failed to update Firestore:', firestoreError);
               // Don't fail the response if Firestore update fails
@@ -172,7 +189,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Prototype coach API error:', error);
+    console.error('Coaching chat API error:', error);
     
     if (error instanceof Error) {
       if (error.message.includes('rate limit')) {
@@ -198,7 +215,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Validate prototype coach request
+ * Validate coaching chat request
  */
 function validateRequest(body: unknown): PrototypeCoachRequest {
   if (!body || typeof body !== 'object') {
@@ -223,6 +240,15 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
     sessionType = bodyObj.sessionType as PromptType;
   }
 
+  // Validate sessionDuration if provided
+  let sessionDuration: number | undefined;
+  if (bodyObj.sessionDuration !== undefined && bodyObj.sessionDuration !== null) {
+    if (typeof bodyObj.sessionDuration !== 'number' || bodyObj.sessionDuration <= 0) {
+      throw new Error('Invalid sessionDuration. Must be a positive number representing minutes');
+    }
+    sessionDuration = bodyObj.sessionDuration;
+  }
+
   // Validate conversation history if provided
   let conversationHistory: CoachingSessionMessage[] | undefined;
   if (bodyObj.conversationHistory) {
@@ -242,6 +268,7 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
     message: bodyObj.message.trim(),
     sessionId: typeof bodyObj.sessionId === 'string' ? bodyObj.sessionId : undefined,
     sessionType,
+    sessionDuration,
     conversationHistory
   };
 }
@@ -286,6 +313,7 @@ async function updateCoachingSession(
     const sessionDoc = await sessionRef.get();
     let allMessages: CoachingSessionMessage[];
     let createdAt: Date;
+    let linkedJournalEntryId: string | undefined;
 
     if (sessionDoc.exists) {
       // Update existing session
@@ -301,6 +329,7 @@ async function updateCoachingSession(
         sessionType: 'default-session' | 'initial-life-deep-dive';
         duration: number;
         wordCount: number;
+        linkedJournalEntryId?: string;
       };
       
       // Convert messages timestamps from Firestore to Date objects
@@ -314,10 +343,36 @@ async function updateCoachingSession(
       // Convert Firestore timestamp to Date object
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       createdAt = (currentSession.createdAt as any)?.toDate ? (currentSession.createdAt as any).toDate() : new Date(currentSession.createdAt as any);
+      // Keep existing link
+      linkedJournalEntryId = currentSession.linkedJournalEntryId;
     } else {
-      // New session
+      // New session - create linked journal entry
       allMessages = [...existingHistory, userMsg, assistantMsg];
       createdAt = now;
+      
+      // Create a new journal entry linked to this coaching session
+      try {
+        const journalEntryId = crypto.randomUUID();
+        const journalEntryData = {
+          id: journalEntryId,
+          uid: userId,
+          content: '', // Empty content as requested
+          timestamp: now,
+          lastUpdated: now,
+          linkedCoachingSessionId: sessionId
+        };
+        
+        // Create journal entry in Firestore
+        await db.collection('journal_entries').doc(journalEntryId).set(journalEntryData);
+        linkedJournalEntryId = journalEntryId;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Created linked journal entry: ${journalEntryId} for session: ${sessionId}`);
+        }
+      } catch (journalError) {
+        console.error('Failed to create linked journal entry:', journalError);
+        // Continue without linking - session creation should not fail
+      }
     }
 
     // Calculate word count for all user messages
@@ -336,7 +391,8 @@ async function updateCoachingSession(
       createdAt,
       updatedAt: now,
       duration,
-      wordCount
+      wordCount,
+      linkedJournalEntryId
     };
     
     // Use set with merge to simplify logic
@@ -348,38 +404,13 @@ async function updateCoachingSession(
 }
 
 /**
- * Generate user context from alignment and recent journal entries
+ * Generate user context using the enhanced CoachingContextBuilder
  */
 async function generateUserContext(userId: string): Promise<string> {
   try {
-    // Get user account and journal entries in parallel
-    const [userAccount, journalEntries] = await Promise.all([
-      FirestoreAdminService.getUserAccount(userId),
-      FirestoreAdminService.getUserEntries(userId)
-    ]);
-
-    let context = '';
-
-    // Add alignment document if available
-    if (userAccount.alignment) {
-      context += `\n\n=== USER'S CURRENT ALIGNMENT/PRIORITY ===\n${userAccount.alignment}\n`;
-      if (userAccount.alignmentSetAt) {
-        context += `(Set on: ${userAccount.alignmentSetAt.toLocaleDateString()})\n`;
-      }
-    }
-
-    // Add past 10 journal entries if available
-    if (journalEntries.length > 0) {
-      const recentEntries = journalEntries.slice(0, 10);
-      context += `\n\n=== RECENT JOURNAL ENTRIES (Last ${recentEntries.length}) ===\n`;
-      
-      recentEntries.forEach((entry, index) => {
-        const entryDate = entry.timestamp.toLocaleDateString();
-        context += `\n--- Entry ${index + 1} (${entryDate}) ---\n${entry.content}\n`;
-      });
-    }
-
-    return context;
+    // Use the enhanced context builder that includes user profile and preferences
+    const contextData = await CoachingContextBuilder.buildChatContext(userId);
+    return contextData.formattedContext;
   } catch (error) {
     console.error('Error generating user context:', error);
     return ''; // Return empty string if context generation fails
@@ -387,14 +418,53 @@ async function generateUserContext(userId: string): Promise<string> {
 }
 
 /**
- * Generate coaching system prompt for prototype
+ * Generate coaching system prompt
  */
-async function generateCoachingSystemPrompt(userId: string, sessionType: PromptType = 'default-session'): Promise<string> {
+async function generateCoachingSystemPrompt(
+  userId: string, 
+  sessionType: PromptType = 'default-session',
+  sessionDuration?: number
+): Promise<string> {
   // Load the base prompt from file based on session type
-  const basePrompt = PrototypeCoachingPromptLoader.getSystemPrompt(sessionType);
+  let basePrompt = CoachingPromptLoader.getSystemPrompt(sessionType);
+
+  // Inject session duration into initial life deep dive prompt if provided
+  if (sessionType === 'initial-life-deep-dive' && sessionDuration) {
+    basePrompt = basePrompt.replace(
+      /Keep the whole experience within 25 minutes\./g,
+      `Keep the whole experience within ${sessionDuration} minutes.`
+    );
+    
+    // Also update any other references to the 25-minute session
+    basePrompt = basePrompt.replace(
+      /25-minute onboarding session/g,
+      `${sessionDuration}-minute onboarding session`
+    );
+  }
 
   // Get user context and append it
   const userContext = await generateUserContext(userId);
   
   return basePrompt + userContext;
-} 
+}
+
+/**
+ * Trigger insight extraction for completed initial life deep dive sessions
+ * Called asynchronously when [finish-end] token is detected via waitUntil
+ */
+async function triggerInsightExtraction(sessionId: string, userId: string): Promise<void> {
+  console.log(`🧠 Starting insight extraction for session: ${sessionId}`);
+  
+  // Import and call the service function directly
+  const { extractInsightsForSession } = await import('@/app/api/coaching/insightExtractor/service');
+  
+  const result = await extractInsightsForSession(sessionId, userId);
+  
+  if (result.success) {
+    console.log(`✅ Successfully extracted insights for session ${sessionId}`);
+    console.log(`📊 Insights extracted: mainFocus="${result.insights?.mainFocus?.headline}", keyBlockers="${result.insights?.keyBlockers?.headline}", plan="${result.insights?.plan?.headline}"`);
+  } else {
+    console.error(`❌ Insight extraction failed for session ${sessionId}: ${result.error}`);
+    throw new Error(`Insight extraction failed: ${result.error}`);
+  }
+}

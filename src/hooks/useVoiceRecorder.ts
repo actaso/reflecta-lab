@@ -141,7 +141,7 @@ export function useVoiceRecorder(): VoiceRecorderHook {
       formData.append('audio', audioBlob);
 
       // Call our transcription API
-      const response = await fetch('/api/prototype/transcribe', {
+              const response = await fetch('/api/transcribe', {
         method: 'POST',
         body: formData
       });

@@ -6,6 +6,8 @@ export type JournalEntry = {
   uid: string; // user id from firebase auth & clerk (should be the same)
   lastUpdated: Date; // last time a change happened to this entry
   images?: ImageMetadata[]; // metadata of images contained in this entry
+  linkedCoachingSessionId?: string; // id of the coaching session that this entry is linked to
+  linkedCoachingMessageId?: string; // id of the coaching message that this entry is linked to
 };
 
 // Image metadata stored with journal entries
@@ -17,23 +19,34 @@ export type ImageMetadata = {
   uploadedAt: Date; // when image was uploaded
 };
 
-/**
- * Morning guidance data generated daily for users
- */
-export type MorningGuidance = {
-  journalQuestion: string; // The main question to display
-  detailedMorningPrompt: string; // Extended/detailed version of the question
-  reasoning: string; // Why this question was chosen
-  generatedAt: Date; // When this guidance was generated
-  usedAt?: Date; // When the user journaled with this guidance
-};
-
 // collection name on firestore: "users"
 export type UserAccount = {
   uid: string;
-  currentMorningGuidance?: MorningGuidance; // Today's morning guidance
-  alignment?: string; // User's biggest priority in life right now
-  alignmentSetAt?: Date; // When the alignment was last set
+  email: string;
   createdAt: Date;
   updatedAt: Date;
+  firstName: string;
+  onboardingData: {
+      onboardingCompleted: boolean;
+      onboardingCompletedAt: number; // unix timestamp
+      whatDoYouDoInLife: string[]; // string of tags selected
+      selfReflectionPracticesTried: string[]; // string of tags selected
+      clarityInLife: number; // 0 being totally unclear, 10 being very clear
+      stressInLife: number; // 0 being totally not stressed, 10 being very stressed
+  }
+  coachingConfig: {
+      challengeDegree: 'gentle' | 'moderate' | 'challenging' | 'intense';
+      harshToneDegree: 'supportive' | 'direct' | 'firm' | 'harsh';
+      coachingMessageFrequency: 'daily' | 'multipleTimesPerWeek' | 'onceAWeek';
+      enableCoachingMessages: boolean; // if true, based on frequency messages will be sent. this should be a setting in the user doc.
+      lastCoachingMessageSentAt: number; // unix timestamp
+      coachingMessageTimePreference: 'morning' | 'afternoon' | 'evening';
+  }
+  mobilePushNotifications: {
+    enabled: boolean;
+    expoPushTokens: string[]; // array of expo tokens
+    lastNotificationSentAt: number; // unix timestamp
+  }
+  userTimezone: string; // timezone of the user (e.g. "America/New_York")
+  nextCoachingMessageDue?: number; // unix timestamp when next coaching message should be sent
 };

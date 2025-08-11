@@ -1,4 +1,4 @@
-import { PromptType } from '@/lib/coaching/models/prototypeCoaching/promptLoader';
+import { PromptType } from '@/app/api/coaching/utils/promptLoader';
 
 /**
  * Coaching session message structure
@@ -24,6 +24,7 @@ export type CoachingSession = {
   updatedAt: Date; // Last time session was modified
   duration: number; // Session duration in seconds (updatedAt - createdAt)
   wordCount: number; // Total word count of all user messages
+  linkedJournalEntryId?: string; // id of the journal entry that this session is linked to
 };
 
 /**
@@ -33,5 +34,6 @@ export type PrototypeCoachRequest = {
   message: string;
   sessionId?: string; // Optional session ID for persistence
   sessionType?: PromptType; // Type of session, defaults to 'default-session'
+  sessionDuration?: number; // Optional session duration in minutes for dynamic prompt customization
   conversationHistory?: CoachingSessionMessage[]; // Previous messages in conversation
 }; 

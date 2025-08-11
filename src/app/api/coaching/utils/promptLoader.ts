@@ -2,20 +2,23 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 export type PromptType = 'initial-life-deep-dive' | 'default-session';
+export type InsightPromptType = 'insight-extraction';
 
 /**
- * Prototype Coaching Prompt Loader
+ * Coaching Prompt Loader
  * Loads the appropriate coaching prompt based on session type
+ * Moved from lib to be closer to the routes that use it
  */
-export class PrototypeCoachingPromptLoader {
-  private static readonly PROMPTS_DIR = join(process.cwd(), 'src/lib/coaching/models/prototypeCoaching/prompts');
+export class CoachingPromptLoader {
+  private static readonly PROMPTS_DIR = join(process.cwd(), 'src/app/api/coaching/chat/prompts');
+  private static readonly INSIGHT_PROMPTS_DIR = join(process.cwd(), 'src/app/api/coaching/insightExtractor/prompts');
 
   /**
-   * Load a specific prompt file
+   * Load a specific prompt file from a given directory
    */
-  private static loadPromptFile(filename: string): string {
+  private static loadPromptFile(filename: string, directory: string = CoachingPromptLoader.PROMPTS_DIR): string {
     try {
-      const filePath = join(PrototypeCoachingPromptLoader.PROMPTS_DIR, filename);
+      const filePath = join(directory, filename);
       return readFileSync(filePath, 'utf-8').trim();
     } catch (error) {
       console.error(`Error reading prompt file ${filename}:`, error);
@@ -28,7 +31,15 @@ export class PrototypeCoachingPromptLoader {
    */
   static getSystemPrompt(promptType: PromptType = 'default-session'): string {
     const filename = `${promptType}.md`;
-    return PrototypeCoachingPromptLoader.loadPromptFile(filename);
+    return CoachingPromptLoader.loadPromptFile(filename);
+  }
+
+  /**
+   * Get the insight extraction prompt
+   */
+  static getInsightExtractionPrompt(promptType: InsightPromptType = 'insight-extraction'): string {
+    const filename = `${promptType}.md`;
+    return CoachingPromptLoader.loadPromptFile(filename, CoachingPromptLoader.INSIGHT_PROMPTS_DIR);
   }
 
   /**
@@ -44,4 +55,4 @@ export class PrototypeCoachingPromptLoader {
     
     return 'default-session';
   }
-} 
+}

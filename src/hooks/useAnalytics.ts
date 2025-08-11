@@ -77,59 +77,15 @@ export function useAnalytics() {
     });
   }, [posthog]);
 
-  const trackMorningGuidanceGenerated = useCallback((properties?: {
-    fromCache?: boolean;
-    entryCount?: number;
-    hasAlignment?: boolean;
-  }) => {
-    posthog?.capture('morning_guidance_generated', {
-      timestamp: new Date().toISOString(),
-      from_cache: properties?.fromCache || false,
-      entry_count: properties?.entryCount || 0,
-      has_alignment: properties?.hasAlignment || false,
-    });
-  }, [posthog]);
 
-  const trackMorningGuidanceUsed = useCallback((properties?: {
-    useDetailedPrompt?: boolean;
-    entryCount?: number;
-    hasAlignment?: boolean;
-  }) => {
-    posthog?.capture('morning_guidance_used', {
-      timestamp: new Date().toISOString(),
-      use_detailed_prompt: properties?.useDetailedPrompt || false,
-      entry_count: properties?.entryCount || 0,
-      has_alignment: properties?.hasAlignment || false,
-    });
-  }, [posthog]);
 
-  const trackMorningGuidanceModalOpened = useCallback(() => {
-    posthog?.capture('morning_guidance_modal_opened', {
-      timestamp: new Date().toISOString(),
-    });
-  }, [posthog]);
 
-  const trackMorningGuidanceDismissed = useCallback((properties?: {
-    entryCount?: number;
-    hasAlignment?: boolean;
-  }) => {
-    posthog?.capture('morning_guidance_dismissed', {
-      timestamp: new Date().toISOString(),
-      entry_count: properties?.entryCount || 0,
-      has_alignment: properties?.hasAlignment || false,
-    });
-  }, [posthog]);
 
-  const trackAlignmentSet = useCallback((properties?: {
-    alignmentLength?: number;
-    isUpdate?: boolean;
-  }) => {
-    posthog?.capture('alignment_set', {
-      timestamp: new Date().toISOString(),
-      alignment_length: properties?.alignmentLength || 0,
-      is_update: properties?.isUpdate || false,
-    });
-  }, [posthog]);
+
+
+
+
+
 
   const trackCoachingCompletion = useCallback((properties?: {
     modelId?: string;
@@ -157,11 +113,7 @@ export function useAnalytics() {
     trackSignIn,
     trackSignUp,
     trackSignOut,
-    trackMorningGuidanceGenerated,
-    trackMorningGuidanceUsed,
-    trackMorningGuidanceModalOpened,
-    trackMorningGuidanceDismissed,
-    trackAlignmentSet,
+
     trackCoachingCompletion,
   };
 }

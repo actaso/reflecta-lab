@@ -10,6 +10,7 @@ import {
   query, 
   where, 
   orderBy, 
+  limit,
   onSnapshot,
   serverTimestamp,
   Timestamp,
@@ -18,7 +19,10 @@ import {
   FieldValue
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { JournalEntry, UserAccount, MorningGuidance } from '@/types/journal';
+import { JournalEntry, UserAccount, ImageMetadata } from '@/types/journal';
+import { userInsight } from '@/types/insights';
+import { CoachingMessage } from '@/types/coachingMessage';
+import { generateDefaultUserAccount, DEFAULT_USER_ACCOUNT_FIELDS } from './userAccountDefaults';
 
 // Firestore document interface (includes Firestore metadata)
 export interface FirestoreJournalEntry {
@@ -29,20 +33,14 @@ export interface FirestoreJournalEntry {
   lastUpdated: Timestamp | FieldValue;
   createdAt: Timestamp | FieldValue;
   updatedAt: Timestamp | FieldValue;
+  images?: ImageMetadata[];
+  linkedCoachingSessionId?: string;
+  linkedCoachingMessageId?: string;
 }
 
 // Firestore user account interface
 export interface FirestoreUserAccount {
   uid: string;
-  currentMorningGuidance?: {
-    journalQuestion: string;
-    detailedMorningPrompt: string;
-    reasoning: string;
-    generatedAt: Timestamp | FieldValue;
-    usedAt?: Timestamp | FieldValue;
-  };
-  alignment?: string;
-  alignmentSetAt?: Timestamp | FieldValue;
   createdAt: Timestamp | FieldValue;
   updatedAt: Timestamp | FieldValue;
 }
@@ -55,19 +53,36 @@ const convertFirestoreEntry = (doc: { id: string; data: () => any }): JournalEnt
     content: data.content as string,
     timestamp: (data.timestamp as Timestamp).toDate(),
     uid: data.uid as string,
-    lastUpdated: data.lastUpdated ? (data.lastUpdated as Timestamp).toDate() : (data.updatedAt as Timestamp).toDate()
+    lastUpdated: data.lastUpdated ? (data.lastUpdated as Timestamp).toDate() : (data.updatedAt as Timestamp).toDate(),
+    images: data.images || [],
+    linkedCoachingSessionId: data.linkedCoachingSessionId,
+    linkedCoachingMessageId: data.linkedCoachingMessageId
   };
 };
 
 // Convert JournalEntry to Firestore document data
-const convertToFirestoreData = (entry: Partial<JournalEntry>, userId: string): Partial<FirestoreJournalEntry> => ({
-  uid: userId,
-  content: entry.content,
-  timestamp: entry.timestamp ? Timestamp.fromDate(entry.timestamp) : serverTimestamp(),
-  lastUpdated: entry.lastUpdated ? Timestamp.fromDate(entry.lastUpdated) : serverTimestamp(),
-  updatedAt: serverTimestamp(),
-  ...(entry.id ? {} : { createdAt: serverTimestamp() })
-});
+const convertToFirestoreData = (entry: Partial<JournalEntry>, userId: string): Partial<FirestoreJournalEntry> => {
+  const firestoreData: Partial<FirestoreJournalEntry> = {
+    uid: userId,
+    content: entry.content,
+    timestamp: entry.timestamp ? Timestamp.fromDate(entry.timestamp) : serverTimestamp(),
+    lastUpdated: entry.lastUpdated ? Timestamp.fromDate(entry.lastUpdated) : serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    images: entry.images || [],
+    ...(entry.id ? {} : { createdAt: serverTimestamp() })
+  };
+
+  // Only include linked IDs if they have actual values (not undefined)
+  if (entry.linkedCoachingSessionId) {
+    firestoreData.linkedCoachingSessionId = entry.linkedCoachingSessionId;
+  }
+  
+  if (entry.linkedCoachingMessageId) {
+    firestoreData.linkedCoachingMessageId = entry.linkedCoachingMessageId;
+  }
+
+  return firestoreData;
+};
 
 // Convert Firestore document to UserAccount
 const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): UserAccount => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -85,60 +100,41 @@ const convertFirestoreUserAccount = (doc: { id: string; data: () => any }): User
   // Handle missing createdAt field (for documents created before this fix)
   const createdAt = data.createdAt ? (data.createdAt as Timestamp).toDate() : (data.updatedAt as Timestamp).toDate();
   
-  // Convert morning guidance if it exists
-  let currentMorningGuidance: MorningGuidance | undefined = undefined;
-  if (data.currentMorningGuidance) {
-    currentMorningGuidance = {
-      journalQuestion: data.currentMorningGuidance.journalQuestion,
-      detailedMorningPrompt: data.currentMorningGuidance.detailedMorningPrompt,
-      reasoning: data.currentMorningGuidance.reasoning,
-      generatedAt: data.currentMorningGuidance.generatedAt ? (data.currentMorningGuidance.generatedAt as Timestamp).toDate() : new Date(),
-      usedAt: data.currentMorningGuidance.usedAt ? (data.currentMorningGuidance.usedAt as Timestamp).toDate() : undefined
-    };
-  }
+
   
   return {
     uid: data.uid as string,
-    currentMorningGuidance,
-    alignment: data.alignment as string | undefined,
-    alignmentSetAt: data.alignmentSetAt ? (data.alignmentSetAt as Timestamp).toDate() : undefined,
+    email: data.email || DEFAULT_USER_ACCOUNT_FIELDS.email,
     createdAt,
-    updatedAt: (data.updatedAt as Timestamp).toDate()
+    updatedAt: (data.updatedAt as Timestamp).toDate(),
+    firstName: data.firstName || DEFAULT_USER_ACCOUNT_FIELDS.firstName,
+    onboardingData: data.onboardingData || DEFAULT_USER_ACCOUNT_FIELDS.onboardingData,
+    coachingConfig: data.coachingConfig || DEFAULT_USER_ACCOUNT_FIELDS.coachingConfig,
+    mobilePushNotifications: data.mobilePushNotifications || DEFAULT_USER_ACCOUNT_FIELDS.mobilePushNotifications,
+    userTimezone: data.userTimezone || DEFAULT_USER_ACCOUNT_FIELDS.userTimezone,
+    nextCoachingMessageDue: data.nextCoachingMessageDue || DEFAULT_USER_ACCOUNT_FIELDS.nextCoachingMessageDue,
   };
 };
 
 // Convert UserAccount to Firestore document data
-const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): Partial<FirestoreUserAccount> => {
+const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): any => { // eslint-disable-line @typescript-eslint/no-explicit-any
   const now = Timestamp.now();
-  const data: Partial<FirestoreUserAccount> = {
+  
+  // Base data with timestamps
+  const data: any = { // eslint-disable-line @typescript-eslint/no-explicit-any
     uid: userAccount.uid!,
     updatedAt: now,
     ...(userAccount.createdAt ? { createdAt: Timestamp.fromDate(userAccount.createdAt) } : { createdAt: now })
   };
 
-
-  // Include morning guidance if it exists
-  if (userAccount.currentMorningGuidance) {
-    data.currentMorningGuidance = {
-      journalQuestion: userAccount.currentMorningGuidance.journalQuestion,
-      detailedMorningPrompt: userAccount.currentMorningGuidance.detailedMorningPrompt,
-      reasoning: userAccount.currentMorningGuidance.reasoning,
-      generatedAt: Timestamp.fromDate(userAccount.currentMorningGuidance.generatedAt),
-      ...(userAccount.currentMorningGuidance.usedAt && {
-        usedAt: Timestamp.fromDate(userAccount.currentMorningGuidance.usedAt)
-      })
-    };
-  }
-
-  // Include alignment if it exists
-  if (userAccount.alignment !== undefined) {
-    data.alignment = userAccount.alignment;
-  }
-
-  // Include alignmentSetAt if it exists
-  if (userAccount.alignmentSetAt !== undefined) {
-    data.alignmentSetAt = Timestamp.fromDate(userAccount.alignmentSetAt);
-  }
+  // Include all other UserAccount fields if they exist
+  if (userAccount.email !== undefined) data.email = userAccount.email;
+  if (userAccount.firstName !== undefined) data.firstName = userAccount.firstName;
+  if (userAccount.onboardingData !== undefined) data.onboardingData = userAccount.onboardingData;
+  if (userAccount.coachingConfig !== undefined) data.coachingConfig = userAccount.coachingConfig;
+  if (userAccount.mobilePushNotifications !== undefined) data.mobilePushNotifications = userAccount.mobilePushNotifications;
+  if (userAccount.userTimezone !== undefined) data.userTimezone = userAccount.userTimezone;
+  if (userAccount.nextCoachingMessageDue !== undefined) data.nextCoachingMessageDue = userAccount.nextCoachingMessageDue;
 
   return data;
 };
@@ -146,6 +142,7 @@ const convertToFirestoreUserData = (userAccount: Partial<UserAccount>): Partial<
 export class FirestoreService {
   private static COLLECTION_NAME = 'journal_entries';
   private static USERS_COLLECTION_NAME = 'users';
+  private static INSIGHTS_COLLECTION_NAME = 'userInsights';
 
   // NEW: Upsert method using set() with merge - handles both create and update atomically
   static async upsertEntry(entry: JournalEntry, userId: string): Promise<void> {
@@ -259,7 +256,7 @@ export class FirestoreService {
   // User Account Methods
   
   // Get or create user account
-  static async getUserAccount(userId: string): Promise<UserAccount> {
+  static async getUserAccount(userId: string, email?: string): Promise<UserAccount> {
     try {
       const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
       const docSnap = await getDoc(docRef);
@@ -277,12 +274,8 @@ export class FirestoreService {
         
         return convertFirestoreUserAccount({ id: docSnap.id, data: () => docSnap.data() });
       } else {
-        // Create new user account
-        const newUserAccount: UserAccount = {
-          uid: userId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+        // Create new user account with intelligent defaults
+        const newUserAccount = generateDefaultUserAccount(userId, email || '');
         
         const firestoreData = convertToFirestoreUserData(newUserAccount);
         await setDoc(docRef, firestoreData);
@@ -311,66 +304,125 @@ export class FirestoreService {
     }
   }
 
-
-
-  // Save morning guidance to user account
-  static async saveMorningGuidance(userId: string, guidance: Omit<MorningGuidance, 'generatedAt'>): Promise<void> {
+  // User Insights Methods
+  
+  /**
+   * Get user insights from userInsights collection
+   */
+  static async getUserInsights(userId: string): Promise<userInsight | null> {
     try {
-      const now = new Date();
+      const q = query(
+        collection(db, this.INSIGHTS_COLLECTION_NAME),
+        where('userId', '==', userId),
+        orderBy('updatedAt', 'desc'),
+        limit(1)
+      );
       
-      const morningGuidance: MorningGuidance = {
-        ...guidance,
-        generatedAt: now
-      };
-
-      const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
-      await updateDoc(docRef, {
-        currentMorningGuidance: {
-          journalQuestion: morningGuidance.journalQuestion,
-          detailedMorningPrompt: morningGuidance.detailedMorningPrompt,
-          reasoning: morningGuidance.reasoning,
-          generatedAt: Timestamp.fromDate(morningGuidance.generatedAt)
-        },
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      console.error('Error saving morning guidance:', error);
-      throw new Error('Failed to save morning guidance to Firestore');
-    }
-  }
-
-  // Get current morning guidance for today
-  static async getCurrentMorningGuidance(userId: string): Promise<MorningGuidance | null> {
-    try {
-      const userAccount = await this.getUserAccount(userId);
+      const querySnapshot = await getDocs(q);
       
-      if (userAccount.currentMorningGuidance) {
-        const today = new Date().toISOString().split('T')[0];
-        const guidanceDate = userAccount.currentMorningGuidance.generatedAt.toISOString().split('T')[0];
-        if (guidanceDate === today) {
-          return userAccount.currentMorningGuidance;
-        }
+      if (querySnapshot.empty) {
+        return null;
       }
       
-      return null;
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      
+      return {
+        mainFocus: data.mainFocus,
+        keyBlockers: data.keyBlockers,
+        plan: data.plan,
+        userId: data.userId,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      };
     } catch (error) {
-      console.error('Error getting current morning guidance:', error);
-      return null;
+      console.error('Error fetching user insights:', error);
+      throw new Error('Failed to fetch insights from Firestore');
     }
   }
 
-  // Save user alignment
-  static async saveAlignment(userId: string, alignment: string): Promise<void> {
+  /**
+   * Real-time listener for user insights
+   */
+  static subscribeToUserInsights(
+    userId: string,
+    callback: (insights: userInsight | null) => void
+  ): () => void {
+    const q = query(
+      collection(db, this.INSIGHTS_COLLECTION_NAME),
+      where('userId', '==', userId),
+      orderBy('updatedAt', 'desc'),
+      limit(1)
+    );
+
+    return onSnapshot(
+      q,
+      (querySnapshot) => {
+        if (querySnapshot.empty) {
+          callback(null);
+          return;
+        }
+        
+        const doc = querySnapshot.docs[0];
+        const data = doc.data();
+        
+        const insights: userInsight = {
+          mainFocus: data.mainFocus,
+          keyBlockers: data.keyBlockers,
+          plan: data.plan,
+          userId: data.userId,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        };
+        
+        callback(insights);
+      },
+      (error) => {
+        console.error('Error in insights real-time listener:', error);
+        callback(null);
+      }
+    );
+  }
+
+  /**
+   * Get a specific coaching message by ID
+   */
+  static async getCoachingMessage(messageId: string): Promise<CoachingMessage | null> {
     try {
-      const docRef = doc(db, this.USERS_COLLECTION_NAME, userId);
-      await updateDoc(docRef, {
-        alignment,
-        alignmentSetAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+      const docRef = doc(db, 'coachingMessages', messageId);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        return null;
+      }
+      
+      const data = docSnap.data();
+      
+      // Convert the Firestore document to CoachingMessage type
+      const coachingMessage: CoachingMessage = {
+        id: messageId, // Include the document ID
+        uid: data.uid,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        messageContent: data.messageContent,
+        messageType: data.messageType,
+        pushNotificationText: data.pushNotificationText,
+        effectivenessRating: data.effectivenessRating || 0,
+        recommendedAction: data.recommendedAction,
+        wasSent: data.wasSent || false,
+        journalEntryId: data.journalEntryId,
+        contextUsed: data.contextUsed || '',
+        generationAttempt: data.generationAttempt || 1,
+        failureReason: data.failureReason,
+        userTimezone: data.userTimezone || '',
+        userTimePreference: data.userTimePreference || 'morning',
+        scheduledFor: data.scheduledFor
+      };
+      
+      return coachingMessage;
     } catch (error) {
-      console.error('Error saving alignment:', error);
-      throw new Error('Failed to save alignment to Firestore');
+      console.error('Error fetching coaching message:', error);
+      throw new Error('Failed to fetch coaching message from Firestore');
     }
   }
 }
