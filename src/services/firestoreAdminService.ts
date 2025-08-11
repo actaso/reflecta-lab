@@ -98,6 +98,40 @@ export class FirestoreAdminService {
   }
 
   /**
+   * Get the latest journal entry for a user
+   */
+  static async getLatestJournalEntry(userId: string): Promise<JournalEntry | null> {
+    if (!this.db) return null;
+
+    try {
+      const query = this.db.collection('journal_entries')
+        .where('uid', '==', userId)
+        .orderBy('timestamp', 'desc')
+        .limit(1);
+
+      const snapshot = await query.get();
+
+      if (snapshot.empty) {
+        return null;
+      }
+
+      const doc = snapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        uid: data.uid,
+        content: data.content,
+        timestamp: data.timestamp?.toDate() || new Date(),
+        lastUpdated: data.lastUpdated?.toDate() || data.updatedAt?.toDate() || new Date(),
+        images: data.images || []
+      };
+    } catch (error) {
+      console.error('Error fetching latest journal entry:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get the total count of journal entries for a user
    */
   static async getUserEntryCount(userId: string): Promise<number> {
@@ -404,7 +438,7 @@ export class FirestoreAdminService {
     try {
       const now = Date.now();
       
-      const messageData: CoachingMessage = {
+      const messageData: Omit<CoachingMessage, 'id'> = {
         ...coachingMessage,
         createdAt: now,
         updatedAt: now
@@ -454,8 +488,8 @@ export class FirestoreAdminService {
       return snapshot.docs.map(doc => {
         const data = doc.data();
         return {
-          ...data,
-          // Ensure all fields are properly typed
+          id: doc.id,
+          ...(data as Omit<CoachingMessage, 'id'>),
         } as CoachingMessage;
       });
     } catch (error) {
