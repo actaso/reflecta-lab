@@ -10,6 +10,7 @@ import EntryHeader from '../components/EntryHeader';
 import CommandPalette from '../components/CommandPalette';
 import CoachingSessionCard from '../components/CoachingSessionCard';
 import CoachingMessageCard from '../components/CoachingMessageCard';
+import PomodoroTimer from '../components/PomodoroTimer';
 
 import { formatDate, getAllEntriesChronological } from '../utils/formatters';
 import { JournalEntry, ImageMetadata } from '../types/journal';
@@ -613,6 +614,8 @@ export default function JournalApp() {
         <span className="text-lg leading-none">?</span>
       </button>
 
+      {/* Pomodoro Timer - Bottom Right */}
+      <PomodoroTimer />
 
     </div>
   );
