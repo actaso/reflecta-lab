@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { FirestoreAdminService } from '@/services/firestoreAdminService';
+import { pushNotificationService } from '@/services/pushNotificationService';
 import { CoachingContextBuilder } from '@/lib/coaching/contextBuilder';
 import { UserAccount } from '@/types/journal';
 import { CoachingMessage } from '@/types/coachingMessage';
@@ -183,7 +184,28 @@ async function generateAndDeliverCoachingMessage(userId: string): Promise<{
     // 6. Update coaching message record with journal entry ID
     await FirestoreAdminService.updateCoachingMessageJournalEntry(coachingMessageId, journalEntryId);
     
-    // 7. Update user's next due timestamp (message was sent successfully)
+    // 7. Send push notification to user
+    console.log(`📲 [COACHING-PROCESSOR] Sending push notification to user ${userId}`);
+    try {
+      const pushResult = await pushNotificationService.sendCoachingMessageNotification(
+        userId,
+        finalMessage.pushNotificationText,
+        finalMessage.recommendedMessageType,
+        coachingMessageId,
+        journalEntryId
+      );
+      
+      if (pushResult.success) {
+        console.log(`✅ [COACHING-PROCESSOR] Push notification sent successfully to user ${userId} (${pushResult.sentCount} devices)`);
+      } else {
+        console.warn(`⚠️ [COACHING-PROCESSOR] Failed to send push notification to user ${userId}:`, pushResult.errors);
+      }
+    } catch (pushError) {
+      // Don't fail the entire process if push notification fails
+      console.error(`❌ [COACHING-PROCESSOR] Push notification error for user ${userId}:`, pushError);
+    }
+    
+    // 8. Update user's next due timestamp (message was sent successfully)
     const nextDueTime = calculateNextCoachingMessageDue(user);
     await FirestoreAdminService.updateUserNextCoachingMessageDue(userId, nextDueTime);
     
