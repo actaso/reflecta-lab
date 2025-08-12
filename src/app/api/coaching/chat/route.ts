@@ -8,7 +8,7 @@
  * - Supports multiple coaching session types (default-session, initial-life-deep-dive)
  * - Persists conversation history to Firestore when sessionId is provided
  * - Builds user context from recent journal entries
- * - Uses Anthropic Claude 3.5 Sonnet via OpenRouter
+ * - Uses OpenRouter with default model Anthropic Claude 3.5 Sonnet; supports selecting other models (e.g., GPT-5)
  * 
  * REQUEST PARAMETERS:
  * - message: Required string - The user's message to the coach
@@ -34,6 +34,13 @@ import FirestoreAdminService from '@/lib/firestore-admin';
 import { CoachingPromptLoader, PromptType } from '@/app/api/coaching/utils/promptLoader';
 import { CoachingContextBuilder } from '@/lib/coaching/contextBuilder';
 import { PrototypeCoachRequest, CoachingSession, CoachingSessionMessage } from '@/types/coachingSession';
+
+// Supported model configuration for OpenRouter
+const DEFAULT_MODEL = 'anthropic/claude-3.5-sonnet';
+const SUPPORTED_MODELS = new Set<string>([
+  DEFAULT_MODEL,
+  'openai/gpt-5',
+]);
 
 /**
  * Main Coaching Chat API Route
@@ -71,6 +78,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Determine selected model with safe default
+    const requestedModel: string | undefined = validatedRequest.model;
+    const selectedModel = requestedModel && SUPPORTED_MODELS.has(requestedModel)
+      ? requestedModel
+      : DEFAULT_MODEL;
+
     // Generate coaching system prompt based on session type
     const sessionType = validatedRequest.sessionType || 'default-session';
     const systemPrompt = await generateCoachingSystemPrompt(
@@ -97,11 +110,11 @@ export async function POST(request: NextRequest) {
     // Add the current message
     messages.push({ role: 'user', content: validatedRequest.message });
 
-    console.log(`🧠 Coaching context: ${messages.length} messages (including system prompt), session type: ${sessionType}`);
+    console.log(`🧠 Coaching context: ${messages.length} messages (including system prompt), session type: ${sessionType}, model: ${selectedModel}`);
 
     // Create streaming response
     const stream = await openrouter.chat.completions.create({
-      model: 'anthropic/claude-3.5-sonnet',
+      model: selectedModel,
       messages,
       temperature: 0.7,
       max_tokens: 1000,
@@ -264,12 +277,22 @@ function validateRequest(body: unknown): PrototypeCoachRequest {
     }));
   }
 
+  // Optional model - accept string but do not error if unsupported
+  let model: string | undefined;
+  if (bodyObj.model !== undefined) {
+    if (typeof bodyObj.model !== 'string') {
+      throw new Error('Invalid model format');
+    }
+    model = bodyObj.model;
+  }
+
   return {
     message: bodyObj.message.trim(),
     sessionId: typeof bodyObj.sessionId === 'string' ? bodyObj.sessionId : undefined,
     sessionType,
     sessionDuration,
-    conversationHistory
+    conversationHistory,
+    model,
   };
 }
 

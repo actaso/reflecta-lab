@@ -4,9 +4,11 @@ interface CoachingHeaderProps {
   objective: string;
   progress: number; // 0-100
   estimatedTime?: string; // Optional estimated time (e.g. "25m")
+  model: string; // OpenRouter model id
+  onModelChange: (model: string) => void;
 }
 
-export default function CoachingHeader({ objective, progress, estimatedTime }: CoachingHeaderProps) {
+export default function CoachingHeader({ objective, progress, estimatedTime, model, onModelChange }: CoachingHeaderProps) {
   return (
     <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-10">
       <div className="bg-white/95 backdrop-blur-sm border border-neutral-200 rounded-2xl px-6 py-4 shadow-lg max-w-2xl">
@@ -35,6 +37,19 @@ export default function CoachingHeader({ objective, progress, estimatedTime }: C
                 style={{ width: `${progress}%` }}
               />
             </div>
+          </div>
+
+          {/* Model Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-neutral-500">Model</span>
+            <select
+              className="text-xs border border-neutral-200 rounded-md px-2 py-1 bg-white text-neutral-800 hover:border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-300"
+              value={model}
+              onChange={(e) => onModelChange(e.target.value)}
+            >
+              <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+              <option value="openai/gpt-5">GPT-5</option>
+            </select>
           </div>
         </div>
       </div>
