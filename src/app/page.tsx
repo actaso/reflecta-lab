@@ -503,8 +503,8 @@ export default function JournalApp() {
       </div>
 
       {/* Column 2: Center Content (Header + Editor) */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-6">
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+        <div className="flex-1 min-h-0 flex flex-col max-w-3xl mx-auto w-full px-6">
           {/* Header */}
           <EntryHeader
             currentEntry={currentEntry}
@@ -524,16 +524,18 @@ export default function JournalApp() {
 
           {/* Coaching Message Card - Show only when current entry has linked coaching message */}
           {(coachingMessageData || loadingCoachingMessage) && (
-            <CoachingMessageCard 
-              pushText={coachingMessageData?.pushNotificationText}
-              fullMessage={coachingMessageData?.messageContent}
-              messageType={coachingMessageData?.messageType}
-              loading={loadingCoachingMessage}
-            />
+            <div className="max-h-[50vh] overflow-y-auto rounded-lg">
+              <CoachingMessageCard 
+                pushText={coachingMessageData?.pushNotificationText}
+                fullMessage={coachingMessageData?.messageContent}
+                messageType={coachingMessageData?.messageType}
+                loading={loadingCoachingMessage}
+              />
+            </div>
           )}
           
           {/* Editor */}
-          <div className="flex-1 min-h-0 relative">
+          <div className="flex-1 min-h-0 relative overflow-hidden">
             {currentEntry ? (
               <div className="absolute inset-0 overflow-y-auto overflow-x-hidden scrollbar-hide">
                 <div className="min-h-full pb-[50vh]">
@@ -561,7 +563,7 @@ export default function JournalApp() {
       </div>
 
       {/* Column 3: Right Sidebar */}
-      <div className="w-80 flex-shrink-0 flex flex-col px-6">
+      <div className="w-80 flex-shrink-0 flex flex-col px-6 overflow-y-auto">
         {/* Align with header height */}
         <div className="h-[76px]"></div>
         
