@@ -36,4 +36,5 @@ export type PrototypeCoachRequest = {
   sessionType?: PromptType; // Type of session, defaults to 'default-session'
   sessionDuration?: number; // Optional session duration in minutes for dynamic prompt customization
   conversationHistory?: CoachingSessionMessage[]; // Previous messages in conversation
+  model?: string; // Optional model id for OpenRouter (e.g., 'anthropic/claude-3.5-sonnet', 'openai/gpt-5')
 }; 

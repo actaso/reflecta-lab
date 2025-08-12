@@ -71,6 +71,7 @@ export default function CoachingSession() {
   const [isLoading, setIsLoading] = useState(false);
   const [confettiTriggered, setConfettiTriggered] = useState(false);
   const [isLoadingSession, setIsLoadingSession] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>('anthropic/claude-3.5-sonnet');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -305,7 +306,8 @@ export default function CoachingSession() {
           message: content.trim(),
           sessionId: currentSessionId, // Use actual session ID for persistence
           sessionType: getSessionType(), // Use dynamic session type based on URL parameter
-          conversationHistory: sessionData.messages // Include all previous messages for context
+          conversationHistory: sessionData.messages, // Include all previous messages for context
+          model: selectedModel,
         }),
       });
 
@@ -456,6 +458,8 @@ export default function CoachingSession() {
         objective={sessionData.objective}
         progress={sessionData.progress}
         estimatedTime="25m"
+        model={selectedModel}
+        onModelChange={setSelectedModel}
       />
 
       <div className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
