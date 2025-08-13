@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import CoachingSession from '@/components/CoachingSession';
+import { CoachingErrorBoundary } from '@/components/error-boundaries';
 
 function CoachingSessionFallback() {
   return (
@@ -14,8 +15,10 @@ function CoachingSessionFallback() {
 
 export default function CoachPage() {
   return (
-    <Suspense fallback={<CoachingSessionFallback />}>
-      <CoachingSession />
-    </Suspense>
+    <CoachingErrorBoundary>
+      <Suspense fallback={<CoachingSessionFallback />}>
+        <CoachingSession />
+      </Suspense>
+    </CoachingErrorBoundary>
   );
 } 
