@@ -28,7 +28,7 @@ export class PushNotificationService {
     // Initialize Expo SDK
     this.expo = new Expo({
       accessToken: process.env.EXPO_ACCESS_TOKEN,
-      useFcmV1: false, // Set to true if using FCM v1 API
+      useFcmV1: true, // Required - Google has deprecated legacy FCM API
     });
   }
 
