@@ -474,10 +474,10 @@ export default function JournalApp() {
 
   return (
     <ErrorBoundary level="page" context="Journal App">
-      <div className="h-screen bg-neutral-50 dark:bg-neutral-900 flex justify-center">
+      <div className="h-screen bg-background flex justify-center">
         <div className="flex max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
           {/* Column 1: Left Sidebar */}
-          <div className="w-64 flex-shrink-0 bg-neutral-50 dark:bg-neutral-900 overflow-hidden px-6">
+          <div className="w-64 flex-shrink-0 bg-background overflow-hidden px-6">
             <SidebarErrorBoundary>
               <Sidebar
                 entries={entries}

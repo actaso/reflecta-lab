@@ -440,7 +440,7 @@ export default function CoachingSession() {
   // Show loading state while loading existing session
   if (isLoadingSession) {
     return (
-      <div className="h-screen bg-white dark:bg-neutral-900 flex items-center justify-center">
+      <div className="h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-neutral-600 dark:text-neutral-300">Loading your coaching session...</p>
@@ -451,14 +451,14 @@ export default function CoachingSession() {
 
   // Show the coaching interface
   return (
-    <div className="h-screen bg-white dark:bg-neutral-900 flex flex-col relative">
+    <div className="h-screen bg-background flex flex-col relative">
       <CoachingHeader 
         objective={sessionData.objective}
         progress={sessionData.progress}
         estimatedTime="25m"
       />
 
-      <div className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-b from-white dark:from-neutral-900 to-transparent pointer-events-none z-10" />
+      <div className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-b from-[var(--background)] to-transparent pointer-events-none z-10" />
 
       <div className="flex-1 overflow-y-auto px-6 pt-24 pb-44">
         <div className="max-w-2xl mx-auto">
