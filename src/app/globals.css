@@ -121,14 +121,15 @@
     @apply bg-background text-foreground;
     margin: 0;
     padding: 0;
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
 html {
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* Hide scrollbar while maintaining scroll functionality */

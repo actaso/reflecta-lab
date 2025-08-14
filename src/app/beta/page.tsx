@@ -35,12 +35,24 @@ export default function BetaPage() {
   }, [name, phone]);
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="space-y-8 text-center">
+    <div className="min-h-screen h-screen overflow-y-auto px-4 py-8" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="mx-auto w-full max-w-md">
+        <div className="space-y-8 text-center pb-10">
           <div className="space-y-3">
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">You’re invited.</h1>
             <p className="text-sm text-neutral-500">Get access to the private TestFlight now.</p>
+          </div>
+
+          <div className="rounded-xl border border-neutral-200 shadow-sm overflow-hidden text-left">
+            <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+              <iframe
+                className="absolute inset-0 h-full w-full border-0"
+                src="https://www.youtube.com/embed/6IqUtYyu2u4?rel=0"
+                title="Reflecta — 60s onboarding"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              ></iframe>
+            </div>
           </div>
 
           {successLink ? (
