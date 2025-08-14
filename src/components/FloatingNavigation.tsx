@@ -103,140 +103,68 @@ export default function FloatingNavigation() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Show transcription UI when recording/processing
+  // Show transcription UI when recording/processing - morph into toolbar shape
   if (voiceRecording.state !== 'idle') {
     return (
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center z-50 animate-in slide-in-from-bottom-1 fade-in duration-500">
-        <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md rounded-2xl border border-neutral-200/40 dark:border-neutral-700/40 shadow-xl shadow-neutral-900/20 dark:shadow-neutral-900/40 p-4 max-w-md mx-4">
+      <div className="fixed bottom-4 left-0 right-0 flex justify-center z-40 animate-in slide-in-from-bottom-1 fade-in duration-500">
+        <div className="w-full max-w-xl sm:max-w-2xl md:max-w-3xl lg:max-w-4xl mx-4 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md rounded-full border border-neutral-200/60 dark:border-neutral-700/60 shadow-xl shadow-neutral-900/20 dark:shadow-neutral-900/40 px-4 py-2.5 flex items-center justify-between gap-3 transition-all duration-300">
           
           {/* Recording State */}
           {voiceRecording.state === 'recording' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                    Recording...
-                  </span>
-                </div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400 font-mono">
-                  {formatTime(voiceRecording.duration)}
-                </span>
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-[120px]">
+                <div className="w-3.5 h-3.5 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Recording...</span>
               </div>
-              
               <AudioVisualizer 
                 isRecording={true}
                 audioContext={audioContext}
                 analyser={analyser}
-                className="w-full"
+                className="hidden xs:block w-24 sm:w-32 md:w-40"
               />
-              
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  onClick={stopRecording}
-                  variant="default"
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1.5 px-4"
-                >
-                  <span className="text-sm">Convert to text</span>
-                </Button>
-                <Button
-                  onClick={pauseRecording}
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full w-9 h-9"
-                >
-                  <Pause className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={resetRecording}
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full w-9 h-9 text-red-600 hover:text-red-700"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+              <span className="text-sm text-neutral-500 dark:text-neutral-400 font-mono ml-auto mr-2">
+                {formatTime(voiceRecording.duration)}
+              </span>
+              <div className="flex items-center gap-2.5">
+                <Button onClick={stopRecording} size="sm" className="h-9 px-4 bg-green-600 hover:bg-green-700 text-white">Convert</Button>
+                <Button onClick={pauseRecording} variant="outline" size="icon" className="h-9 w-9 rounded-full"><Pause className="w-4 h-4" /></Button>
+                <Button onClick={resetRecording} variant="outline" size="icon" className="h-9 w-9 rounded-full text-red-600 hover:text-red-700"><X className="w-4 h-4" /></Button>
               </div>
             </div>
           )}
 
           {/* Paused State */}
           {voiceRecording.state === 'paused' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                    Paused
-                  </span>
-                </div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400 font-mono">
-                  {formatTime(voiceRecording.duration)}
-                </span>
+            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-[100px]">
+                <div className="w-3.5 h-3.5 bg-orange-500 rounded-full" />
+                <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Paused</span>
               </div>
-              
-              <AudioVisualizer 
-                isRecording={false}
-                audioContext={audioContext}
-                analyser={analyser}
-                className="w-full"
-              />
-              
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  onClick={resumeRecording}
-                  variant="default"
-                  size="icon"
-                  className="rounded-full w-9 h-9"
-                >
-                  <Play className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={resetRecording}
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full w-9 h-9"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
+              <AudioVisualizer isRecording={false} audioContext={audioContext} analyser={analyser} className="hidden xs:block w-24 sm:w-32 md:w-40" />
+              <span className="text-sm text-neutral-500 dark:text-neutral-400 font-mono ml-auto mr-2">{formatTime(voiceRecording.duration)}</span>
+              <div className="flex items-center gap-2.5">
+                <Button onClick={resumeRecording} size="icon" className="h-9 w-9 rounded-full"><Play className="w-4 h-4" /></Button>
+                <Button onClick={resetRecording} variant="outline" size="icon" className="h-9 w-9 rounded-full"><RotateCcw className="w-4 h-4" /></Button>
               </div>
             </div>
           )}
 
           {/* Processing State */}
           {voiceRecording.state === 'processing' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
-                  Converting to text...
-                </span>
-              </div>
+            <div className="flex w-full items-center justify-center gap-3">
+              <div className="w-5 h-5 border-2 border-neutral-700 dark:border-neutral-300 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Converting to text...</span>
             </div>
           )}
 
           {/* Reviewing State */}
           {voiceRecording.state === 'reviewing' && voiceRecording.transcription && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                  ✓ Text added successfully
-                </span>
-                <Button
-                  onClick={resetRecording}
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs"
-                >
-                  Done
-                </Button>
+            <div className="flex w-full items-center justify-between gap-3">
+              <span className="text-sm font-medium text-green-600 dark:text-green-400">✓ Text added successfully</span>
+              <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-2 max-h-20 overflow-y-auto flex-1 mx-2">
+                <p className="text-sm text-neutral-700 dark:text-neutral-300 line-clamp-2">{voiceRecording.transcription}</p>
               </div>
-              
-              <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3 max-h-20 overflow-y-auto">
-                <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                  {voiceRecording.transcription}
-                </p>
-              </div>
+              <Button onClick={resetRecording} variant="ghost" size="sm" className="h-9 px-3 text-xs">Done</Button>
             </div>
           )}
 
@@ -265,7 +193,7 @@ export default function FloatingNavigation() {
 
   // Show normal navigation when not recording
   return (
-    <div className="fixed bottom-4 left-0 right-0 flex justify-center z-50 animate-in slide-in-from-bottom-1 fade-in duration-500">
+    <div className="fixed bottom-4 left-0 right-0 flex justify-center z-40 animate-in slide-in-from-bottom-1 fade-in duration-500">
       <nav className="flex items-center gap-1 px-1.5 py-1.5 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md rounded-full border border-neutral-200/40 dark:border-neutral-700/40 shadow-lg shadow-neutral-900/10 dark:shadow-neutral-900/30">
         {navigation.map((item) => {
           const isActive = pathname === item.href;

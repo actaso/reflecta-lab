@@ -23,6 +23,18 @@ A minimalist journal interface designed for rapid reflection and note-taking, fe
 - **Streaming responses**: Real-time AI chat using OpenAI GPT-4o-mini
 - **VS Code-style interface**: Resizable sidebar with professional design
 
+### 🧘 Meditation & Mindfulness
+- **Guided meditation sessions**: Built-in meditation timer and audio guides
+- **Audio transcription**: Voice-to-text for reflection entries
+- **Mindfulness prompts**: AI-powered reflection questions
+- **Progress tracking**: Meditation session history and insights
+
+### 🏃 Coaching & Personal Development
+- **AI Life Coach**: Personalized coaching sessions with context awareness
+- **Progress insights**: AI-powered analysis of personal growth patterns
+- **Goal tracking**: Action plans and milestone monitoring
+- **Reflection cards**: Interactive coaching exercises and prompts
+
 ### ⌨️ Keyboard Shortcuts
 - `Cmd+Enter`: Create new entry
 - `Cmd+Up/Down`: Navigate between entries
@@ -76,28 +88,109 @@ npm run test:watch   # Run tests in watch mode
 npm run test:ci      # Run tests with coverage for CI
 ```
 
+### Development Tools
+
+#### Firebase Emulators (Optional)
+For development with Firebase features, you can set up local emulators:
+
+```bash
+# Install Java (required for Firebase emulators)
+# macOS with Homebrew
+brew install openjdk@11
+
+# Add Java to PATH
+echo 'export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+
+# Create system symlink
+sudo ln -sfn /opt/homebrew/opt/openjdk@11/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-11.jdk
+
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login to Firebase
+firebase login
+
+# Start emulators (optional)
+firebase emulators:start
+```
+
+The emulators will be available at:
+- **Emulator UI**: http://localhost:4000
+- **Authentication**: http://localhost:9099  
+- **Firestore**: http://localhost:8080
+- **Storage**: http://localhost:9199
+
+#### Audio Development
+For audio features development:
+```bash
+# Test microphone access in browser
+# Ensure HTTPS for production (required for microphone access)
+# Use localhost for development (automatically has microphone permissions)
+```
+
 ### Project Structure
 
 ```
 src/
 ├── app/
-│   ├── api/chat/          # OpenAI API integration
-│   ├── layout.tsx         # Root layout with fonts
-│   ├── page.tsx           # Main journal application
-│   └── globals.css        # Global styles
+│   ├── api/
+│   │   ├── auth/firebase-token/    # Firebase authentication
+│   │   ├── coaching/               # AI coaching endpoints
+│   │   │   ├── chat/              # Coaching chat API
+│   │   │   ├── generateCoachingMessage/ # Message generation
+│   │   │   ├── insightExtractor/  # Insight extraction
+│   │   │   ├── progress/          # Progress tracking
+│   │   │   └── sessions/          # Session management
+│   │   ├── meditation/            # Meditation API
+│   │   └── transcribe/            # Audio transcription
+│   ├── coach/                     # Coaching interface page
+│   ├── compass/                   # Compass/navigation page
+│   ├── layout.tsx                 # Root layout with fonts
+│   ├── page.tsx                   # Main journal application
+│   └── globals.css                # Global styles
 ├── components/
-│   ├── Editor.tsx         # TipTap editor wrapper
-│   ├── AIChatSidebar.tsx  # AI chat interface
-│   ├── ChatInterface.tsx  # Chat message management
-│   ├── ChatMessage.tsx    # Individual message bubbles
-│   ├── ChatInput.tsx      # Auto-resizing input field
-│   ├── AIDropdown.tsx     # Mode selection dropdown
-│   ├── Sidebar.tsx        # Entry navigation
-│   └── ...               # Other UI components
+│   ├── Editor.tsx                 # TipTap editor wrapper
+│   ├── AIChatSidebar.tsx         # AI chat interface
+│   ├── CoachingSession.tsx       # Coaching interface
+│   ├── MeditationSession.tsx     # Meditation session UI
+│   ├── cards/                    # Interactive coaching cards
+│   │   ├── ActionPlanCard.tsx    # Action planning
+│   │   ├── BlockersCard.tsx      # Obstacle identification
+│   │   ├── CheckInCard.tsx       # Progress check-ins
+│   │   ├── FocusCard.tsx         # Focus area selection
+│   │   └── MeditationCard.tsx    # Meditation guidance
+│   ├── ChatInterface.tsx         # Chat message management
+│   ├── AudioVisualizer.tsx       # Audio recording UI
+│   └── ui/                       # Reusable UI components
+├── hooks/
+│   ├── useFirebaseAuth.ts        # Firebase authentication
+│   ├── useJournal.ts             # Journal data management
+│   ├── useVoiceRecorder.ts       # Audio recording
+│   ├── useAnalytics.ts           # Usage analytics
+│   └── useInsights.ts            # AI insights
+├── lib/
+│   ├── firebase.ts               # Firebase client config
+│   ├── firebase-admin.ts         # Firebase admin config
+│   ├── firestore.ts              # Firestore helpers
+│   └── coaching/                 # Coaching utilities
+├── services/
+│   ├── imageService.ts           # Image processing
+│   ├── syncService.ts            # Data synchronization
+│   └── pushNotificationService.ts # Notifications
+├── types/
+│   ├── journal.ts                # Journal type definitions
+│   ├── coaching.ts               # Coaching types
+│   ├── coachingSession.ts        # Session types
+│   └── insights.ts               # Insight types
 ├── utils/
-│   └── formatters.ts      # Date/text formatting utilities
+│   ├── formatters.ts             # Date/text formatting
+│   └── xmlStreamingParser.ts     # XML parsing utilities
 └── docs/
-    └── AI_CHAT_SIDEBAR.md # Detailed AI feature documentation
+    ├── AI_CHAT_SIDEBAR.md        # AI chat documentation
+    ├── ANALYTICS.md              # Analytics documentation
+    ├── COACHING_BLOCKS.md        # Coaching system docs
+    └── SYNC_MECHANISM.md         # Data sync documentation
 ```
 
 ## Architecture
@@ -107,7 +200,10 @@ src/
 - **Styling**: TailwindCSS v4
 - **Rich Text**: TipTap with custom extensions  
 - **AI Integration**: Vercel AI SDK + OpenAI
-- **Storage**: localStorage for client-side persistence
+- **Database**: Firebase Firestore + localStorage
+- **Authentication**: Firebase Auth
+- **Storage**: Firebase Storage + local storage
+- **Audio**: Web Audio API for recording and transcription
 - **TypeScript**: Strict mode with path aliases
 
 ### AI System Architecture
@@ -148,6 +244,14 @@ graph TD
 # Required
 OPENAI_API_KEY=your_openai_api_key_here
 
+# Firebase Configuration (for production)
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
 # Optional (defaults shown)
 NODE_ENV=development
 ```
@@ -170,7 +274,12 @@ NODE_ENV=development
 - AI mode selection and chat
 - Context injection and formatting
 - Keyboard shortcuts
-- Data persistence
+- Data persistence (localStorage + Firebase)
+- Coaching session management
+- Audio recording and transcription
+- Firebase authentication flow
+- Meditation timer functionality
+- Insight extraction and analytics
 
 ### Running Tests
 ```bash
@@ -191,7 +300,27 @@ npm run test:ci
 1. **Connect repository** to Vercel
 2. **Add environment variables** in Vercel dashboard:
    - `OPENAI_API_KEY`: Your OpenAI API key
+   - Firebase configuration variables (if using Firebase in production)
 3. **Deploy**: Automatic on git push
+
+### Firebase Hosting (Alternative)
+
+```bash
+# Build the application
+npm run build
+
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login to Firebase
+firebase login
+
+# Initialize Firebase hosting
+firebase init hosting
+
+# Deploy to Firebase
+firebase deploy --only hosting
+```
 
 ### Environment Setup for Production
 ```bash
@@ -207,6 +336,11 @@ npm run start
 
 - **[AI Chat Sidebar](./docs/AI_CHAT_SIDEBAR.md)**: Comprehensive technical documentation
 - **[CLAUDE.md](./CLAUDE.md)**: Development guidelines and architecture notes
+- **[Analytics](./docs/ANALYTICS.md)**: Usage analytics and tracking
+- **[Coaching Blocks](./docs/COACHING_BLOCKS.md)**: Coaching system architecture
+- **[Sync Mechanism](./docs/SYNC_MECHANISM.md)**: Data synchronization between localStorage and Firebase
+- **[Authentication](./src/docs/AUTHENTICATION.md)**: Firebase auth implementation
+- **[API Protection](./src/docs/API_ENDPOINT_PROTECTION.md)**: API security measures
 
 ## Contributing
 
@@ -235,15 +369,70 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - Verify API key has sufficient credits
 - Check browser console for errors
 
+**Audio recording not working**:
+- Ensure HTTPS connection (required for microphone access)
+- Check browser microphone permissions
+- Verify Web Audio API support in browser
+- Test with localhost (has automatic microphone access)
+
+**Firebase connection issues**:
+- Verify Firebase configuration in environment variables
+- Check Firebase project settings and API keys
+- Ensure Firestore rules allow read/write access
+- Check browser network tab for API errors
+
 **Build failures**:
 - Run `npm run lint` to check for errors
 - Ensure all imports are correct
 - Check TypeScript errors
+- Verify all dependencies are installed
 
 **Tests failing**:
 - Run `npm run test:ci` to see specific failures
 - Check coverage requirements are met
 - Verify mocks are properly configured
+- Clear test cache: `npm test -- --clearCache`
+
+### Firebase Emulator Issues
+
+**Java not found error**:
+```bash
+Error: Process `java -version` has exited with code 1
+```
+Solution: Install Java as described in the Development Tools section.
+
+**Port conflicts**:
+```bash
+Error: Could not start Emulator UI, port taken.
+```
+Solution: Kill conflicting processes:
+```bash
+# Find processes using Firebase ports
+lsof -ti :4000,4400,4500,8080,9099,9199
+
+# Kill the processes (replace PID with actual process IDs)
+kill -9 <PID>
+
+# Restart emulators
+firebase emulators:start
+```
+
+**Authentication not working with emulators**:
+```bash
+⚠ emulators: You are not currently authenticated
+```
+Solution: Login to Firebase: `firebase login`
+
+**Multiple emulator instances warning**:
+If you see "running multiple instances" warning:
+```bash
+# Kill all Firebase processes
+pkill -f firebase
+pkill -f java.*firestore
+
+# Restart clean
+firebase emulators:start
+```
 
 ## Performance
 
@@ -253,6 +442,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - **Streaming**: Real-time AI responses  
 - **useCallback**: Optimized re-renders
 - **Auto-cleanup**: Proper memory management
+- **Firebase caching**: Optimized data fetching and offline support
+- **Audio compression**: Efficient audio file handling
+- **Image optimization**: Next.js automatic image optimization
 
 ### Monitoring
 - Check build size in output logs

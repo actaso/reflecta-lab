@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Compass, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useInsights } from '@/hooks/useInsights';
+import { ErrorBoundary } from '@/components/error-boundaries';
 
 interface CompassCardProps {
   title: string;
@@ -32,7 +34,7 @@ function CompassCard({
   onViewSources
 }: CompassCardProps) {
   return (
-    <div className={`w-full max-w-sm mx-auto ${gradientClass} ${borderClass} rounded-2xl p-6 shadow-lg`}>
+    <div className={`w-full max-w-sm mx-auto ${gradientClass} ${borderClass} dark:border-neutral-700 rounded-2xl p-6 shadow-lg`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h3 className={`text-sm font-medium ${textClass}`}>{title}</h3>
@@ -58,17 +60,17 @@ function CompassCard({
 
       {/* Content */}
       <div className="text-center mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
           {subtitle}
         </h2>
-        <p className="text-sm text-gray-700 leading-relaxed">
+        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
           {content}
         </p>
       </div>
 
       {/* Description */}
       <div className="text-center mb-6">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           {description}
         </p>
       </div>
@@ -77,7 +79,7 @@ function CompassCard({
       <div className="flex items-center justify-between">
         <button 
           onClick={onViewSources}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
         >
           <ExternalLink className="w-4 h-4" />
           View Sources {sources.length > 0 ? `${sources.length}` : '0'}
@@ -85,7 +87,7 @@ function CompassCard({
         <Button
           variant="default"
           size="sm"
-          className="bg-black text-white hover:bg-gray-800 rounded-full px-6"
+          className="rounded-full px-6"
         >
           Share
         </Button>
@@ -143,6 +145,7 @@ function SourcesModal({
 
 export default function CompassPage() {
   const { insights, loading, error, refetch, hasInsights } = useInsights();
+  const router = useRouter();
   const [selectedSources, setSelectedSources] = useState<{
     title: string;
     sources: Array<{ quote: string; extractedAt: number }>;
@@ -221,13 +224,14 @@ export default function CompassPage() {
   const compassData = getCompassData();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <ErrorBoundary level="page" context="Compass">
+      <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-neutral-800 border-b border-gray-200 dark:border-neutral-700">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Compass className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              <Compass className="w-6 h-6 text-gray-600 dark:text-gray-300" />
               <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                 Compass
               </h1>
@@ -236,7 +240,7 @@ export default function CompassPage() {
               <button
                 onClick={refetch}
                 disabled={loading}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -253,7 +257,7 @@ export default function CompassPage() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <div className="flex items-center gap-3 text-gray-600">
+            <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
               <RefreshCw className="w-5 h-5 animate-spin" />
               Loading your insights...
             </div>
@@ -261,14 +265,14 @@ export default function CompassPage() {
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
-            <p className="text-red-700 text-center">
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg p-6 mb-8">
+            <p className="text-red-700 dark:text-red-400 text-center">
               Failed to load insights: {error}
             </p>
             <div className="flex justify-center mt-4">
               <button
                 onClick={refetch}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
               >
                 Try Again
               </button>
@@ -279,17 +283,16 @@ export default function CompassPage() {
         {!loading && !error && !hasInsights && (
           <div className="text-center py-12">
             <div className="mb-6">
-              <Compass className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <Compass className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                 No insights yet
               </h2>
-              <p className="text-gray-600 max-w-md mx-auto">
+              <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
                 Complete a coaching session to generate your personalized insights and guidance.
               </p>
             </div>
             <Button
-              onClick={() => window.location.href = '/coach'}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => router.push('/coach')}
             >
               Start Coaching Session
             </Button>
@@ -322,6 +325,7 @@ export default function CompassPage() {
         title={selectedSources?.title || ''}
         sources={selectedSources?.sources || []}
       />
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 } 

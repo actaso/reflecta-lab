@@ -131,7 +131,7 @@ export default function CoachingMessage({ message }: CoachingMessageProps) {
     return (
       <div className="mb-8 text-right">
         <div className="inline-block max-w-[85%] ml-auto">
-          <div className="px-0 py-2 text-base leading-relaxed text-neutral-700 font-medium">
+          <div className="px-0 py-2 text-base leading-relaxed text-neutral-700 dark:text-neutral-200 font-medium break-all sm:break-words whitespace-pre-wrap">
             {message.content}
           </div>
         </div>
@@ -145,25 +145,25 @@ export default function CoachingMessage({ message }: CoachingMessageProps) {
   return (
     <div className="mb-8 text-left">
       <div className="inline-block max-w-[85%] mr-auto">
-        <div className="px-0 py-2 text-base leading-relaxed text-neutral-600">
+        <div className="px-0 py-2 text-base leading-relaxed text-neutral-600 dark:text-neutral-300 break-all sm:break-words whitespace-pre-wrap">
           {parsedComponents.map((component, index) => (
             <div key={index}>
               {component.type === 'text' ? (
                 <ReactMarkdown
                   components={{
-                    p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                    strong: ({ children }) => <strong className="font-semibold text-neutral-700">{children}</strong>,
+                    p: ({ children }) => <p className="mb-3 last:mb-0 break-all sm:break-words whitespace-pre-wrap">{children}</p>,
+                    strong: ({ children }) => <strong className="font-semibold text-neutral-700 dark:text-neutral-100 break-all sm:break-words">{children}</strong>,
                     em: ({ children }) => <em className="italic">{children}</em>,
-                    ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
-                    ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
-                    li: ({ children }) => <li className="text-neutral-600">{children}</li>,
+                    ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1 break-all sm:break-words">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1 break-all sm:break-words">{children}</ol>,
+                    li: ({ children }) => <li className="text-neutral-600 dark:text-neutral-300 break-all sm:break-words">{children}</li>,
                     blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-neutral-200 pl-4 italic text-neutral-500 my-3">
+                      <blockquote className="border-l-4 border-neutral-200 dark:border-neutral-700 pl-4 italic text-neutral-500 dark:text-neutral-400 my-3 break-all sm:break-words">
                         {children}
                       </blockquote>
                     ),
                     code: ({ children }) => (
-                      <code className="bg-neutral-100 text-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono">
+                      <code className="bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 px-1.5 py-0.5 rounded text-sm font-mono break-all sm:break-words">
                         {children}
                       </code>
                     ),

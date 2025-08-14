@@ -43,13 +43,13 @@ export default function CoachingInput({
     };
   }, [onInputChange]);
 
-  // Auto-resize textarea with generous max height and minimum height
+  // Auto-resize textarea with single-line minimum and multi-line growth
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      // Ensure minimum height for at least 3 lines (about 72px) and max height for about 8-10 lines
-      const minHeight = 72;
+      // Ensure minimum height for 1 line (~44px) and max height for about 8-10 lines
+      const minHeight = 44;
       const maxHeight = 240;
       const newHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
       textarea.style.height = newHeight + 'px';
@@ -73,7 +73,7 @@ export default function CoachingInput({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 max-w-[720px] mx-auto bg-white/95 backdrop-blur-sm border border-neutral-200 rounded-t-2xl shadow-lg">
+    <div className="fixed bottom-20 left-0 right-0 z-50 max-w-[720px] mx-auto bg-white/95 dark:bg-neutral-800/90 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700 rounded-2xl shadow-lg">
       <div className="flex justify-center p-3 pb-2">
         <div className="w-full max-w-[720px]">
           <div className="flex items-end gap-3">
@@ -84,9 +84,9 @@ export default function CoachingInput({
                 value={input}
                 onChange={(e) => onInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Share what's on your mind... write as much as you'd like"
-                className="w-full resize-none rounded-md border border-neutral-200 bg-white px-2 py-1 text-base leading-relaxed placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-300 focus:border-transparent disabled:opacity-50 transition-all min-h-[72px]"
-                rows={3}
+                placeholder="Share what's on your mind..."
+                className="w-full resize-none rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1 text-base leading-relaxed text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-300 dark:focus:ring-neutral-600 focus:border-transparent disabled:opacity-50 transition-all min-h-[44px] break-all sm:break-words whitespace-pre-wrap"
+                rows={1}
                 disabled={isLoading}
               />
             </div>
@@ -97,7 +97,7 @@ export default function CoachingInput({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!input.trim() || isLoading}
-                className="shrink-0 h-11 w-11 rounded-full bg-neutral-700 hover:bg-neutral-800 disabled:opacity-30 transition-all"
+                className="shrink-0 h-11 w-11 rounded-full bg-neutral-700 hover:bg-neutral-800 dark:bg-neutral-200 dark:hover:bg-neutral-300 text-white dark:text-neutral-900 disabled:opacity-30 transition-all"
                 size="icon"
               >
                 <Send className="w-5 h-5" />
@@ -106,7 +106,7 @@ export default function CoachingInput({
           </div>
           
           {/* Help text */}
-          <div className="mt-1 text-[11px] text-neutral-400 text-center tracking-tight">
+          <div className="mt-1 text-[11px] text-neutral-400 dark:text-neutral-500 text-center tracking-tight">
             press <span className="font-medium">enter</span> to send • <span className="font-medium">shift + enter</span> for new line
           </div>
         </div>
