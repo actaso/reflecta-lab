@@ -194,7 +194,8 @@ export class PushNotificationService {
     };
 
     const payload: PushNotificationPayload = {
-      title: this.getCoachingNotificationTitle(messageType),
+      // title: this.getCoachingNotificationTitle(messageType), // Generate title from message type
+      title: 'Reflecta',
       body: coachingMessage,
       data: notificationData,
       sound: 'default',
