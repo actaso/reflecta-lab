@@ -53,9 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request
     const body = await request.json();
-    const validatedRequest = validateRequest(body, {
-      allowUserIdOverride: false
-    });
+    const validatedRequest = validateRequest(body);
 
     // Call the shared service function
     // If admin override is active, pass null userId to derive from session (admin mode)
@@ -98,7 +96,7 @@ export async function POST(request: NextRequest) {
 /**
  * Validate insight extraction request
  */
-function validateRequest(body: unknown, _options?: { allowUserIdOverride?: boolean }): { sessionId: string } {
+function validateRequest(body: unknown): { sessionId: string } {
   if (!body || typeof body !== 'object') {
     throw new Error('Invalid request body');
   }

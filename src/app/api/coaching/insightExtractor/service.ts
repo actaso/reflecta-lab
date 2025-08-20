@@ -172,7 +172,7 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
     // Strategy 1: direct parse
     try {
       return JSON.parse(raw);
-    } catch (_) {
+    } catch {
       // continue
     }
 
@@ -182,7 +182,7 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
       const fenced = codeFenceMatch[1].trim();
       try {
         return JSON.parse(fenced);
-      } catch (_) {
+      } catch {
         // continue
       }
     }
@@ -194,7 +194,7 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
       const sliced = raw.slice(firstBrace, lastBrace + 1);
       try {
         return JSON.parse(sliced);
-      } catch (_) {
+      } catch {
         // continue
       }
     }
@@ -256,7 +256,7 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
       console.error('LLM response validation failed:', validationResult.error.format());
       try {
         console.error('Actual LLM response that failed validation:', JSON.stringify(parsedJson, null, 2));
-      } catch (_) {
+      } catch {
         console.error('Actual LLM response that failed validation: [unserializable object]');
       }
       
@@ -268,8 +268,7 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
       if (headlineErrors.length > 0) {
         headlineErrors.forEach(error => {
           const fieldPath = error.path.join('.');
-          const actualValue = error.path.reduce((obj, key) => obj?.[key], parsedJson);
-          console.error(`Headline too long at ${fieldPath}: "${actualValue}" (${actualValue?.length} chars, max 55)`);
+          console.error(`Headline too long at ${fieldPath} (max 55 chars)`);
         });
       }
       
