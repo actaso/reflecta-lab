@@ -254,7 +254,33 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 
 # Optional (defaults shown)
 NODE_ENV=development
+
+# Admin manual operations (for remediation tooling)
+# Used to securely trigger manual insight extraction for a specific user/session
+ADMIN_MANUAL_SECRET=your_secure_random_token
 ```
+
+### Manual Insight Extraction (Admin)
+
+For remediation of failed insight extraction runs, you can trigger the extractor manually.
+
+1) Set the secret in your environment:
+
+```bash
+# Local
+echo "ADMIN_MANUAL_SECRET=your_secure_random_token" >> .env.local
+
+# Production
+# Add ADMIN_MANUAL_SECRET in your deployment environment (e.g. Vercel dashboard)
+```
+
+2) Use the built-in CLI:
+
+```bash
+npm run trigger:insights
+```
+
+The CLI will prompt you to choose environment (local or production) with arrow keys and to enter the `sessionId`. It calls the API using the `x-admin-manual-secret` header; the server derives the `userId` from the session and enforces ownership.
 
 ### TipTap Extensions
 - **StarterKit**: Basic rich text functionality

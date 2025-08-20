@@ -29,21 +29,39 @@ import { extractInsightsForSession } from './service';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Authentication check
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User not authenticated' },
-        { status: 401 }
-      );
+    // Admin override header allows triggering on behalf of a user for recovery/manual operations
+    // Admin header + env secret
+    const adminTokenHeader = request.headers.get('x-admin-manual-secret');
+    const adminTokenEnv = process.env.ADMIN_MANUAL_SECRET;
+    const isAdminHeaderValid = Boolean(adminTokenHeader && adminTokenEnv && adminTokenHeader === adminTokenEnv);
+
+    // Authentication check (unless admin override header is valid)
+    let effectiveUserId: string | null = null;
+    if (isAdminHeaderValid) {
+      // Admin override mode; userId will be validated from request body
+      effectiveUserId = null;
+    } else {
+      const { userId } = await auth();
+      if (!userId) {
+        return NextResponse.json(
+          { success: false, error: 'User not authenticated' },
+          { status: 401 }
+        );
+      }
+      effectiveUserId = userId;
     }
 
     // Parse and validate request
     const body = await request.json();
-    const validatedRequest = validateRequest(body);
+    const validatedRequest = validateRequest(body, {
+      allowUserIdOverride: false
+    });
 
     // Call the shared service function
-    const result = await extractInsightsForSession(validatedRequest.sessionId, userId);
+    // If admin override is active, pass null userId to derive from session (admin mode)
+    const isAdmin = isAdminHeaderValid;
+    const userIdToUse = isAdmin ? null : effectiveUserId!;
+    const result = await extractInsightsForSession(validatedRequest.sessionId, userIdToUse);
 
     if (result.success) {
       return NextResponse.json({
@@ -80,7 +98,7 @@ export async function POST(request: NextRequest) {
 /**
  * Validate insight extraction request
  */
-function validateRequest(body: unknown): { sessionId: string } {
+function validateRequest(body: unknown, _options?: { allowUserIdOverride?: boolean }): { sessionId: string } {
   if (!body || typeof body !== 'object') {
     throw new Error('Invalid request body');
   }

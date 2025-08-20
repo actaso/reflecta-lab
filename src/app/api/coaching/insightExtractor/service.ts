@@ -38,7 +38,7 @@ const LLMInsightResponseSchema = z.object({
  * Extract insights for a coaching session by sessionId
  * This is the core service function used by both API routes and internal calls
  */
-export async function extractInsightsForSession(sessionId: string, userId: string): Promise<{
+export async function extractInsightsForSession(sessionId: string, userId: string | null): Promise<{
   success: boolean;
   insights?: Omit<userInsight, 'userId' | 'createdAt' | 'updatedAt'>;
   error?: string;
@@ -49,20 +49,22 @@ export async function extractInsightsForSession(sessionId: string, userId: strin
       return { success: false, error: 'OpenRouter API key not configured' };
     }
 
-    // Load coaching session from Firestore
-    const session = await loadCoachingSession(sessionId, userId);
+    // Load coaching session from Firestore. If userId is provided, enforce ownership; otherwise skip (admin flow)
+    const session = await loadCoachingSession(sessionId, userId ?? undefined);
     if (!session) {
       return { success: false, error: 'Session not found or unauthorized' };
     }
 
+    const effectiveUserId = userId ?? session.userId;
+
     // Build user context for better insight extraction
-    const contextData = await CoachingContextBuilder.buildChatContext(userId);
+    const contextData = await CoachingContextBuilder.buildChatContext(effectiveUserId);
 
     // Generate insights using LLM
     const extractedInsights = await extractInsightsFromSession(session, contextData.formattedContext);
 
     // Update user insights in Firestore
-    await updateUserInsights(userId, extractedInsights);
+    await updateUserInsights(effectiveUserId, extractedInsights);
 
     console.log(`✅ Successfully extracted insights for session: ${sessionId}`);
 
@@ -83,7 +85,7 @@ export async function extractInsightsForSession(sessionId: string, userId: strin
 /**
  * Load coaching session from Firestore and verify user ownership
  */
-async function loadCoachingSession(sessionId: string, userId: string): Promise<CoachingSession | null> {
+async function loadCoachingSession(sessionId: string, userId?: string): Promise<CoachingSession | null> {
   try {
     const db = FirestoreAdminService.getAdminDatabase();
     const sessionRef = db.collection('coachingSessions').doc(sessionId);
@@ -109,8 +111,8 @@ async function loadCoachingSession(sessionId: string, userId: string): Promise<C
       wordCount: number;
     };
 
-    // Verify user ownership
-    if (sessionData.userId !== userId) {
+    // Verify user ownership if provided
+    if (userId && sessionData.userId !== userId) {
       return null;
     }
 
@@ -165,13 +167,54 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
   // Build the complete system prompt
   const systemPrompt = basePrompt + `\n\n## User Context\n${userContext}\n\n## Coaching Conversation to Analyze\n${conversationContent}`;
 
-  try {
+  // Helper to parse JSON from potentially noisy model output
+  const tryParseJson = (raw: string): unknown => {
+    // Strategy 1: direct parse
+    try {
+      return JSON.parse(raw);
+    } catch (_) {
+      // continue
+    }
+
+    // Strategy 2: fenced code block ```json ... ```
+    const codeFenceMatch = raw.match(/```(?:json)?\n([\s\S]*?)\n```/i) || raw.match(/```(?:json)?([\s\S]*?)```/i);
+    if (codeFenceMatch && codeFenceMatch[1]) {
+      const fenced = codeFenceMatch[1].trim();
+      try {
+        return JSON.parse(fenced);
+      } catch (_) {
+        // continue
+      }
+    }
+
+    // Strategy 3: extract substring from first '{' to last '}'
+    const firstBrace = raw.indexOf('{');
+    const lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const sliced = raw.slice(firstBrace, lastBrace + 1);
+      try {
+        return JSON.parse(sliced);
+      } catch (_) {
+        // continue
+      }
+    }
+
+    // Give up
+    throw new Error('Unparsable JSON content');
+  };
+
+  // Helper to request model output with optional stricter instruction (used for retry)
+  const requestModelContent = async (strictJsonOnly: boolean): Promise<string> => {
+    const strictSuffix = strictJsonOnly
+      ? '\n\nCRITICAL: Return ONLY a single valid JSON object that strictly matches the schema. Do NOT include any prose, explanations, comments, or markdown code fences.'
+      : '';
+
     const response = await openrouter.chat.completions.create({
       model: 'anthropic/claude-3.5-sonnet',
       messages: [
-        { role: 'system', content: systemPrompt }
+        { role: 'system', content: systemPrompt + strictSuffix }
       ],
-      temperature: 0.3, // Lower temperature for more consistent structured output
+      temperature: 0.3,
       max_tokens: 2000,
     });
 
@@ -179,21 +222,43 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
     if (!content) {
       throw new Error('No content received from LLM');
     }
+    return content;
+  };
 
-    // Parse and validate the JSON response with Zod
-    let parsedJson;
+  try {
+    // Attempt 1
+    const content1 = await requestModelContent(false);
+    let parsedJson: unknown;
     try {
-      parsedJson = JSON.parse(content);
+      parsedJson = tryParseJson(content1);
     } catch (parseError) {
-      console.error('Failed to parse LLM response as JSON:', parseError);
-      throw new Error('Invalid JSON response from LLM');
+      // Log full raw output to help diagnose prompt/schema issues
+      // Limit log size to avoid excessively large logs
+      const preview = content1.length > 20000 ? content1.slice(0, 20000) + `\n... [truncated ${content1.length - 20000} chars]` : content1;
+      console.error('Failed to parse LLM response as JSON (attempt 1):', parseError);
+      console.error('Raw LLM response (attempt 1):\n', preview);
+
+      // Retry once with stricter instruction
+      const content2 = await requestModelContent(true);
+      try {
+        parsedJson = tryParseJson(content2);
+      } catch (parseError2) {
+        const preview2 = content2.length > 20000 ? content2.slice(0, 20000) + `\n... [truncated ${content2.length - 20000} chars]` : content2;
+        console.error('Failed to parse LLM response as JSON (attempt 2):', parseError2);
+        console.error('Raw LLM response (attempt 2):\n', preview2);
+        throw new Error('Invalid JSON response from LLM');
+      }
     }
 
     // Validate structure with Zod
-    const validationResult = LLMInsightResponseSchema.safeParse(parsedJson);
+    const validationResult = LLMInsightResponseSchema.safeParse(parsedJson as unknown);
     if (!validationResult.success) {
       console.error('LLM response validation failed:', validationResult.error.format());
-      console.error('Actual LLM response that failed validation:', JSON.stringify(parsedJson, null, 2));
+      try {
+        console.error('Actual LLM response that failed validation:', JSON.stringify(parsedJson, null, 2));
+      } catch (_) {
+        console.error('Actual LLM response that failed validation: [unserializable object]');
+      }
       
       // Extract specific headline length errors for better debugging
       const headlineErrors = validationResult.error.issues.filter(issue => 
