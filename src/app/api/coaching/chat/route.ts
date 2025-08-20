@@ -34,7 +34,7 @@ import FirestoreAdminService from '@/lib/firestore-admin';
 import { CoachingPromptLoader, PromptType } from '@/app/api/coaching/utils/promptLoader';
 import { CoachingContextBuilder } from '@/lib/coaching/contextBuilder';
 import { PrototypeCoachRequest, CoachingSession, CoachingSessionMessage } from '@/types/coachingSession';
-
+import { Langfuse } from 'langfuse';
 /**
  * Main Coaching Chat API Route
  * Handles real-time coaching conversations with streaming responses
@@ -71,6 +71,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Initialize Langfuse client
+    const langfuse = new Langfuse();
+
     // Generate coaching system prompt based on session type
     const sessionType = validatedRequest.sessionType || 'default-session';
     const systemPrompt = await generateCoachingSystemPrompt(
@@ -98,6 +101,27 @@ export async function POST(request: NextRequest) {
     messages.push({ role: 'user', content: validatedRequest.message });
 
     console.log(`🧠 Coaching context: ${messages.length} messages (including system prompt), session type: ${sessionType}`);
+
+    // Create Langfuse trace & generation (if configured)
+    const trace = langfuse?.trace({
+      name: 'coaching-chat',
+      userId,
+      sessionId: validatedRequest.sessionId,
+      metadata: {
+        route: '/api/coaching/chat',
+        sessionType,
+      },
+    });
+
+    const generation = trace?.generation({
+      name: 'chat-completion',
+      model: 'anthropic/claude-3.5-sonnet',
+      input: messages,
+      metadata: {
+        provider: 'openrouter',
+        streaming: true,
+      },
+    });
 
     // Create streaming response
     const stream = await openrouter.chat.completions.create({
@@ -127,7 +151,19 @@ export async function POST(request: NextRequest) {
               controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`));
             }
           }
-          
+
+          // End Langfuse generation & trace, flush in background
+          generation?.end({
+              output: assistantResponse,
+          });
+
+          trace?.update({
+            input: messages,
+            output: assistantResponse,
+          });
+
+          waitUntil(langfuse.flushAsync());
+
           // Update Firestore after streaming completes (if sessionId provided)
           if (validatedRequest.sessionId && assistantResponse.trim()) {
             try {
