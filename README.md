@@ -258,7 +258,73 @@ NODE_ENV=development
 # Admin manual operations (for remediation tooling)
 # Used to securely trigger manual insight extraction for a specific user/session
 ADMIN_MANUAL_SECRET=your_secure_random_token
+
+# Langfuse Observability (optional but recommended)
+# Sign up at https://cloud.langfuse.com and create a project & API keys
+LANGFUSE_PUBLIC_KEY=your_public_key
+LANGFUSE_SECRET_KEY=your_secret_key
+# LANGFUSE_HOST=https://cloud.langfuse.com # optional, set if self-hosting
 ```
+
+### Observability: Langfuse Tracing
+
+We use Langfuse to trace LLM calls and coaching flows. Follow this pattern when adding new LLM features:
+
+1) Initialize a client where the operation runs (per request/invocation):
+
+```ts
+import { Langfuse } from 'langfuse';
+
+const langfuse = new Langfuse();
+```
+
+2) Create a trace with a clear name and the `userId` (omit `sessionId` unless you have it):
+
+```ts
+const trace = langfuse.trace({
+  name: 'feature-name',
+  userId,
+  metadata: { route: '/api/your/route' },
+});
+```
+
+3) Wrap each LLM call in a generation span and record inputs/outputs:
+
+```ts
+const generation = trace.generation({
+  name: 'llm-call',
+  model: 'anthropic/claude-3.5-sonnet',
+  input: messagesOrPromptArray,
+  metadata: { provider: 'openrouter' },
+});
+
+// ... call your LLM ...
+
+generation.end({ output });
+trace.update({ input: messagesOrPromptArray, output });
+```
+
+4) Flush non-blockingly in API routes, or await in background/services:
+
+```ts
+// API routes (Next.js / Vercel)
+import { waitUntil } from '@vercel/functions';
+waitUntil(langfuse.flushAsync());
+
+// Services/background jobs
+await langfuse.flushAsync();
+```
+
+Implemented examples:
+- Chat streaming: `src/app/api/coaching/chat/route.ts`
+- Insight extraction: `src/app/api/coaching/insightExtractor/service.ts`
+- Coaching message generation & optimization: `src/app/api/coaching/generateCoachingMessage/processor/route.ts`
+
+Best practices:
+- Keep `name` fields consistent and human-readable (e.g., `coaching-chat`, `insight-extraction`).
+- Include `userId` on traces; add `sessionId` only when present.
+- Record minimal necessary `input` and `output` to avoid sensitive data exposure.
+- Always flush. Use `waitUntil` in request/response handlers; `await` in services.
 
 ### Manual Insight Extraction (Admin)
 

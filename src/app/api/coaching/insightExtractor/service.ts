@@ -12,6 +12,7 @@ import { CoachingContextBuilder } from '@/lib/coaching/contextBuilder';
 import { CoachingPromptLoader } from '@/app/api/coaching/utils/promptLoader';
 import { CoachingSession } from '@/types/coachingSession';
 import { userInsight } from '@/types/insights';
+import { Langfuse } from 'langfuse';
 
 /**
  * Zod schema for parsing LLM response (without timestamps)
@@ -166,6 +167,25 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
   
   // Build the complete system prompt
   const systemPrompt = basePrompt + `\n\n## User Context\n${userContext}\n\n## Coaching Conversation to Analyze\n${conversationContent}`;
+
+  // Initialize Langfuse trace & generation (no sessionId used here)
+  const langfuse = new Langfuse();
+  const trace = langfuse?.trace({
+    name: 'insight-extraction',
+    userId: session.userId,
+    metadata: {
+      route: 'insight-extraction/service',
+      sessionType: session.sessionType,
+    },
+  });
+  const generation = trace?.generation({
+    name: 'insight-extraction',
+    model: 'anthropic/claude-3.5-sonnet',
+    input: [{ role: 'system', content: systemPrompt }],
+    metadata: {
+      provider: 'openrouter',
+    },
+  });
 
   // Helper to parse JSON from potentially noisy model output
   const tryParseJson = (raw: string): unknown => {
@@ -324,7 +344,14 @@ async function extractInsightsFromSession(session: CoachingSession, userContext:
         updatedAt: now
       }
     };
-
+    generation?.end({
+      output: insightsWithTimestamps,
+    });
+    trace?.update({
+      input: [{ role: 'system', content: systemPrompt }],
+      output: insightsWithTimestamps,
+    });
+    await langfuse.flushAsync();
     return insightsWithTimestamps;
   } catch (error) {
     console.error('Error extracting insights with LLM:', error);

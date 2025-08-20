@@ -23,6 +23,7 @@ import { CoachingMessage } from '@/types/coachingMessage';
 import { userInsight } from '@/types/insights';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { Langfuse } from 'langfuse';
 
 // Zod schemas for LLM response validation
 const MessageGenerationResponseSchema = z.object({
@@ -149,13 +150,13 @@ async function generateAndDeliverCoachingMessage(userId: string): Promise<{
     console.log(`🤖 [COACHING-PROCESSOR] Generating message for user ${userId}`);
     
     // 2. Generate initial coaching message
-    const initialMessage = await generateCoachingMessage(context);
+    const initialMessage = await generateCoachingMessage(context, userId);
     console.log(`✅ [COACHING-PROCESSOR] Generated ${initialMessage.recommendedMessageType} message for user ${userId}`);
     
     console.log(`🧠 [COACHING-PROCESSOR] Optimizing message for user ${userId}`);
     
     // 3. Simulate outcome and improve if needed
-    const finalMessage = await optimizeCoachingMessage(initialMessage, context);
+    const finalMessage = await optimizeCoachingMessage(initialMessage, context, userId);
     
     // 4. Save coaching message to collection (before sending)
     const coachingMessageData: Omit<CoachingMessage, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -323,7 +324,7 @@ function formatInsightsForContext(insights: userInsight): string {
 /**
  * Generate initial coaching message using LLM
  */
-async function generateCoachingMessage(context: string): Promise<MessageGenerationResponse> {
+async function generateCoachingMessage(context: string, userId: string): Promise<MessageGenerationResponse> {
   const openrouter = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -334,6 +335,22 @@ async function generateCoachingMessage(context: string): Promise<MessageGenerati
 
   const promptPath = join(process.cwd(), 'src/app/api/coaching/generateCoachingMessage/prompts/message-generation.md');
   const systemPrompt = readFileSync(promptPath, 'utf-8');
+
+  const langfuse = new Langfuse();
+  const trace = langfuse?.trace({
+    name: 'coaching-message-generation',
+    userId,
+    metadata: { route: '/api/coaching/generateCoachingMessage/processor' },
+  });
+  const generation = trace?.generation({
+    name: 'message-generation',
+    model: 'anthropic/claude-3.5-sonnet',
+    input: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: context }
+    ],
+    metadata: { provider: 'openrouter' },
+  });
 
   const response = await openrouter.chat.completions.create({
     model: 'anthropic/claude-3.5-sonnet',
@@ -375,7 +392,17 @@ async function generateCoachingMessage(context: string): Promise<MessageGenerati
     console.log('🧹 [COACHING-PROCESSOR] Cleaned JSON:', cleanedJson.substring(0, 200) + '...');
 
     const parsedResponse = JSON.parse(cleanedJson);
-    return MessageGenerationResponseSchema.parse(parsedResponse);
+    const validated = MessageGenerationResponseSchema.parse(parsedResponse);
+    generation?.end({ output: validated });
+    trace?.update({
+      input: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: context }
+      ],
+      output: validated,
+    });
+    await langfuse.flushAsync();
+    return validated;
   } catch (error) {
     console.error('❌ [COACHING-PROCESSOR] JSON Parse Error Details:');
     console.error('  Original JSON (first 500 chars):', rawJson.substring(0, 500));
@@ -397,7 +424,8 @@ async function generateCoachingMessage(context: string): Promise<MessageGenerati
  */
 async function optimizeCoachingMessage(
   initialMessage: MessageGenerationResponse, 
-  context: string
+  context: string,
+  userId: string
 ): Promise<MessageGenerationResponse> {
   const openrouter = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
@@ -419,6 +447,22 @@ Type: ${initialMessage.recommendedMessageType}
 Push Notification: ${initialMessage.pushNotificationText}
 Full Message: ${initialMessage.fullMessage}
   `;
+
+  const langfuse = new Langfuse();
+  const trace = langfuse?.trace({
+    name: 'coaching-message-optimization',
+    userId,
+    metadata: { route: '/api/coaching/generateCoachingMessage/processor' },
+  });
+  const generation = trace?.generation({
+    name: 'message-optimization',
+    model: 'anthropic/claude-3.5-sonnet',
+    input: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: simulationInput }
+    ],
+    metadata: { provider: 'openrouter' },
+  });
 
   const response = await openrouter.chat.completions.create({
     model: 'anthropic/claude-3.5-sonnet',
@@ -475,10 +519,22 @@ Full Message: ${initialMessage.fullMessage}
     console.log(`✅ [COACHING-PROCESSOR] Message optimization complete. Effectiveness: ${validatedSimulation.overallEffectiveness}/10, Action: ${validatedSimulation.recommendAction}`);
 
     // Return the original message with effectiveness rating attached
-    return {
+    const optimized = {
       ...initialMessage,
       effectivenessRating: validatedSimulation.overallEffectiveness
-    };
+    } as MessageGenerationResponse;
+
+    generation?.end({ output: optimized });
+    trace?.update({
+      input: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: simulationInput }
+      ],
+      output: optimized,
+    });
+    await langfuse.flushAsync();
+
+    return optimized;
 
   } catch (error) {
     console.error('❌ [COACHING-PROCESSOR] Optimization JSON Parse Error Details:');
