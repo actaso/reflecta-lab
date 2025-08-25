@@ -42,11 +42,9 @@ export class CoachingContextBuilder {
     // Get user account data including coaching preferences
     const userProfile = await FirestoreAdminService.getUserAccount(userId);
     
-    // Get recent non-empty journal entries (paginate/lookback to ensure 10 real entries)
-    const recentEntries = await FirestoreAdminService.getRecentNonEmptyJournalEntries(userId, 10);
-    
-    // Get total entry count for coaching strategy
-    const entryCount = await FirestoreAdminService.getUserEntryCount(userId);
+    // Single-pass: get up to 10 non-empty entries and the non-empty count
+    const { entries: recentEntries, nonEmptyCount: entryCount } =
+      await FirestoreAdminService.getNonEmptyEntriesWithCount(userId, 10);
     
     // Build formatted context string for AI prompts
     const formattedContext = this.buildFormattedContext(userProfile, recentEntries, entryCount);

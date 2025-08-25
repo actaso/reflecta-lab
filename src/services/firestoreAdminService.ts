@@ -235,6 +235,117 @@ export class FirestoreAdminService {
   }
 
   /**
+   * Count non-empty entries for a user with paginated lookback to avoid loading all docs.
+   * Note: Firestore cannot filter on "emptiness" server-side; we page and filter client-side.
+   */
+  static async getUserNonEmptyEntryCount(
+    userId: string,
+    pageSize: number = 200,
+    maxLookback: number = 2000
+  ): Promise<number> {
+    if (!this.db) return 0;
+
+    let count = 0;
+    let fetched = 0;
+    let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+
+    try {
+      while (fetched < maxLookback) {
+        let queryRef = this.db
+          .collection(this.JOURNAL_ENTRIES_COLLECTION)
+          .where('uid', '==', userId)
+          .orderBy('timestamp', 'desc')
+          .limit(pageSize);
+
+        if (lastDoc) {
+          queryRef = queryRef.startAfter(lastDoc);
+        }
+
+        const snapshot = await queryRef.get();
+        if (snapshot.empty) break;
+
+        for (const doc of snapshot.docs) {
+          fetched += 1;
+          const data = doc.data();
+          const candidate: Partial<JournalEntry> = {
+            content: data.content,
+            images: data.images || []
+          };
+          if (!this.isEntryEmpty(candidate)) count += 1;
+        }
+
+        lastDoc = snapshot.docs[snapshot.docs.length - 1];
+      }
+
+      return count;
+    } catch (error) {
+      console.error('Error counting non-empty entries:', error);
+      return count;
+    }
+  }
+
+  /**
+   * Single-pass retrieval to get up to desiredCount non-empty entries AND the full non-empty count.
+   * Avoids running two separate paginated scans.
+   */
+  static async getNonEmptyEntriesWithCount(
+    userId: string,
+    desiredCount: number = 10,
+    pageSize: number = 200,
+    maxLookback: number = 2000
+  ): Promise<{ entries: JournalEntry[]; nonEmptyCount: number }> {
+    if (!this.db) return { entries: [], nonEmptyCount: 0 };
+
+    const entries: JournalEntry[] = [];
+    let nonEmptyCount = 0;
+    let fetched = 0;
+    let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+
+    try {
+      while (fetched < maxLookback) {
+        let queryRef = this.db
+          .collection(this.JOURNAL_ENTRIES_COLLECTION)
+          .where('uid', '==', userId)
+          .orderBy('timestamp', 'desc')
+          .limit(pageSize);
+
+        if (lastDoc) queryRef = queryRef.startAfter(lastDoc);
+
+        const snapshot = await queryRef.get();
+        if (snapshot.empty) break;
+
+        for (const doc of snapshot.docs) {
+          fetched += 1;
+          const data = doc.data();
+          const candidate: JournalEntry = {
+            id: doc.id,
+            uid: data.uid,
+            content: data.content,
+            timestamp: data.timestamp?.toDate() || new Date(),
+            lastUpdated: data.lastUpdated?.toDate() || data.updatedAt?.toDate() || new Date(),
+            images: data.images || [],
+            linkedCoachingSessionId: data.linkedCoachingSessionId,
+            linkedCoachingMessageId: data.linkedCoachingMessageId
+          };
+
+          const isEmpty = this.isEntryEmpty(candidate);
+          if (!isEmpty) {
+            nonEmptyCount += 1;
+            if (entries.length < desiredCount) entries.push(candidate);
+          }
+        }
+
+        lastDoc = snapshot.docs[snapshot.docs.length - 1];
+      }
+
+      return { entries, nonEmptyCount };
+    } catch (error) {
+      console.error('Error in getNonEmptyEntriesWithCount:', error);
+      return { entries, nonEmptyCount };
+    }
+  }
+
+  /**
    * Get all users who have coaching messages enabled
    * Used by cron job to determine who to process
    * @deprecated Use getUsersDueForCoachingMessage() for better performance
