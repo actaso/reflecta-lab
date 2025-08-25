@@ -42,8 +42,8 @@ export class CoachingContextBuilder {
     // Get user account data including coaching preferences
     const userProfile = await FirestoreAdminService.getUserAccount(userId);
     
-    // Get recent journal entries
-    const recentEntries = await FirestoreAdminService.getRecentJournalEntries(userId, 10);
+    // Get recent non-empty journal entries (paginate/lookback to ensure 10 real entries)
+    const recentEntries = await FirestoreAdminService.getRecentNonEmptyJournalEntries(userId, 10);
     
     // Get total entry count for coaching strategy
     const entryCount = await FirestoreAdminService.getUserEntryCount(userId);
