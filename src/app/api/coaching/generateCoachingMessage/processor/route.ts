@@ -145,12 +145,13 @@ async function generateAndDeliverCoachingMessage(userId: string): Promise<{
     console.log(`📝 [COACHING-PROCESSOR] Building context for user ${userId}`);
     
     // 1. Build comprehensive user context
-    context = await buildCoachingMessageContext(userId);
+    const { context: builtContext, entryCount } = await buildCoachingMessageContext(userId);
+    context = builtContext;
     
     console.log(`🤖 [COACHING-PROCESSOR] Generating message for user ${userId}`);
     
     // 2. Generate initial coaching message
-    const initialMessage = await generateCoachingMessage(context, userId);
+    const initialMessage = await generateCoachingMessage(context, userId, entryCount);
     console.log(`✅ [COACHING-PROCESSOR] Generated ${initialMessage.recommendedMessageType} message for user ${userId}`);
     
     console.log(`🧠 [COACHING-PROCESSOR] Optimizing message for user ${userId}`);
@@ -268,7 +269,7 @@ async function generateAndDeliverCoachingMessage(userId: string): Promise<{
 /**
  * Build comprehensive context for coaching message generation
  */
-async function buildCoachingMessageContext(userId: string): Promise<string> {
+async function buildCoachingMessageContext(userId: string): Promise<{ context: string; entryCount: number }> {
   const [contextData, insights] = await Promise.all([
     CoachingContextBuilder.buildChatContext(userId),
     FirestoreAdminService.getUserInsights(userId)
@@ -294,7 +295,7 @@ async function buildCoachingMessageContext(userId: string): Promise<string> {
     hour12: true
   })}\n`;
 
-  return context;
+  return { context, entryCount: contextData.entryCount };
 }
 
 /**
@@ -324,7 +325,7 @@ function formatInsightsForContext(insights: userInsight): string {
 /**
  * Generate initial coaching message using LLM
  */
-async function generateCoachingMessage(context: string, userId: string): Promise<MessageGenerationResponse> {
+async function generateCoachingMessage(context: string, userId: string, entryCount: number): Promise<MessageGenerationResponse> {
   const openrouter = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -333,7 +334,10 @@ async function generateCoachingMessage(context: string, userId: string): Promise
     },
   });
 
-  const promptPath = join(process.cwd(), 'src/app/api/coaching/generateCoachingMessage/prompts/message-generation.md');
+  const promptFilename = entryCount < 10
+    ? 'early-user-less-than-10-entries.md'
+    : 'message-generation.md';
+  const promptPath = join(process.cwd(), `src/app/api/coaching/generateCoachingMessage/prompts/${promptFilename}`);
   const systemPrompt = readFileSync(promptPath, 'utf-8');
 
   const langfuse = new Langfuse();
@@ -344,7 +348,7 @@ async function generateCoachingMessage(context: string, userId: string): Promise
   });
   const generation = trace?.generation({
     name: 'message-generation',
-    model: 'anthropic/claude-3.5-sonnet',
+    model: 'anthropic/claude-sonnet-4',
     input: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: context }
@@ -353,7 +357,7 @@ async function generateCoachingMessage(context: string, userId: string): Promise
   });
 
   const response = await openrouter.chat.completions.create({
-    model: 'anthropic/claude-3.5-sonnet',
+    model: 'anthropic/claude-sonnet-4',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: context }
