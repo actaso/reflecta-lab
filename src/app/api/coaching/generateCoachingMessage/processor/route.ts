@@ -24,6 +24,7 @@ import { userInsight } from '@/types/insights';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Langfuse } from 'langfuse';
+import { jsonrepair } from 'jsonrepair';
 
 // Zod schemas for LLM response validation
 const MessageGenerationResponseSchema = z.object({
@@ -55,6 +56,80 @@ const OutcomeSimulationResponseSchema = z.object({
 });
 
 type MessageGenerationResponse = z.infer<typeof MessageGenerationResponseSchema>;
+
+/**
+ * Utilities for safer JSON handling from LLMs
+ */
+function stripCodeFences(text: string): string {
+  // Remove ```json ... ``` or ``` ... ``` fences if present
+  const fencedBlockMatch = text.match(/```(?:json)?\n([\s\S]*?)```/i);
+  if (fencedBlockMatch && fencedBlockMatch[1]) {
+    return fencedBlockMatch[1].trim();
+  }
+  return text.trim();
+}
+
+function normalizeSmartQuotes(text: string): string {
+  // Replace various smart quotes with straight quotes
+  return text
+    .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'");
+}
+
+function tryParseJsonOrRepair(raw: string): unknown {
+  const candidate = normalizeSmartQuotes(stripCodeFences(raw));
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    // Try to repair common JSON issues (unescaped quotes, trailing commas, etc.)
+    const repaired = jsonrepair(candidate);
+    return JSON.parse(repaired);
+  }
+}
+
+function extractLikelyJson(text: string): string | null {
+  // Prefer fenced JSON blocks first
+  const fenced = text.match(/```json\n([\s\S]*?)```/i) || text.match(/```\n([\s\S]*?)```/i);
+  if (fenced && fenced[1]) {
+    return fenced[1].trim();
+  }
+
+  // Fallback: attempt to extract first balanced JSON object
+  const source = text.trim();
+  let inString = false;
+  let isEscaped = false;
+  let depth = 0;
+  let startIndex = -1;
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+    if (inString) {
+      if (isEscaped) {
+        isEscaped = false;
+      } else if (ch === '\\') {
+        isEscaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') {
+      if (depth === 0) startIndex = i;
+      depth++;
+      continue;
+    }
+    if (ch === '}') {
+      if (depth > 0) depth--;
+      if (depth === 0 && startIndex !== -1) {
+        return source.substring(startIndex, i + 1);
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * Process coaching message for individual user
@@ -363,7 +438,7 @@ async function generateCoachingMessage(context: string, userId: string, entryCou
       { role: 'user', content: context }
     ],
     temperature: 0.7,
-    max_tokens: 1000,
+    max_tokens: 1500,
   });
 
   const content = response.choices[0]?.message?.content;
@@ -371,31 +446,16 @@ async function generateCoachingMessage(context: string, userId: string, entryCou
     throw new Error('No response from message generation LLM');
   }
 
-  // Extract JSON from response
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  // Extract JSON from response using robust extractor
+  const rawJson = extractLikelyJson(content);
+  if (!rawJson) {
     console.error('❌ [COACHING-PROCESSOR] No JSON found in LLM response. Full content:', content);
     throw new Error('Invalid response format from message generation LLM - no JSON found');
   }
-
-  const rawJson = jsonMatch[0];
   console.log('🔍 [COACHING-PROCESSOR] Raw JSON extracted:', rawJson.substring(0, 200) + '...');
 
   try {
-    // Clean up common JSON issues from LLM responses
-    const cleanedJson = rawJson
-      .replace(/[\u0000-\u001f\u007f-\u009f]/g, '') // Remove control characters
-      .replace(/\n/g, '\\n') // Escape newlines
-      .replace(/\r/g, '\\r') // Escape carriage returns
-      .replace(/\t/g, '\\t') // Escape tabs
-      .replace(/\\/g, '\\\\') // Escape backslashes (but not already escaped ones)
-      .replace(/\\\\n/g, '\\n') // Fix double-escaped newlines
-      .replace(/\\\\r/g, '\\r') // Fix double-escaped carriage returns
-      .replace(/\\\\t/g, '\\t'); // Fix double-escaped tabs
-
-    console.log('🧹 [COACHING-PROCESSOR] Cleaned JSON:', cleanedJson.substring(0, 200) + '...');
-
-    const parsedResponse = JSON.parse(cleanedJson);
+    const parsedResponse = tryParseJsonOrRepair(rawJson);
     const validated = MessageGenerationResponseSchema.parse(parsedResponse);
     generation?.end({ output: validated });
     trace?.update({
@@ -413,13 +473,42 @@ async function generateCoachingMessage(context: string, userId: string, entryCou
     console.error('  Error:', error);
     console.error('  Error position:', error instanceof SyntaxError ? (error as SyntaxError & { position?: number }).position : 'unknown');
     
-    if (error instanceof SyntaxError) {
-      const position = (error as SyntaxError & { position?: number }).position || 0;
-      const around = rawJson.substring(Math.max(0, position - 50), position + 50);
-      console.error('  Context around error:', around);
+    // Retry once with stricter JSON instructions
+    try {
+      console.warn('↩️ [COACHING-PROCESSOR] Retrying generation with strict JSON-only instructions...');
+      const strictSystem = systemPrompt + '\n\nIMPORTANT: Output ONLY a compact valid JSON object. Do not include any analysis text or code fences.';
+      const retryResponse = await openrouter.chat.completions.create({
+        model: 'anthropic/claude-sonnet-4',
+        messages: [
+          { role: 'system', content: strictSystem },
+          { role: 'user', content: context }
+        ],
+        temperature: 0.4,
+        max_tokens: 1500,
+      });
+      const retryContent = retryResponse.choices[0]?.message?.content || '';
+      const retryRaw = extractLikelyJson(retryContent) ?? retryContent;
+      console.log('🔁 [COACHING-PROCESSOR] Retry raw:', (retryRaw || '').substring(0, 200) + '...');
+      const retryParsed = tryParseJsonOrRepair(retryRaw);
+      const retryValidated = MessageGenerationResponseSchema.parse(retryParsed);
+      generation?.end({ output: retryValidated });
+      trace?.update({
+        input: [
+          { role: 'system', content: strictSystem },
+          { role: 'user', content: context }
+        ],
+        output: retryValidated,
+      });
+      await langfuse.flushAsync();
+      return retryValidated;
+    } catch (retryError) {
+      if (retryError instanceof Error) {
+        console.error('❌ [COACHING-PROCESSOR] Retry parse/validate failed:', retryError.message);
+      } else {
+        console.error('❌ [COACHING-PROCESSOR] Retry parse/validate failed:', retryError);
+      }
+      throw new Error(`Failed to parse message generation response: ${error}. Check logs for details.`);
     }
-    
-    throw new Error(`Failed to parse message generation response: ${error}. Check logs for details.`);
   }
 }
 
@@ -460,7 +549,7 @@ Full Message: ${initialMessage.fullMessage}
   });
   const generation = trace?.generation({
     name: 'message-optimization',
-    model: 'anthropic/claude-3.5-sonnet',
+    model: 'anthropic/claude-sonnet-4',
     input: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: simulationInput }
@@ -469,13 +558,13 @@ Full Message: ${initialMessage.fullMessage}
   });
 
   const response = await openrouter.chat.completions.create({
-    model: 'anthropic/claude-3.5-sonnet',
+    model: 'anthropic/claude-sonnet-4',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: simulationInput }
     ],
     temperature: 0.3,
-    max_tokens: 800,
+    max_tokens: 1500,
   });
 
   const content = response.choices[0]?.message?.content;
@@ -483,31 +572,16 @@ Full Message: ${initialMessage.fullMessage}
     throw new Error('No response from outcome simulation LLM');
   }
 
-  // Extract JSON from response
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  // Extract JSON from response using robust extractor
+  const rawJson = extractLikelyJson(content);
+  if (!rawJson) {
     console.error('❌ [COACHING-PROCESSOR] No JSON found in optimization LLM response. Full content:', content);
     throw new Error('Invalid response format from outcome simulation LLM - no JSON found');
   }
-
-  const rawJson = jsonMatch[0];
   console.log('🔍 [COACHING-PROCESSOR] Raw optimization JSON extracted:', rawJson.substring(0, 200) + '...');
 
   try {
-    // Clean up common JSON issues from LLM responses
-    const cleanedJson = rawJson
-      .replace(/[\u0000-\u001f\u007f-\u009f]/g, '') // Remove control characters
-      .replace(/\n/g, '\\n') // Escape newlines
-      .replace(/\r/g, '\\r') // Escape carriage returns
-      .replace(/\t/g, '\\t') // Escape tabs
-      .replace(/\\/g, '\\\\') // Escape backslashes (but not already escaped ones)
-      .replace(/\\\\n/g, '\\n') // Fix double-escaped newlines
-      .replace(/\\\\r/g, '\\r') // Fix double-escaped carriage returns
-      .replace(/\\\\t/g, '\\t'); // Fix double-escaped tabs
-
-    console.log('🧹 [COACHING-PROCESSOR] Cleaned optimization JSON:', cleanedJson.substring(0, 200) + '...');
-
-    const simulation = JSON.parse(cleanedJson);
+    const simulation = tryParseJsonOrRepair(rawJson);
     const validatedSimulation = OutcomeSimulationResponseSchema.parse(simulation);
 
     // If the message should be skipped, throw an error
@@ -551,8 +625,52 @@ Full Message: ${initialMessage.fullMessage}
       const around = rawJson.substring(Math.max(0, position - 50), position + 50);
       console.error('  Context around error:', around);
     }
-    
-    throw new Error(`Failed to parse outcome simulation response: ${error}. Check logs for details.`);
+    // Retry once with stricter JSON-only instructions
+    try {
+      console.warn('↩️ [COACHING-PROCESSOR] Retrying optimization with strict JSON-only instructions...');
+      const strictSystem = systemPrompt + '\n\nIMPORTANT: Output ONLY a compact valid JSON object. Do not include any analysis text or code fences.';
+      const retryResponse = await openrouter.chat.completions.create({
+        model: 'anthropic/claude-sonnet-4',
+        messages: [
+          { role: 'system', content: strictSystem },
+          { role: 'user', content: simulationInput }
+        ],
+        temperature: 0.2,
+        max_tokens: 1500,
+      });
+      const retryContent = retryResponse.choices[0]?.message?.content || '';
+      const retryRaw = extractLikelyJson(retryContent) ?? retryContent;
+      console.log('🔁 [COACHING-PROCESSOR] Optimization retry raw:', (retryRaw || '').substring(0, 200) + '...');
+      const retryParsed = tryParseJsonOrRepair(retryRaw);
+      const retryValidated = OutcomeSimulationResponseSchema.parse(retryParsed);
+      if (retryValidated.recommendAction === 'SKIP_MESSAGE') {
+        throw new Error('Message should be skipped based on outcome simulation');
+      }
+      if (retryValidated.overallEffectiveness < 6) {
+        throw new Error(`Message effectiveness too low: ${retryValidated.overallEffectiveness}/10`);
+      }
+      const optimized = {
+        ...initialMessage,
+        effectivenessRating: retryValidated.overallEffectiveness
+      } as MessageGenerationResponse;
+      generation?.end({ output: optimized });
+      trace?.update({
+        input: [
+          { role: 'system', content: strictSystem },
+          { role: 'user', content: simulationInput }
+        ],
+        output: optimized,
+      });
+      await langfuse.flushAsync();
+      return optimized;
+    } catch (retryError) {
+      if (retryError instanceof Error) {
+        console.error('❌ [COACHING-PROCESSOR] Optimization retry parse/validate failed:', retryError.message);
+      } else {
+        console.error('❌ [COACHING-PROCESSOR] Optimization retry parse/validate failed:', retryError);
+      }
+      throw new Error(`Failed to parse outcome simulation response: ${error}. Check logs for details.`);
+    }
   }
 }
 
