@@ -31,9 +31,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { waitUntil } from '@vercel/functions';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { jsonrepair } from 'jsonrepair';
+import { Langfuse } from 'langfuse';
 
 // Import types and utilities
 import {
@@ -201,19 +203,45 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Initialize Langfuse client
+    const langfuse = new Langfuse();
+
     // Generate analysis prompt with existing commitments context
     const analysisPrompt = generateAnalysisPrompt(
       validatedRequest.conversationHistory, 
       existingCommitments
     );
 
+    const messages = [
+      { role: 'system' as const, content: getSystemPrompt() },
+      { role: 'user' as const, content: analysisPrompt }
+    ];
+
+    // Create Langfuse trace & generation (if configured)
+    const trace = langfuse?.trace({
+      name: 'commitment-detection',
+      userId,
+      sessionId: validatedRequest.sessionId,
+      metadata: {
+        route: '/api/coaching/commitments',
+        existingCommitmentsCount: existingCommitments.length,
+      },
+    });
+
+    const generation = trace?.generation({
+      name: 'commitment-analysis',
+      model: 'anthropic/claude-3.5-haiku',
+      input: messages,
+      metadata: {
+        provider: 'openrouter',
+        streaming: false,
+      },
+    });
+
     // Call cost-efficient model for detection
     const response = await openrouter.chat.completions.create({
       model: 'anthropic/claude-3.5-haiku', // Cost-efficient model
-      messages: [
-        { role: 'system', content: getSystemPrompt() },
-        { role: 'user', content: analysisPrompt }
-      ],
+      messages,
       temperature: 0.2, // Low temperature for consistent detection
       max_tokens: 800, // Sufficient for structured response
     });
@@ -229,6 +257,18 @@ export async function POST(request: NextRequest) {
       const parsedResponse = tryParseJsonOrRepair(aiResponse);
       const transformedResponse = transformLLMResponse(parsedResponse as Record<string, unknown>);
       detectionResult = CommitmentDetectionResponseSchema.parse(transformedResponse);
+      
+      // End Langfuse generation & trace, flush in background
+      generation?.end({
+        output: detectionResult,
+      });
+
+      trace?.update({
+        input: messages,
+        output: detectionResult,
+      });
+
+      waitUntil(langfuse.flushAsync());
       
       // If commitment detected, save immediately to Firestore
       if (detectionResult.commitmentDetected && detectionResult.commitment) {
@@ -256,6 +296,18 @@ export async function POST(request: NextRequest) {
     } catch (parseError) {
       console.error('Failed to parse commitment detection response:', parseError);
       console.error('Raw AI response:', aiResponse);
+      
+      // End Langfuse generation with error, flush in background
+      generation?.end({
+        output: { error: 'Parsing failed', rawResponse: aiResponse },
+      });
+
+      trace?.update({
+        input: messages,
+        output: { error: 'Parsing failed' },
+      });
+
+      waitUntil(langfuse.flushAsync());
       
       // Fallback response
       return NextResponse.json({
