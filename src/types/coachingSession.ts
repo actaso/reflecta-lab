@@ -14,6 +14,9 @@ export type CoachingSessionMessage = {
  * Coaching session document stored in Firestore
  * Collection: 'coachingSessions'
  * Document ID: sessionId (provided by client)
+ * 
+ * Note: Commitments are stored separately in 'commitments' collection
+ * and linked via coachingSessionId field
  */
 export type CoachingSession = {
   id: string; // Same as document ID

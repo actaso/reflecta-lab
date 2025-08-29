@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import CoachingHeader from './CoachingHeader';
 import CoachingInput from './CoachingInput';
 import CoachingMessage from './CoachingMessage';
+import CommitmentSimulator from './CommitmentSimulator';
 import confetti from 'canvas-confetti';
 import { CoachingSession as CoachingSessionType } from '@/types/coachingSession';
 
@@ -490,6 +491,13 @@ export default function CoachingSession() {
         onInputChange={setInput}
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
+        commitmentCard={
+          <CommitmentSimulator 
+            conversationHistory={sessionData.messages}
+            sessionId={sessionData.sessionId}
+            isCoachLoading={isLoading}
+          />
+        }
       />
     </div>
   );
